@@ -1,0 +1,132 @@
+"""
+data reader for the lung.vtk
+given a file path, the reader will return a dict
+{"points":Nx3, "pointfea": NxFeaDim, "weights":Nx1, "type":"pointcloud"}
+"""
+from random import Random
+from shapmagn.datasets.vtk_utils import read_vtk
+import numpy as np
+from pykeops.torch.cluster import grid_cluster
+import torch
+from torch_scatter import scatter
+
+"""
+attri points with size (73412, 3)
+attri scale with size (73412,)
+attri hevec1 with size (73412, 3)
+attri hevec0 with size (73412, 3)
+attri val with size (73412,)
+attri hevec2 with size (73412, 3)
+attri h0 with size (73412,)
+attri h1 with size (73412,)
+attri h2 with size (73412,)
+attri hess with size (73412, 9)
+attri hmode with size (73412,)
+attri ChestRegionChestType with size (73412,)
+attri dnn_radius with size (73412,)
+"""
+
+def lung_reader():
+    """
+    :return:
+    """
+    reader = read_vtk
+    fea_to_merge = ['points', 'scale']
+    exp_dim_fn = lambda x: x[:,None] if len(x.shape) == 1 else x
+    def read(file_info):
+        path = file_info["data_path"]
+        raw_data_dict = reader(path)
+        data_dict = {}
+        data_dict["points"] = raw_data_dict["points"]
+        data_dict["weights"] = raw_data_dict["scale"][:,None]
+        fea_list = [exp_dim_fn(raw_data_dict[fea_name]) for fea_name in fea_to_merge]
+        data_dict["pointfea"] = np.concatenate(fea_list,1)
+        return data_dict
+    return read
+
+
+
+def lung_sampler(num_sample=-1, method="uniform", **args):
+    """
+
+    :param num_sample: num of points after sampling
+    :param method: 'uniform' / 'voxelgrid'
+    :param args:
+    :return:
+    """
+    local_rand = Random(0)
+    def uniform_sample(data_dict):
+        points = data_dict["points"]
+        weights = data_dict["weights"]
+        pointfea = data_dict["pointfea"]
+        npoints = points.shape[0]
+        ind = list(range(npoints))
+        local_rand.shuffle(ind)
+        ind = ind[: num_sample]
+        # continuous in spatial
+        ind.sort()
+        data_dict["points"] = points[ind]
+        data_dict["weights"] = weights[ind]
+        data_dict["pointfea"] = pointfea[ind]
+        return data_dict
+
+    def voxelgrid_sample(data_dict):
+        scale = args["scale"]
+        points = torch.Tensor(data_dict["points"])
+        weights = torch.Tensor(data_dict["weights"])
+        pointfea = torch.Tensor(data_dict["pointfea"])
+        index = grid_cluster(points, scale).long()
+        points = scatter(points * weights, index, dim=0)
+        weights = scatter(weights, index, dim=0)
+        points = points / weights
+        # here we assume the pointfea is summable
+        pointfea = scatter(pointfea, index, dim=0)
+        pointfea = pointfea / weights
+        # otherwise random sample one from each voxel grid
+        # todo complete random sample code by unique sampling from index
+        data_dict["points"] = points.numpy()
+        data_dict["weights"] = weights.numpy()
+        data_dict["pointfea"] = pointfea.numpy()
+        return data_dict
+
+    assert method in ["uniform", "voxelgrid"], "Not in supported sampler: 'uniform' / 'voxelgrid'"
+    sampler = uniform_sample if method == "uniform" else voxelgrid_sample
+    def sample(data_dict):
+        return sampler(data_dict)
+    return sample
+
+
+def lung_normalizer(**args):
+    """
+    (points-shift)/scale
+    :param normalize_coord: bool, normalize coord according to given scale and shift
+    :param args: a dict include "scale" : [scale_x,scale_y,scale_z]: , "shift":[shift_x. shift_y, shift_z]
+    :return:
+    """
+    scale = np.array(args['scale'])[None]
+    shift = np.array(args['shift'])[None]
+    def normalize(data_dict):
+        points = data_dict["points"]
+        weights = data_dict["weights"]
+        data_dict["points"] = (points-shift)/scale
+        data_dict["weights"] = weights/weights.sum()
+        return data_dict
+    return normalize
+
+
+
+if __name__ == "__main__":
+    from shapmagn.utils.obj_factory import obj_factory
+    reader_obj = "lung_utils.lung_reader()"
+    #sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='uniform')"
+    sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='voxelgrid',scale=5)"
+    normalizer_obj = "lung_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])"
+    reader = obj_factory(reader_obj)
+    sampler = obj_factory(sampler_obj)
+    normalizer = obj_factory(normalizer_obj)
+    file_path = "/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+    file_info = {"name":file_path,"data_path":file_path}
+    raw_data_dict  = reader(file_info)
+    sampled_data_dict = sampler(raw_data_dict)
+    normalized_data_dict = normalizer(sampled_data_dict)
+

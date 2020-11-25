@@ -196,10 +196,10 @@ class ToTensor(object):
 if __name__ == "__main__":
     from shapmagn.utils.module_parameters import ParameterDict
     data_path = "/playpen-raid1/zyshen/data/lung_pointcloud/debugging"
-    reader_obj = "lung_utils.lung_reader()"
-    sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='uniform')"
-    # sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='voxelgrid',scale=5)"
-    normalizer_obj = "lung_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])"
+    reader_obj = "lung_dataset_utils.lung_reader()"
+    sampler_obj = "lung_dataset_utils.lung_sampler(num_sample=1000, method='uniform')"
+    # sampler_obj = "lung_dataset_utils.lung_sampler(num_sample=1000, method='voxelgrid',scale=5)"
+    normalizer_obj = "lung_dataset_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])"
     data_opt = ParameterDict()
     data_opt["reader"] = reader_obj
     data_opt["sampler"] = sampler_obj

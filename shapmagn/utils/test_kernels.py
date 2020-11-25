@@ -18,11 +18,13 @@ class Test_Kernels(unittest.TestCase):
         N = 1000
         K = 800
         D = 3
-        self.x = torch.rand(B,N,D,requires_grad=True)
-        self.y = torch.rand(B,K,D,requires_grad=True)
-        self.px = torch.rand(B,N,D,requires_grad=True)
-        self.py = torch.rand(B,K,D,requires_grad=True)
-        self.b = torch.rand(B,K,D,requires_grad=True)
+        device = torch.device("cuda:0") # cuda:0, cpu
+        #device = torch.device("cpu") # cuda:0, cpu
+        self.x = torch.rand(B,N,D,requires_grad=True, device=device)
+        self.y = torch.rand(B,K,D,requires_grad=True, device=device)
+        self.px = torch.rand(B,N,D,requires_grad=True, device=device)
+        self.py = torch.rand(B,K,D,requires_grad=True, device=device)
+        self.b = torch.rand(B,K,D,requires_grad=True, device=device)
 
 
     def tearDown(self):

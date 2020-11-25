@@ -1,6 +1,4 @@
-""" run learning task
-
-This script provides all learning and evluation requirements for deepfake detection task.
+""" run shape registration
 
 """
 

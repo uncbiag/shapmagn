@@ -14,17 +14,27 @@ class LDDMMHamilton(nn.Module):
         self.opt = opt
         kernel = opt[("kernel","torch_kernel.TorchKernel('gauss',0.1)","kernel object")]
         self.kernel = obj_factory(kernel)
+        self.mode = "evolve"
 
-    def hamiltonian(self,mom, pos):
+    def hamiltonian(self,mom, control_points):
         # todo check, the omitted 1/2 is consistant with variational version
-        return (mom * self.kernel(pos, pos, mom)).sum()
-    def hamiltonian_evolve(self,mom, pos):
-        grad_mom, grad_pos = grad(self.hamiltonian(mom, pos), (mom, pos), create_graph=True)
-        return -grad_pos, grad_mom
+        return (mom * self.kernel(control_points, control_points, mom)).sum()
+    def hamiltonian_evolve(self,mom, control_points):
+        grad_mom, grad_control = grad(self.hamiltonian(mom, control_points), (mom, control_points), create_graph=True)
+        return -grad_control, grad_mom
 
-    def forward(self,mom, pos):
-        return self.hamiltonian_evolve(mom,pos)
+    def flow(self, mom, control_points, flow_points):
+        return (self.kernel(flow_points,control_points,mom),) + self.hamiltonian_evolve(mom, control_points)
 
+    def set_mode(self, mode):
+        assert mode in ['shooting','flow']
+        self.mode = mode
+
+    def forward(self, t, input):
+        if self.mode == "shooting":
+            return self.hamiltonian_evolve(*input)
+        else:
+            return self.flow(*input)
 
 
 ###################  variational view of LDDMM ######################
@@ -36,13 +46,25 @@ class LDDMMVariational(nn.Module):
         self.opt = opt
         kernel = opt[("kernel", "torch_kernel.TorchKernel('gauss',0.1)", "kernel object")]
         self.kernel = obj_factory(kernel)
-        grad_kernel = opt[("kernel", "torch_kernel.TorchKernel('gauss_grad',0.1)", "kernel object")]
+        grad_kernel = opt[("grad_kernel", "torch_kernel.TorchKernel('gauss_grad',0.1)", "kernel object")]
         self.grad_kernel = obj_factory(grad_kernel)
+        self.mode = "evolve"
 
-    def variational_evolve(self,mom, pos):
-        return -self.grad_kernel(mom, pos), self.kernel(pos, pos, mom)
+    def variational_evolve(self,mom, control_points):
+        return -self.grad_kernel(mom, control_points), self.kernel(control_points, control_points, mom)
 
-    def forward(self, mom, pos):
-        return self.variational_evolve(mom, pos)
+    def variational_flow(self, mom, control_points, flow_points):
+        return (self.kernel(flow_points,control_points,mom),) + self.variational_evolve(mom, control_points)
 
+
+    def set_mode(self, mode):
+        assert mode in ['shooting','flow']
+        self.mode = mode
+
+
+    def forward(self,t, input):
+        if self.mode == "shooting":
+            return self.variational_evolve(*input)
+        else:
+            return self.variational_flow(*input)
 

@@ -3,7 +3,6 @@ import torch.nn as nn
 from shapmagn.modules.lddmm_module import LDDMMHamilton, LDDMMVariational
 from shapmagn.modules.ode_int import ODEBlock
 from shapmagn.global_variable import Shape
-from shapmagn.shape.shape_pair import ShapePair
 
 class LDDMMOPT(nn.Module):
     def __init__(self, opt):

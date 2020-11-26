@@ -3,11 +3,12 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-import torch.optim.lr_scheduler as lr_scheduler
 from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
 from shapmagn.utils.net_utils import print_model
 from shapmagn.metrics.losses import Loss
+from shapmagn.modules.optimizer import build_optimizer
+from shapmagn.modules.scheduler import build_scheduler
 
 
 class OptModel(ModelBase):
@@ -29,7 +30,8 @@ class OptModel(ModelBase):
         """create a model with given method"""
         self.criticUpdates = opt['criticUpdates']
         loss_name = opt['loss_name']
-        loss_fn = Loss(opt)
+        loss_opt = opt[("loss",{},"settings for loss")]
+        loss_fn = Loss(loss_opt)
         self._model.set_loss_fn(loss_fn)
         if gpus and len(gpus) >= 1:
             self._model = nn.DataParallel(self._model, gpus)
@@ -65,36 +67,15 @@ class OptModel(ModelBase):
 
     def set_input(self, input_data, device, is_train=True):
         """
-
         :param input_data:
         :param is_train:
         :return:
         """
-        self.batch_info = {"fname_list":input_data["fname"],
-                           "fpath_list":input_data["fpath"],
-                           "seg_path_list":input_data["seg_path"],
-                           "lms_path_list":input_data["lms_path"],
-                           "frame_index_list":input_data["frame_index"]}
-        if self.opt["dataset"]["name"]=="2p5d":
-            include_lms = self.opt['dataset']['2p5d']['include_lms']
-            if self.is_train:
-                frames, labels, lms_maps = input_data["frames"], input_data["labels"],input_data["lms_maps"]
-                frames = frames.view([-1, frames.shape[-4],frames.shape[-3],frames.shape[-2],frames.shape[-1]]) # batch, len(frame_index)=1,frame_window_sz, 3,height,width
-                lms_maps = lms_maps.view([-1, lms_maps.shape[-4],lms_maps.shape[-3],lms_maps.shape[-2],lms_maps.shape[-1]]) # batch, len(frame_index)=1,frame_window_sz, 3,height,width
-                if include_lms:
-                    frames = torch.cat([frames,lms_maps],2)
-                return frames.to(device), labels.to(device)
-            else:
-                vids, lms_maps = input_data["frames"], input_data["lms_maps"]
-                labels = None if "labels" not in input_data else input_data["labels"]
-                if include_lms:
-                    vids = torch.cat([vids,lms_maps],3)
-                vid_list = [vid.to(device) for vid in vids]  # list of len(frame_index), frame_window_sz, 3, height, width
-                label_list = [l.view(l.shape[0],1).to(device) for l in labels] if labels is not None else None
-                return vid_list, label_list
-
-
-        return input_data
+        self.batch_info = {"pair_name":input_data["pair_name"],
+                           "source_info":input_data["source_info"],
+                           "target_info":input_data["target_info"]}
+        source, target = input_data["source"], input_data["target"]
+        return source, target
 
     def init_optimize_instance(self, warmming_up=False):
         """ get optimizer and scheduler instance"""

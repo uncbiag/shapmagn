@@ -97,11 +97,10 @@ class Loss():
 
     def __init__(self, opt):
         from shapmagn.global_variable import LOSS_POOL
-        loss_opt = opt[('loss', {}, "settings for general loss")]
-        loss_name_list = loss_opt[("loss_list",['geomloss'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
-        self.loss_weight_strategy_list = loss_opt[("loss_weight_strategy_list",{'l2':'const'}, "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
-        self.loss_activate_epoch_list = loss_opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]
-        self.loss_fn_list = [LOSS_POOL[name][loss_opt] for name in loss_name_list ]
+        loss_name_list = opt[("loss_list",['geomloss'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
+        self.loss_weight_strategy_list = opt[("loss_weight_strategy_list",{'l2':'const'}, "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
+        self.loss_activate_epoch_list = opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]
+        self.loss_fn_list = [LOSS_POOL[name][opt] for name in loss_name_list ]
 
     def update_weight(self, epoch):
         if len(self.loss_weight_strategy_list)==0:

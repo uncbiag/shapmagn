@@ -9,6 +9,7 @@ import numpy as np
 from pykeops.torch.cluster import grid_cluster
 import torch
 from torch_scatter import scatter
+from shapmagn.utils.sampler import grid_sampler, uniform_sampler
 
 """
 attri points with size (73412, 3)
@@ -59,13 +60,8 @@ def lung_sampler(num_sample=-1, method="uniform", **args):
         points = data_dict["points"]
         weights = data_dict["weights"]
         pointfea = data_dict["pointfea"]
-        npoints = points.shape[0]
-        ind = list(range(npoints))
-        local_rand.shuffle(ind)
-        ind = ind[: num_sample]
-        # continuous in spatial
-        ind.sort()
-        data_dict["points"] = points[ind]
+        sampler= uniform_sampler(num_sample, local_rand)
+        sampled_points, ind = sampler(points)
         data_dict["weights"] = weights[ind]
         data_dict["pointfea"] = pointfea[ind]
         return data_dict
@@ -75,9 +71,8 @@ def lung_sampler(num_sample=-1, method="uniform", **args):
         points = torch.Tensor(data_dict["points"])
         weights = torch.Tensor(data_dict["weights"])
         pointfea = torch.Tensor(data_dict["pointfea"])
-        index = grid_cluster(points, scale).long()
-        points = scatter(points * weights, index, dim=0)
-        weights = scatter(weights, index, dim=0)
+        sampler = grid_sampler(scale)
+        points, weights, index = sampler(points,weights)
         points = points / weights
         # here we assume the pointfea is summable
         pointfea = scatter(pointfea, index, dim=0)
@@ -117,10 +112,10 @@ def lung_normalizer(**args):
 
 if __name__ == "__main__":
     from shapmagn.utils.obj_factory import obj_factory
-    reader_obj = "lung_utils.lung_reader()"
+    reader_obj = "lung_dataset_utils.lung_reader()"
     #sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='uniform')"
-    sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='voxelgrid',scale=5)"
-    normalizer_obj = "lung_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])"
+    sampler_obj = "lung_dataset_utils.lung_sampler(num_sample=1000, method='voxelgrid',scale=5)"
+    normalizer_obj = "lung_dataset_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])"
     reader = obj_factory(reader_obj)
     sampler = obj_factory(sampler_obj)
     normalizer = obj_factory(normalizer_obj)

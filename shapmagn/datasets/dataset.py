@@ -176,7 +176,7 @@ class RegistrationDataset(Dataset):
 
         if self.transform:
             source_dict = {key:self.transform(fea) for key,fea in source_dict.items()}
-            source_dict = {key:self.transform(fea) for key,fea in source_dict.items()}
+            target_dict = {key:self.transform(fea) for key,fea in target_dict.items()}
 
         sample = {"source": source_dict, "target":target_dict,
                    "pair_name":pair_name,

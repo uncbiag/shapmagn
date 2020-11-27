@@ -1,6 +1,6 @@
-from shapmagn.pipeline.create_model import create_model
+from shapmagn.pipeline.build_model import build_model
 from shapmagn.pipeline.train_model import train_model
-from shapmagn.pipeline.test_model import test_model
+from shapmagn.pipeline.test_model import eval_model
 from shapmagn.pipeline.initializer import Initializer
 
 
@@ -22,9 +22,9 @@ class Pipline():
         self.tsk_opt = initializer.init_task_option(task_setting_pth)
         self.writer = initializer.initialize_log_env()
         self.tsk_opt = initializer.get_task_option()
-        self.data_loaders = initializer.get_data_loader()
+        self.data_loaders = initializer.build_data_loader()
         self.device, self.gpus = initializer.initialize_compute_env()
-        self.model = create_model(self.tsk_opt,self.device, self.gpus)
+        self.model = build_model(self.tsk_opt,self.device, self.gpus)
 
     def clean_up(self):
         """
@@ -44,7 +44,7 @@ class Pipline():
             train_model(self.tsk_opt, self.model, self.data_loaders,self.writer, self.device)
 
         else:
-            test_model(self.tsk_opt, self.model, self.data_loaders, self.device)
+            eval_model(self.tsk_opt, self.model, self.data_loaders, self.device)
         saving_comment_path = self.task_setting_pth.replace('.json','_comment.json')
         self.tsk_opt.write_JSON_comments(saving_comment_path)
 

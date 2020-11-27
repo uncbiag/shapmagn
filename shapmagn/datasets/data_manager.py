@@ -51,9 +51,9 @@ class DataManager(object):
 
 
 
-    def data_loaders(self, batch_size=20,is_train=True):
+    def build_data_loaders(self, batch_size=20,is_train=True):
         """
-        get the data_loaders for the train phase and the test phase
+        build the data_loaders for the train phase and the test phase
         :param batch_size: the batch size for each iteration
         :param is_train: in train mode or not
         :return: dict of dataloaders for train phase or the test phase

@@ -4,29 +4,24 @@ import os
 import numpy as np
 
 
-def test_model(opt,model, dataloaders, device):
+
+def eval_model(opt,model,dataloaders,device, task_name=""):
     model_path = opt['tsk_set']['path']['model_load_path']
-    __test_model(opt,model, dataloaders,model_path,device)
-
-
-
-
-def __test_model(opt,model,dataloaders, model_path,device, task_name=''):
     since = time()
     record_path = opt['tsk_set']['path']['record_path']
     running_range=opt['tsk_set'][('running_range',[-1],"max running number, set -1 if not limited")]  # todo should be [-1]
     visual_opt = opt['tsk_set'][('visual', {}, "settings for visualziation")]
     save_visual_results = visual_opt[
-        ('save_visual_results', False, 'save the visualizatio results during the evalution')]
+        ('save_visual_results', False, 'save the visualizatio results during the evaluation')]
     running_part_data = running_range[0]>=0
     if running_part_data:
         print("running part of the test data from range {}".format(running_range))
     phases = ['val','test']
     if len(model_path):
-        #todo  check the model loading in data parallel
+        #todo  check  model loading for data parallel
         get_test_model(model_path, model.network,  model.optimizer)
     else:
-        print("Warning, the model is not manual loaded, make sure your model itself has been inited")
+        print("Warning, the model is not manual loaded, make sure your model itself has been initialized")
 
     model.set_cur_epoch(-1)
     for phase in phases:

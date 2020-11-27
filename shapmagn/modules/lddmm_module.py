@@ -14,7 +14,7 @@ class LDDMMHamilton(nn.Module):
         self.opt = opt
         kernel = opt[("kernel","torch_kernel.TorchKernel('gauss',0.1)","kernel object")]
         self.kernel = obj_factory(kernel)
-        self.mode = "evolve"
+        self.mode = "shooting"
 
     def hamiltonian(self,mom, control_points):
         # todo check, the omitted 1/2 is consistant with variational version
@@ -48,7 +48,7 @@ class LDDMMVariational(nn.Module):
         self.kernel = obj_factory(kernel)
         grad_kernel = opt[("grad_kernel", "torch_kernel.TorchKernel('gauss_grad',0.1)", "kernel object")]
         self.grad_kernel = obj_factory(grad_kernel)
-        self.mode = "evolve"
+        self.mode = "shooting"
 
     def variational_evolve(self,mom, control_points):
         return -self.grad_kernel(mom, control_points), self.kernel(control_points, control_points, mom)

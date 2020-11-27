@@ -1,6 +1,6 @@
 import torch.optim.lr_scheduler as lr_scheduler
 
-def build_scheduler(opt):
+def scheduler_builder(opt):
     def init_step_lr(opt):
         step_size = opt['step_lr'][('step_size', 50, "update the learning rate every # epoch")]
         gamma = opt['step_lr'][('gamma', 0.5, "the factor for updateing the learning rate")]
@@ -31,3 +31,24 @@ def build_scheduler(opt):
     init_scheduler_dict = {"step_lr": init_step_lr, "plateau": init_plateau}
     init_scheduler = init_scheduler_dict[scheduler_type](opt)
     return init_scheduler
+
+
+
+def set_warmming_up(optimizer, scheduler, opt, warmming_up=True):
+    """
+    warmming up the training
+    for optimization tasks, this function is disabled
+    :param optimizer:
+    :param scheduler:
+    :param warmming_up:
+    :return:
+    """
+    lr = opt[('lr', 0.001, 'learning rate')]
+    if not warmming_up:
+        print(" no warming up the learning rate is {}".format(lr))
+    else:
+        lr = opt['lr']/10
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+        scheduler.base_lrs = [lr]
+    print(" warming up on the learning rate is {}".format(lr))

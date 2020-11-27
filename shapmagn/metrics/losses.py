@@ -1,6 +1,6 @@
 """
-the code here is largely borrowed from deformetrica
-here turns it into a batch-supported version
+the code is largely borrowed from deformetrica
+here turns it into a batch version
 """
 
 import torch

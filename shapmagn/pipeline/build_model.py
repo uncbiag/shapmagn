@@ -1,5 +1,5 @@
 from shapmagn.models.model_opt import DFClassifier
-def create_model(opt, devie, gpus):
+def build_model(opt, devie, gpus):
     """
     create model object
     :param opt: ParameterDict, task setting

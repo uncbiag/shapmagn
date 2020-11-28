@@ -8,9 +8,7 @@ from shapmagn.global_variable import *
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.net_utils import print_model
 from shapmagn.metrics.losses import Loss
-from shapmagn.modules.optimizer import optimizer_builder
-from shapmagn.modules.scheduler import scheduler_builder
-
+from shapmagn.models.multiscale_optimization import build_multi_scale_solver
 
 class OptModel(ModelBase):
     """ Optimization models """
@@ -47,11 +45,7 @@ class OptModel(ModelBase):
         print('-----------------------------------------------')
 
 
-    def update_learning_rate(self, new_lr=-1):
-        """
-        disable for optimization tasks
-        """
-        pass
+
 
     def set_input(self, input_data, device, is_train=True):
         """
@@ -81,22 +75,30 @@ class OptModel(ModelBase):
         info = {'file_name': self.batch_info["fname_list"]}
         return info
 
-    def forward(self, input_data=None):
-        """
 
-        :param input_data(not used )
-        :return: warped image intensity with [-1,1], transformation map defined in [-1,1], affine image if nonparameteric reg else affine parameter
-        """
-        self._model.module.set_cur_epoch(self.cur_epoch)
-        output = self._model(input_data, self.is_train)
-        return output
-
-    def update_scheduler(self,epoch):
-        if self.lr_scheduler is not None:
-            self.lr_scheduler.step(epoch)
-
-        for param_group in self.optimizer.param_groups:
-            print("the current epoch is {} with learining rate set at {}".format(epoch,param_group['lr']))
+    # def optimize_parameters(self, input_data=None):
+    #     """
+    #     forward and backward the model, optimize parameters and manage the learning rate
+    #
+    #     :param input_data: input_data(not used
+    #     :return:
+    #     """
+    #     self.opt_optim = self.opt['optim']
+    #     """settings for the optimizer"""
+    #     self.optimizer = optimizer_builder(self.opt_optim)([input_data["reg_param"]])
+    #     self.lr_scheduler = scheduler_builder(self.optimizer)
+    #     """initialize the optimizer and scheduler"""
+    #
+    #     output = self.forward(input_data)
+    #     loss = output[0].mean()
+    #     self.backward_net(loss / self.criticUpdates)
+    #     self.loss = loss.item()
+    #     update_lr, lr = self._model.module.check_if_update_lr()
+    #     if update_lr:
+    #         self.update_learning_rate(lr)
+    #     if self.iter_count % self.criticUpdates == 0:
+    #         self.optimizer.step()
+    #         self.optimizer.zero_grad()
 
     def optimize_parameters(self, input_data=None):
         """
@@ -105,27 +107,8 @@ class OptModel(ModelBase):
         :param input_data: input_data(not used
         :return:
         """
-        self.opt_optim = self.opt['optim']
-        """settings for the optimizer"""
-        self.optimizer = optimizer_builder([input_data["reg_param"]])
-        self.lr_scheduler = scheduler_builder(self.optimizer)
-        """initialize the optimizer and scheduler"""
-
-        output = self.forward(input_data)
-        loss = output[0].mean()
-        self.backward_net(loss / self.criticUpdates)
-        self.loss = loss.item()
-        update_lr, lr = self._model.module.check_if_update_lr()
-        if update_lr:
-            self.update_learning_rate(lr)
-        if self.iter_count % self.criticUpdates == 0:
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-
-    def get_current_errors(self):
-        return self.loss
-
+        sovler = build_multi_scale_solver(self.opt,self._model)
+        output = sovler(input_data)
 
 
 
@@ -182,7 +165,7 @@ class OptModel(ModelBase):
         return False
 
 
-  
+
 
     def analyze_res(self, res, cache_res=True):
         metric_dict, prediction_list, prob_list = res
@@ -210,8 +193,6 @@ class OptModel(ModelBase):
         self.caches = {}
 
 
-
-
     def get_extra_to_plot(self):
         """
         extra image to be visualized
@@ -220,22 +201,8 @@ class OptModel(ModelBase):
         """
         return self._model.get_extra_to_plot()
 
-    def set_train(self):
-        self._model.train(True)
-        self.is_train = True
-        torch.set_grad_enabled(True)
-
-    def set_val(self):
-        self._model.train(False)
-        self.is_train = False
-        torch.set_grad_enabled(False)
-
-    def set_debug(self):
-        self._model.train(False)
-        self.is_train = False
-        torch.set_grad_enabled(False)
 
     def set_test(self):
-        self._model.train(False)
-        self.is_train = False
-        torch.set_grad_enabled(False)
+        torch.set_grad_enabled(True)
+
+

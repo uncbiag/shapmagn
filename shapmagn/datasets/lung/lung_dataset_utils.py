@@ -98,13 +98,31 @@ def lung_normalizer(**args):
     :param args: a dict include "scale" : [scale_x,scale_y,scale_z]: , "shift":[shift_x. shift_y, shift_z]
     :return:
     """
-    scale = np.array(args['scale'])[None]
-    shift = np.array(args['shift'])[None]
+
+    def get_scale_and_center(points,percentile=0.99):
+        dim = points.shape[1]
+        scale = np.zeros(1,dim)
+        center = np.zeros(1,dim)
+        interval = [(1-percentile)/2,1-(1-percentile)/2]
+        for d in range(dim):
+            filtered_low_thre =  np.percentile(points[:,d],interval[0])
+            filtered_up_thre =  np.percentile(points[:,d],interval[1])
+            scale[0,d] = filtered_up_thre - filtered_low_thre
+            center[0,d] = (filtered_up_thre + filtered_low_thre)/2
+        return scale, center
+
     def normalize(data_dict):
+        if 'scale' in args and 'shift' in args:
+            scale = np.array(args['scale'])[None]
+            shift = np.array(args['shift'])[None]
+        else:
+            scale, shift = get_scale_and_center(data_dict["points"],percentile=0.95)
         points = data_dict["points"]
         weights = data_dict["weights"]
         data_dict["points"] = (points-shift)/scale
         data_dict["weights"] = weights/weights.sum()
+        data_dict["physical_info"] ={}
+        data_dict["physical_info"] ={'scale':scale,'shift':shift}
         return data_dict
     return normalize
 

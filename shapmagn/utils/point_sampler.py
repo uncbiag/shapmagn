@@ -20,6 +20,7 @@ def grid_sampler(scale):
         index = grid_cluster(points, scale).long()
         points = scatter(points * weights, index, dim=0)
         weights = scatter(weights, index, dim=0)
+        points = points/weights
         return points, weights, index
     return sampling
 def uniform_sampler(num_sample, rand_generator=Random(int(time.time()))):
@@ -40,6 +41,6 @@ def uniform_sampler(num_sample, rand_generator=Random(int(time.time()))):
         # continuous in spatial
         ind.sort()
         points = points[ind]
-        return points, ind
+        return points, None, ind
     return sampling
 

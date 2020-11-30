@@ -3,9 +3,12 @@ from shapmagn.shape.shape_pair import ShapePair
 from shapmagn.global_variable import Shape
 
 
-def init_reg_param(input_data):
-    reg_param = torch.zeros_like(input_data)
-    return reg_param
+
+def reg_param_initializer():
+    def init(input_data):
+        reg_param = torch.zeros_like(input_data["source"]["points"])
+        return reg_param
+    return init
 
 
 

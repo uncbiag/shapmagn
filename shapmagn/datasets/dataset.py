@@ -113,8 +113,9 @@ class RegistrationDataset(Dataset):
         :return: data_dict, shape_type
         """
         case_dict = self.reader(file_info)
-        case_dict = self.sampler(case_dict)
         case_dict = self.normalizer(case_dict)
+        case_dict = self.sampler(case_dict)
+
         return case_dict
 
 
@@ -180,7 +181,7 @@ class RegistrationDataset(Dataset):
         sample = {"source": source_dict, "target":target_dict,
                    "pair_name":pair_name,
                   "source_info":source_info, "target_info":target_info}
-        return sample, pair_name
+        return sample
 
 
 

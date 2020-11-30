@@ -4,17 +4,15 @@ here turns it into a batch version
 """
 
 import torch
-from geomloss import SamplesLoss
 from shapmagn.utils.keops_kernels import LazyKeopsKernel
 from shapmagn.utils.torch_kernels import TorchKernel
-
+from shapmagn.utils.obj_factory import obj_factory
 
 class CurrentDistance(object):
     def __init__(self, opt):
-        current_opt = opt[('current',{},"settings for the current loss")]
-        kernel_backend = current_opt[("kernel_backend",'torch',"kernel backend can either be 'torch'/'keops'")]
-        sigma = current_opt[('sigma',0.1,"the sigma in gaussian kernel")]
-        self.kernel = LazyKeopsKernel('gauss',sigma) if kernel_backend == 'keops' else TorchKernel('gauss',sigma)
+        kernel_backend = opt[("kernel_backend",'torch',"kernel backend can either be 'torch'/'keops'")]
+        sigma = opt[('sigma',0.1,"the sigma in gaussian kernel")]
+        self.kernel = LazyKeopsKernel('gauss',sigma=sigma) if kernel_backend == 'keops' else TorchKernel('gauss',sigma=sigma)
 
     def __call__(self,flowed, target):
         assert flowed.type == 'PolyLine'
@@ -34,10 +32,9 @@ class CurrentDistance(object):
 
 class VarifoldDistance(object):
     def __init__(self, opt):
-        varifold_opt = opt[('varifold', {}, "settings for the varifold loss")]
-        kernel_backend = varifold_opt[("kernel_backend", 'torch', "kernel backend can either be 'torch'/'keops'")]
-        sigma = varifold_opt[('sigma', 0.1, "the sigma in gaussian lin kernel")]
-        self.kernel = LazyKeopsKernel('gauss_lin', sigma) if kernel_backend == 'keops' else TorchKernel('gauss_lin', sigma)
+        kernel_backend = opt[("kernel_backend", 'torch', "kernel backend can either be 'torch'/'keops'")]
+        sigma = opt[('sigma', 0.1, "the sigma in gaussian lin kernel")]
+        self.kernel = LazyKeopsKernel('gauss_lin', sigma=sigma) if kernel_backend == 'keops' else TorchKernel('gauss_lin', sigma=sigma)
     def __call__(self, flowed, target):
         assert flowed.type == 'SurfaceMesh'
         batch = flowed.batch
@@ -61,8 +58,7 @@ class VarifoldDistance(object):
 
 class L2Distance(object):
     def __init__(self, opt):
-        l2_opt = opt[('l2',{},"settings for the l2 loss")]
-        self.attr = l2_opt[('attr','landmarks',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
+        self.attr = opt[('attr','landmarks',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
     def __call__(self,flowed, target):
         batch = flowed.batch
         attr1 = flowed.getattr(self.attr)
@@ -73,11 +69,10 @@ class L2Distance(object):
 
 class GeomDistance(object):
     def __init__(self, opt):
-        geom_opt = opt[('geomloss',{},"settings for the optimal transport loss")]
-        self.attr = geom_opt[('attr','points',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
-        args = geom_opt[('args',{'blur':0.1, 'scaling':0.5, 'debais':True},"blur argument in ot")]
+        self.attr = opt[('attr','points',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
+        geom_obj = opt[('geom_obj',{'blur':0.1, 'scaling':0.5, 'debais':True},"blur argument in ot")]
 
-        self.gemoloss = SamplesLoss(**args)
+        self.gemoloss = obj_factory(geom_obj)
 
     def __call__(self,flowed, target):
         attr1 = flowed.getattr(self.attr)
@@ -98,12 +93,12 @@ class Loss():
     def __init__(self, opt):
         from shapmagn.global_variable import LOSS_POOL
         loss_name_list = opt[("loss_list",['l2'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
-        self.loss_weight_strategy_list = opt[("loss_weight_strategy_list",{'l2':'const'}, "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
+        self.loss_weight_strategy_dict = opt[("loss_weight_strategy_dict",{}, "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
         self.loss_activate_epoch_list = opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]
-        self.loss_fn_list = [LOSS_POOL[name][opt] for name in loss_name_list ]
+        self.loss_fn_list = [LOSS_POOL[name](opt[(name,{},"settings")]) for name in loss_name_list ]
 
     def update_weight(self, epoch):
-        if len(self.loss_weight_strategy_list)==0:
+        if len(self.loss_weight_strategy_dict)==0:
             return [1.]* len(self.loss_fn_list)
 
     def __call__(self, flowed, target, epoch):

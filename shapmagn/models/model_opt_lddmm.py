@@ -6,18 +6,18 @@ from shapmagn.metrics.losses import Loss
 from shapmagn.modules.ode_int import ODEBlock
 class LDDMMOPT(nn.Module):
     def __init__(self, opt):
-        super(LDDMMOPT).__init__()
+        super(LDDMMOPT, self).__init__()
         self.opt = opt
         self.module_type = self.opt[("module","hamiltonian", "lddmm module type: hamiltonian or variational")]
         assert self.module_type in ["hamiltonian", "variational"]
-        self.module = LDDMMHamilton(self.opt[("hamiltonian",{},"settings for hamiltonian")])\
+        self.lddmm_module = LDDMMHamilton(self.opt[("hamiltonian",{},"settings for hamiltonian")])\
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
-        self.integrator_opt = self.opt[("integrator_opt", {}, "settings for integrator")]
+        self.integrator_opt = self.opt[("integrator", {}, "settings for integrator")]
         self.integrator = ODEBlock(self.integrator_opt)
-        self.integrator.set_func(self.module)
+        self.integrator.set_func(self.lddmm_module)
 
 
 

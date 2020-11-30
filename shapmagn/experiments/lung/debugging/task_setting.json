@@ -3,7 +3,7 @@
         "name": "pair_dataset",
         "pair_dataset": {
             "reader" : "lung_dataset_utils.lung_reader()",
-            "sampler" : "lung_dataset_utils.lung_sampler(num_sample=1000, method='uniform')",
+                "sampler" : "lung_dataset_utils.lung_sampler(num_sample=-1, method='voxelgrid',scale=0.05)",
             "normalizer": "lung_dataset_utils.lung_normalizer()",
             "max_num_for_loading": [-1,-1,-1,-1],
             "load_training_data_into_memory": true,
@@ -21,20 +21,17 @@
         "model": "optimization",
         "method_name": "lddmm_opt",
         "loss_name": "geomloss",
+        "reg_param_initializer": "default_shape_pair.reg_param_initializer()",
         "lddmm_opt": {
             "module":"hamiltonian",
             "hamiltonian": {
-                "kernel": "torch_kernels.TorchKernel('gauss',0.1)"
+                "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)"
             },
             "variational": {
-                "kernel": "torch_kernels.TorchKernel('gauss',0.1)",
-                "grad_kernel": "torch_kernels.TorchKernel('gauss_grad',0.1)"
+                "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)",
+                "grad_kernel": "keops_kernels.LazyKeopsKernel('gauss_grad',sigma=0.1)"
             },
-            "loss": {
-                "loss_list": ["geomloss"],
-                "loss_weight_strategy_list":{"geomloss":"toadd"},
-                "loss_activate_epoch_list": [0],
-                "integrator_opt": {
+            "integrator": {
                     "tFrom": 0.0,
                     "tTo": 1.0,
                     "solver":"dopri5",
@@ -42,10 +39,14 @@
                     "rtol": 1e-5,
                     "atol": 1e-5,
                     "number_of_time_steps": 15
-                },
+            },
+            "sim_loss": {
+                "loss_list": ["geomloss"],
+                "loss_weight_strategy_dict":{},
+                "loss_activate_epoch_list": [0],
                 "geomloss":{
                     "attr": "points",
-                    "args": {"blur":0.1, "scaling":0.5, "debais":true}
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.1, scaling=0.5, debias=True)"
                 },
                 "l2": {
                     "attr": "points"

@@ -30,7 +30,7 @@ def build_multi_scale_solver(opt, model):
             scale_output = single_scale_solver_list[i](scale_input_data)
             if i != num_scale - 1:
                 scale_input_data = scale_sampler_list[i + 1](input_data, scale_list[i]) if scale_list[i+1]>0 else input_data
-                input_data = scale_interpolator_list[i](scale_output, scale_input_data)
+                scale_input_data = scale_interpolator_list[i](scale_output, scale_input_data)
         return scale_output
 
     return solve

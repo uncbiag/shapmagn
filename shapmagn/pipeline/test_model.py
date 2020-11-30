@@ -6,7 +6,7 @@ import numpy as np
 
 
 def eval_model(opt,model,dataloaders,device, task_name=""):
-    model_path = opt['tsk_set']['path']['model_load_path']
+    model_path = opt['tsk_set']['path'][('model_load_path',"","trained model path")]
     since = time()
     record_path = opt['tsk_set']['path']['record_path']
     running_range=opt['tsk_set'][('running_range',[-1],"max running number, set -1 if not limited")]  # todo should be [-1]
@@ -21,7 +21,8 @@ def eval_model(opt,model,dataloaders,device, task_name=""):
         #todo  check  model loading for data parallel
         get_test_model(model_path, model.network,  model.optimizer)
     else:
-        print("Warning, the model is not manual loaded, make sure your model itself has been initialized")
+        print("Warning, the model is not manual loaded."
+              "Make sure the current run is in 'optimization mode' or  model has been internally initialized")
 
     model.set_cur_epoch(-1)
     for phase in phases:
@@ -41,11 +42,11 @@ def eval_model(opt,model,dataloaders,device, task_name=""):
                     continue
                 i = i - running_range[0]
 
-            batch_size = len(data['fname'])
+            batch_size = len(data["pair_name"])
             batch_size_list.append(batch_size)
             is_train = False
-            if model.network is not None:
-                model.network.train(False)
+            # if model._model is not None:
+            #     model._model.train(False)
             model.set_test()
             input_data = model.set_input(data, device, is_train)
             ex_time = time()

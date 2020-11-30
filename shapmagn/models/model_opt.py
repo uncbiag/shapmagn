@@ -37,14 +37,14 @@ class OptModel(ModelBase):
         self.cur_epoch = 0
         """visualize condition"""
         self.visualize_condition = {}
-        print('---------- A model instance on {} is initialized -------------'.format(method_name))
+        print('---------- A model instance for {} is initialized -------------'.format(method_name))
         print_model(self._model)
         print('-----------------------------------------------')
 
 
 
 
-    def set_input(self, input_data, device, is_train=True):
+    def set_input(self, input_data, device, is_train=False):
         """
         :param input_data:
         :param is_train:
@@ -54,10 +54,10 @@ class OptModel(ModelBase):
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"]}
 
-        reg_param_initializer = obj_factory(self.opt["init_reg_param","default_shape_pair.init_reg_param(input_data)",
+        reg_param_initializer = obj_factory(self.opt["reg_param_initializer","default_shape_pair.reg_param_initializer()",
                                                      "functions that take take 'data_input' as the input and return the registration parameters"])
-        input_data["source"] = input_data["source"].to(device)
-        input_data["target"] = input_data["target"].to(device)
+        input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
+        input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
         reg_param = reg_param_initializer(input_data)
         input_data["reg_param"] = reg_param.to(device)
         return input_data
@@ -106,34 +106,14 @@ class OptModel(ModelBase):
         """
         multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
         sovler = build_multi_scale_solver(multi_scale_opt,self._model)
-        output = sovler(input_data)
+        output, loss = sovler(input_data)
+        return output, loss
 
 
 
     def get_evaluation(self,input_data):
-        def get_vid_prob_seq(vid,labels):
-            """
-            get the prob sequence for each frame in video
-            :param vid: a tensor NxCxHxW
-            :return prob: a tensor Nx1
-            """
-            frames_split = torch.split(vid, eval_phase_bch_sz)
-            labels_split = torch.split(labels, eval_phase_bch_sz) if labels is not None else [None]*len(frames_split)
-            prob = []
-            for sub_frames,sub_labels in zip(frames_split,labels_split):
-                sub_output = self.forward((sub_frames,sub_labels))
-                sub_prob = sub_output[1]
-                prob.append(sub_prob.detach().cpu())
-            prob = torch.cat(prob,dim=0)
-            return prob
-
-        print("Processing video: {}".format(self.batch_info["fname_list"]))
-        vid_list, label_list = input_data
-        eval_phase_bch_sz = self.opt[('eval_phase_inner_loop_bch_sz',1,"batch size for evaluation phase")]
-        with torch.no_grad():
-            vid_prob_list = [get_vid_prob_seq(vid, label) for vid, label in zip(vid_list, label_list)]
-        metric_dict, prediction_list, prob_list = get_binary_video_metric(vid_prob_list, label_list, thres=[0.1,0.3,0.5,0.7])
-        return metric_dict, prediction_list, prob_list
+        output, loss = self.optimize_parameters(input_data)
+        return None, None
 
 
 

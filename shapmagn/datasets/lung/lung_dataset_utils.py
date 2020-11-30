@@ -9,7 +9,7 @@ import numpy as np
 from pykeops.torch.cluster import grid_cluster
 import torch
 from torch_scatter import scatter
-from shapmagn.utils.sampler import grid_sampler, uniform_sampler
+from shapmagn.utils.point_sampler import grid_sampler, uniform_sampler
 
 """
 attri points with size (73412, 3)
@@ -34,20 +34,23 @@ def lung_reader():
     reader = read_vtk
     fea_to_merge = ['points', 'scale']
     exp_dim_fn = lambda x: x[:,None] if len(x.shape) == 1 else x
+    def norm_fea(fea):
+        fea = (fea-fea.mean())/(fea.std())
+        return fea
     def read(file_info):
         path = file_info["data_path"]
         raw_data_dict = reader(path)
         data_dict = {}
         data_dict["points"] = raw_data_dict["points"]
         data_dict["weights"] = raw_data_dict["scale"][:,None]
-        fea_list = [exp_dim_fn(raw_data_dict[fea_name]) for fea_name in fea_to_merge]
+        fea_list = [norm_fea(exp_dim_fn(raw_data_dict[fea_name])) for fea_name in fea_to_merge]
         data_dict["pointfea"] = np.concatenate(fea_list,1)
         return data_dict
     return read
 
 
 
-def lung_sampler(num_sample=-1, method="uniform", **args):
+def lung_sampler(method="uniform", **args):
     """
 
     :param num_sample: num of points after sampling
@@ -57,11 +60,13 @@ def lung_sampler(num_sample=-1, method="uniform", **args):
     """
     local_rand = Random(0)
     def uniform_sample(data_dict):
+        num_sample = args["num_sample"]
         points = data_dict["points"]
         weights = data_dict["weights"]
         pointfea = data_dict["pointfea"]
         sampler= uniform_sampler(num_sample, local_rand)
-        sampled_points, ind = sampler(points)
+        sampled_points, _, ind = sampler(points)
+        data_dict["points"] = sampled_points
         data_dict["weights"] = weights[ind]
         data_dict["pointfea"] = pointfea[ind]
         return data_dict
@@ -72,15 +77,14 @@ def lung_sampler(num_sample=-1, method="uniform", **args):
         weights = torch.Tensor(data_dict["weights"])
         pointfea = torch.Tensor(data_dict["pointfea"])
         sampler = grid_sampler(scale)
-        points, weights, index = sampler(points,weights)
-        points = points / weights
+        points, cluster_weights, index = sampler(points,weights)
         # here we assume the pointfea is summable
-        pointfea = scatter(pointfea, index, dim=0)
-        pointfea = pointfea / weights
+        pointfea = scatter(pointfea*weights, index, dim=0)
+        pointfea = pointfea / cluster_weights
         # otherwise random sample one from each voxel grid
         # todo complete random sample code by unique sampling from index
         data_dict["points"] = points.numpy()
-        data_dict["weights"] = weights.numpy()
+        data_dict["weights"] = cluster_weights.numpy()
         data_dict["pointfea"] = pointfea.numpy()
         return data_dict
 
@@ -99,30 +103,30 @@ def lung_normalizer(**args):
     :return:
     """
 
-    def get_scale_and_center(points,percentile=0.99):
+    def get_scale_and_center(points,percentile=99):
         dim = points.shape[1]
-        scale = np.zeros(1,dim)
-        center = np.zeros(1,dim)
-        interval = [(1-percentile)/2,1-(1-percentile)/2]
+        scale = np.zeros([1,dim])
+        center = np.zeros([1,dim])
+        interval = [(100.-percentile)/2,100-(100.-percentile)/2]
         for d in range(dim):
             filtered_low_thre =  np.percentile(points[:,d],interval[0])
             filtered_up_thre =  np.percentile(points[:,d],interval[1])
             scale[0,d] = filtered_up_thre - filtered_low_thre
             center[0,d] = (filtered_up_thre + filtered_low_thre)/2
-        return scale, center
+        return scale/2, center
 
     def normalize(data_dict):
         if 'scale' in args and 'shift' in args:
             scale = np.array(args['scale'])[None]
             shift = np.array(args['shift'])[None]
         else:
-            scale, shift = get_scale_and_center(data_dict["points"],percentile=0.95)
+            scale, shift = get_scale_and_center(data_dict["points"],percentile=95)
         points = data_dict["points"]
         weights = data_dict["weights"]
         data_dict["points"] = (points-shift)/scale
         data_dict["weights"] = weights/weights.sum()
-        data_dict["physical_info"] ={}
-        data_dict["physical_info"] ={'scale':scale,'shift':shift}
+        # data_dict["physical_info"] ={}
+        # data_dict["physical_info"] ={'scale':scale,'shift':shift}
         return data_dict
     return normalize
 
@@ -131,15 +135,15 @@ def lung_normalizer(**args):
 if __name__ == "__main__":
     from shapmagn.utils.obj_factory import obj_factory
     reader_obj = "lung_dataset_utils.lung_reader()"
-    #sampler_obj = "lung_utils.lung_sampler(num_sample=1000, method='uniform')"
-    sampler_obj = "lung_dataset_utils.lung_sampler(num_sample=1000, method='voxelgrid',scale=5)"
-    normalizer_obj = "lung_dataset_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])"
+    #sampler_obj = "lung_utils.lung_sampler(method='uniform',num_sample=1000)"
+    sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.05)"
+    normalizer_obj = "lung_dataset_utils.lung_normalizer()"
     reader = obj_factory(reader_obj)
-    sampler = obj_factory(sampler_obj)
     normalizer = obj_factory(normalizer_obj)
+    sampler = obj_factory(sampler_obj)
     file_path = "/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
     file_info = {"name":file_path,"data_path":file_path}
     raw_data_dict  = reader(file_info)
-    sampled_data_dict = sampler(raw_data_dict)
-    normalized_data_dict = normalizer(sampled_data_dict)
+    normalized_data_dict = normalizer(raw_data_dict)
+    sampled_data_dict = sampler(normalized_data_dict)
 

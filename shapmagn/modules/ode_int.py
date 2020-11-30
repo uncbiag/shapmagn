@@ -33,7 +33,7 @@ class ODEBlock(nn.Module):
         """time to solve a model to"""
         self.integration_time = torch.Tensor([tFrom, tTo]).float()
         """intergration time, list, typically set as [0,1]"""
-        self.method = param[('solver', 'rk4','ode solver')]
+        self.method = param[('solver', 'dopri5','ode solver')]
         """ solver,rk4 as default, supported list: explicit_adams,fixed_adams,tsit5,dopri5,euler,midpoint, rk4 """
         self.adjoin_on = param[('adjoin_on',True,'use adjoint optimization')]
         """ adjoint method, benefits from memory consistency, which can be refer to "Neural Ordinary Differential Equations" """

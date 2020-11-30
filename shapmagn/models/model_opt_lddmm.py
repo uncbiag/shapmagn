@@ -1,21 +1,24 @@
 import torch
 import torch.nn as nn
 from shapmagn.modules.lddmm_module import LDDMMHamilton, LDDMMVariational
-from shapmagn.modules.ode_int import ODEBlock
 from shapmagn.global_variable import Shape
-
+from shapmagn.metrics.losses import Loss
+from shapmagn.modules.ode_int import ODEBlock
 class LDDMMOPT(nn.Module):
     def __init__(self, opt):
         super(LDDMMOPT).__init__()
-        self.opt = opt[("lddmm_opt",{},"settings for LDDMM optimization")]
+        self.opt = opt
         self.module_type = self.opt[("module","hamiltonian", "lddmm module type: hamiltonian or variational")]
         assert self.module_type in ["hamiltonian", "variational"]
         self.module = LDDMMHamilton(self.opt[("hamiltonian",{},"settings for hamiltonian")])\
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
-        self.integrator_opt = self.opt[("integrator_opt",{},"settings for integrator")]
+        sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
+        self.sim_loss_fn = Loss(sim_loss_opt)
+        self.reg_loss_fn = self.geodesic_distance
+        self.integrator_opt = self.opt[("integrator_opt", {}, "settings for integrator")]
         self.integrator = ODEBlock(self.integrator_opt)
         self.integrator.set_func(self.module)
-        self.sim_loss_fn = None
+
 
 
     def set_loss_fn(self, loss_fn):
@@ -56,7 +59,7 @@ class LDDMMOPT(nn.Module):
         flowed_has_infered = shape_pair.infer_flowed()
         shape_pair = self.flow(shape_pair) if not flowed_has_infered else shape_pair
         sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
-        reg_loss = self.geodesic_distance(shape_pair.reg_param, shape_pair.get_control_points())
+        reg_loss = self.reg_loss_fn(shape_pair.reg_param, shape_pair.get_control_points())
         loss = sim_loss + reg_loss
         return loss
 

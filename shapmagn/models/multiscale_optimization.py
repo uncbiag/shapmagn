@@ -1,4 +1,5 @@
-from shapmagn.utils.sampler import grid_sampler, kernel_interpolator
+from shapmagn.utils.point_sampler import grid_sampler
+from shapmagn.utils.point_interpolator import kernel_interpolator
 from shapmagn.modules.optimizer import optimizer_builder
 from shapmagn.modules.scheduler import scheduler_builder
 
@@ -12,7 +13,7 @@ def build_multi_scale_solver(opt, model):
     scale_list = opt[("scales", [0.1, 0.02], "a list of scales that parameterizes the voxel-grid sampling,"
                                              " the scale is from rough to fine resolution")]
     scale_iter_list = opt[("iter_per_scale", [100, 100], "number of iterations per scale")]
-    scale_rel_ftol_list = opt[("scale_rel_ftol_list", [1e-4, 1e-4], "number of iterations per scale")]
+    scale_rel_ftol_list = opt[("rel_ftol_per_scale", [1e-4, 1e-4], "number of iterations per scale")]
     scale_sampler_list = [grid_sampler(scale) for scale in scale_list]
     num_scale = len(scale_list)
     interp_kernel_width_list = opt[
@@ -39,8 +40,10 @@ def build_single_scale_solver(opt,model, num_iter, rel_ftol=1e-4):
     def solve(input_data):
         opt_optim = opt['optim']
         """settings for the optimizer"""
+        opt_scheduler = opt['scheduler']
+        """settings for the scheduler"""
         optimizer = optimizer_builder(opt_optim)([input_data["reg_param"]])
-        lr_scheduler = scheduler_builder(optimizer)
+        lr_scheduler = scheduler_builder(opt_scheduler)(optimizer)
         """initialize the optimizer and scheduler"""
         last_energy = 0.0
         for iter in range(num_iter):

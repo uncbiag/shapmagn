@@ -75,7 +75,7 @@ class Initializer():
         get task related setttings for data manager
         """
         batch_size = self.task_opt[('batch_sz', 1,'list of batch size, refers to train, val, debug, test, respectively')]
-        is_train = self.task_opt[('train',False,'train the model')]
+        is_train = self.task_opt[('is_train',False,'train the model')]
         return self.data_manager.build_data_loaders(batch_size=batch_size,is_train=is_train)
 
 
@@ -110,7 +110,6 @@ class Initializer():
         self.task_opt['path']['record_path'] = record_path
         self.path = {'logdir':logdir,'check_point_path': check_point_path,'record_path':record_path}
         self.setting_folder()
-        self.task_opt.write_ext_JSON(os.path.join(self.task_path,'task_settings.json'))
         sys.stdout = self.Logger(self.task_path)
         print('start logging:')
         self.writer = SummaryWriter(logdir, self.task_name)

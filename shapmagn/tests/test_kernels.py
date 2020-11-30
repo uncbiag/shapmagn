@@ -1,6 +1,6 @@
 import os, sys
-sys.path.insert(0,os.path.abspath('..'))
-sys.path.insert(0,os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../utils'))
 sys.path.insert(0,os.path.abspath('../shapmagn'))
 import torch
 from torch.autograd import grad

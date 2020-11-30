@@ -11,19 +11,18 @@ from tqdm import tqdm
 class RegistrationDataset(Dataset):
     """registration dataset."""
 
-    def __init__(self, data_root_path,phase=None, transform=None, option=None):
+    def __init__(self, data_root_path, option=None, phase=None):
         """
         the dataloader for registration task, to avoid frequent disk communication, all pairs can be optionally compressed into memory
         :param data_root_path:  string, path to the data
             the data should be preprocessed and saved into txt
         :param phase:  string, 'train'/'val'/ 'test'/ 'debug' ,    debug here means a subset of train data, to check if model is overfitting
-        :param transform: function,  apply transform on data
         : option:  pars, settings for registration task
 
         """
         self.phase = phase
         self.data_path = os.path.join(data_root_path, phase)
-        self.transform = transform
+        self.transform = ToTensor()
         self.aug_data_via_inverse_reg_direction = option[("aug_data_via_inverse_reg_direction",False," aug_data_via_inverse_reg_direction")]
         """ inverse the registration order, i.e the original set is A->B, the new set would be A->B and B->A """
         ind = ['train', 'val', 'test', 'debug'].index(phase)
@@ -55,7 +54,7 @@ class RegistrationDataset(Dataset):
             self.pair_info_list = self.pair_info_list[:read_num]
             self.pair_name_list = self.pair_name_list[:read_num]
 
-        if self.aug_data_via_inverse_reg_direction and (self.phase=='train' or self.phase == 'test'):
+        if self.aug_data_via_inverse_reg_direction and self.phase=='train':
             for pair_info in self.pair_info_list:
                 pair_info_list_inverse = [[pair_info[1], pair_info[0]]]
                 pair_name_list_inverse = [self._inverse_name(name) for name in self.pair_name_list]

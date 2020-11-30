@@ -16,10 +16,10 @@ class CurrentDistance(object):
         sigma = current_opt[('sigma',0.1,"the sigma in gaussian kernel")]
         self.kernel = LazyKeopsKernel('gauss',sigma) if kernel_backend == 'keops' else TorchKernel('gauss',sigma)
 
-    def __call__(self,moved, target):
-        assert moved.type == 'PolyLine'
-        batch = moved.batch
-        c1, n1 = moved.get_centers_and_currents()
+    def __call__(self,flowed, target):
+        assert flowed.type == 'PolyLine'
+        batch = flowed.batch
+        c1, n1 = flowed.get_centers_and_currents()
         c2, n2 = target.get_centers_and_currents()
 
         def current_scalar_product(points_1, points_2, normals_1, normals_2):
@@ -38,10 +38,10 @@ class VarifoldDistance(object):
         kernel_backend = varifold_opt[("kernel_backend", 'torch', "kernel backend can either be 'torch'/'keops'")]
         sigma = varifold_opt[('sigma', 0.1, "the sigma in gaussian lin kernel")]
         self.kernel = LazyKeopsKernel('gauss_lin', sigma) if kernel_backend == 'keops' else TorchKernel('gauss_lin', sigma)
-    def __call__(self, moved, target):
-        assert moved.type == 'SurfaceMesh'
-        batch = moved.batch
-        c1, n1 = moved.get_centers_and_normals()
+    def __call__(self, flowed, target):
+        assert flowed.type == 'SurfaceMesh'
+        batch = flowed.batch
+        c1, n1 = flowed.get_centers_and_normals()
         c2, n2 = target.get_centers_and_normals()
         areaa = torch.norm(n1, 2, 2) [None]  # BxNx1
         areab = torch.norm(n2, 2, 2)[None]   # BxKx1
@@ -63,9 +63,9 @@ class L2Distance(object):
     def __init__(self, opt):
         l2_opt = opt[('l2',{},"settings for the l2 loss")]
         self.attr = l2_opt[('attr','landmarks',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
-    def __call__(self,moved, target):
-        batch = moved.batch
-        attr1 = moved.getattr(self.attr)
+    def __call__(self,flowed, target):
+        batch = flowed.batch
+        attr1 = flowed.getattr(self.attr)
         attr2 = target.getattr(self.attr)
         return ((attr1.view(batch,-1)-attr2.view(batch,-1))**2).sum(-1) # B
 
@@ -73,16 +73,16 @@ class L2Distance(object):
 
 class GeomDistance(object):
     def __init__(self, opt):
-        geom_opt = opt[('geom',{},"settings for the optimal transport loss")]
+        geom_opt = opt[('geomloss',{},"settings for the optimal transport loss")]
         self.attr = geom_opt[('attr','points',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
         args = geom_opt[('args',{'blur':0.1, 'scaling':0.5, 'debais':True},"blur argument in ot")]
 
         self.gemoloss = SamplesLoss(**args)
 
-    def __call__(self,moved, target):
-        attr1 = moved.getattr(self.attr)
+    def __call__(self,flowed, target):
+        attr1 = flowed.getattr(self.attr)
         attr2 = target.getattr(self.attr)
-        weight1 = moved.weights
+        weight1 = flowed.weights
         weight2 = target.weights
         return self.gemoloss(weight1,attr1,weight2,attr2)
 
@@ -97,7 +97,7 @@ class Loss():
 
     def __init__(self, opt):
         from shapmagn.global_variable import LOSS_POOL
-        loss_name_list = opt[("loss_list",['geomloss'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
+        loss_name_list = opt[("loss_list",['l2'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
         self.loss_weight_strategy_list = opt[("loss_weight_strategy_list",{'l2':'const'}, "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
         self.loss_activate_epoch_list = opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]
         self.loss_fn_list = [LOSS_POOL[name][opt] for name in loss_name_list ]
@@ -106,9 +106,9 @@ class Loss():
         if len(self.loss_weight_strategy_list)==0:
             return [1.]* len(self.loss_fn_list)
 
-    def __call__(self, moved, target, epoch):
+    def __call__(self, flowed, target, epoch):
         weights_list = self.update_weight(epoch)
-        loss_list = [weight*loss_fn(moved, target) for weight, loss_fn in zip(weights_list, self.loss_fn_list)]
+        loss_list = [weight*loss_fn(flowed, target) for weight, loss_fn in zip(weights_list, self.loss_fn_list)]
         total_loss = sum(loss_list)
         return total_loss
 
@@ -122,9 +122,9 @@ class Loss():
 #         kernel_norm_opt = opt[('kernel_norm',{},"settings for the kernel norm loss")]
 #         sigma = kernel_norm_opt[('sigma',0.1,"the sigma in gaussian kernel")]
 #         self.kernel = LazyKeopsKernel('gauss',sigma) if kernel_backend == 'keops' else TorchKernel('gauss',sigma)
-#     def __call__(self,moved, target):
-#         batch = moved.batch
-#         c1, n1 = moved.get_centers_and_normals()
+#     def __call__(self,flowed, target):
+#         batch = flowed.batch
+#         c1, n1 = flowed.get_centers_and_normals()
 #         c2, n2 = target.get_centers_and_normals()
 #         def kernel_norm_scalar_product(points_1, points_2, normals_1, normals_2):
 #             return ((normals_1.view(batch,-1))

@@ -63,8 +63,9 @@ class DataManager(object):
         else:
             self.phases = ['val','test']
         name = self.data_opt["name"]
+        dataset_opt = self.data_opt[(name,{},"settings for {} dataset".format(name))]
         assert name in DATASET_POOL, "{} not in dataset pool {}".format(name, DATASET_POOL)
-        transformed_dataset = {phase: DATASET_POOL[name](self.data_path, self.data_opt,phase=phase, is_train=is_train) for phase in self.phases}
+        transformed_dataset = {phase: DATASET_POOL[name](self.data_path, dataset_opt,phase=phase) for phase in self.phases}
         dataloaders = self.init_dataset_loader(transformed_dataset, batch_size)
         dataloaders['data_size'] = {phase: len(dataloaders[phase]) for phase in self.phases}
         print('dataloader is ready')

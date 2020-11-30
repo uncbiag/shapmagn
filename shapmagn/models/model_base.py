@@ -17,13 +17,8 @@ class ModelBase():
         self.gpu_ids = gpus
         self.save_dir = opt['path']['check_point_path']
         self.record_path = opt['path']['record_path']
-        self.criticUpdates = opt[('criticUpdates',1," the value indicates gradient update every # iter")]
         self._model = None
-        self.optimizer = None
-        self.re_exp_lr_scheduler = None
-        self.lr_scheduler = None
         self.iter_count = 0
-        self.model = None
         self.val_res_dic = {}
         self.batch_info = None
         self.caches = {}

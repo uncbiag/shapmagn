@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
+
 from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.net_utils import print_model
-from shapmagn.metrics.losses import Loss
 from shapmagn.models.multiscale_optimization import build_multi_scale_solver
 
 class OptModel(ModelBase):
@@ -25,13 +25,10 @@ class OptModel(ModelBase):
         :return:
         """
         ModelBase.initialize(self,opt, device, gpus)
-        method_name= opt['method_name']
-        self._model = MODEL_POOL[method_name](opt)
+        method_name= opt[('method_name',"lddmm_opt","specific optimization method")]
+        method_opt = opt[(method_name,{}, "method settings")]
+        self._model = MODEL_POOL[method_name](method_opt)
         """create a model with given method"""
-        self.criticUpdates = opt['criticUpdates']
-        loss_opt = opt[("loss",{},"settings for loss")]
-        loss_fn = Loss(loss_opt)
-        self._model.set_loss_fn(loss_fn)
         if gpus and len(gpus) >= 1:
             self._model = nn.DataParallel(self._model, gpus)
         self._model.to(device)
@@ -107,7 +104,8 @@ class OptModel(ModelBase):
         :param input_data: input_data(not used
         :return:
         """
-        sovler = build_multi_scale_solver(self.opt,self._model)
+        multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
+        sovler = build_multi_scale_solver(multi_scale_opt,self._model)
         output = sovler(input_data)
 
 

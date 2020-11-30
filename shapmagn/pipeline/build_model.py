@@ -1,4 +1,4 @@
-from shapmagn.models.model_opt import DFClassifier
+from shapmagn.models.model_opt import OptModel
 def build_model(opt, devie, gpus):
     """
     create model object
@@ -6,8 +6,8 @@ def build_model(opt, devie, gpus):
     :return: model object
     """
     model_name = opt['model']
-    if model_name == 'classifier':
-        model = DFClassifier()
+    if model_name == 'optimization':
+        model = OptModel()
     else:
         raise ValueError("Model [%s] not recognized." % model_name)
     model.initialize(opt, devie, gpus)

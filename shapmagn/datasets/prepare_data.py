@@ -1,7 +1,7 @@
 
 import os
 import copy
-from shapmagn.datasets.data_utils import generate_pair_name, get_extra_info_path_list, saving_pair_info, divide_sess_set
+from shapmagn.datasets.data_utils import saving_pair_info, divide_sess_set
 sesses = ['train', 'val', 'test', 'debug']
 number_of_workers = 10
 warning_once = True

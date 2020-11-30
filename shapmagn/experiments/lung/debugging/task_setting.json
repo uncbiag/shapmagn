@@ -2,89 +2,110 @@
     "dataset": {
         "name": "pair_dataset",
         "pair_dataset": {
-            "reader" : "lung_utils.lung_reader()",
-            "sampler" : "lung_utils.lung_sampler(num_sample=1000, method='uniform')",
-            "normalizer": "lung_utils.lung_normalizer(scale=[100,100,100],shift=[50,50,50])",
+            "reader" : "lung_dataset_utils.lung_reader()",
+            "sampler" : "lung_dataset_utils.lung_sampler(num_sample=1000, method='uniform')",
+            "normalizer": "lung_dataset_utils.lung_normalizer()",
             "max_num_for_loading": [-1,-1,-1,-1],
             "load_training_data_into_memory": true,
             "aug_data_via_inverse_reg_direction": false
         }
     },
     "tsk_set": {
-        "batch_sz": [8,1,1,1],
-        "eval_phase_inner_loop_bch_sz": 20,
-        "check_best_model_period": 5,
-        "continue_train": false,
-        "continue_train_lr": 5e-04,
-        "criticUpdates": 2,
-        "epoch": 400,
+        "batch_sz": [2,1,1,1],
         "gpu_ids": 0,
         "max_batch_num_per_epoch": [
                 800,
                 600,
                 50
             ],
-        "model": "classifier",
-        "model_path": "",
-        "n_in_channel": 1,
-        "network_name": "texture_efficient_net",
-        "loss_name": "ce",
-        "optim": {
-            "adam": {
-                "beta": 0.9
+        "model": "optimization",
+        "method_name": "lddmm_opt",
+        "loss_name": "geomloss",
+        "lddmm_opt": {
+            "module":"hamiltonian",
+            "hamiltonian": {
+                "kernel": "torch_kernels.TorchKernel('gauss',0.1)"
             },
-            "lr": 0.0005,
-            "lr_scheduler": {
-                "custom": {
-                    "gamma": 0.5,
-                    "step_size": 60
+            "variational": {
+                "kernel": "torch_kernels.TorchKernel('gauss',0.1)",
+                "grad_kernel": "torch_kernels.TorchKernel('gauss_grad',0.1)"
+            },
+            "loss": {
+                "loss_list": ["geomloss"],
+                "loss_weight_strategy_list":{"geomloss":"toadd"},
+                "loss_activate_epoch_list": [0],
+                "integrator_opt": {
+                    "tFrom": 0.0,
+                    "tTo": 1.0,
+                    "solver":"dopri5",
+                    "adjoin_on": true,
+                    "rtol": 1e-5,
+                    "atol": 1e-5,
+                    "number_of_time_steps": 15
                 },
-                "type": "custom"
-            },
-            "optim_type": "adam"
-        },
-        "output_taking_original_image_format": false,
-        "print_step": [
-            10,
-            10,
-            10
-        ],
-        "print_val_detail": true,
-        "texture_efficient_net": {
-            "input_channel": 3,
-            "encoder_path": "/playpen-raid1/zyshen/videocue/dfdc_wining/weights/final_999_DeepFakeClassifier_tf_efficientnet_b7_ns_0_23",
-            "pretrained_model_path": "",
-            "encoder": "tf_efficientnet_b7_ns",
-            "operator_on_fea_layer": "mean",
-            "operator_on_fc_layer": ""
-        },
-        "temporal_pwc_net": {
-            "input_channel": 3,
-            "encoder_path": "",
-            "fix_encoder": true,
-            "pretrained_model_path": "",
-            "operator_on_fea_layer": "max",
-            "operator_on_fc_layer": ""
-        },
-        "weight_temporal_net": {
-            "weight_net_backbone_type": "texture_efficient_extractor",
-            "weight_sum_reg_factor": 1,
-            "decay_factor": 5,
-            "texture_efficient_extractor": {
-              "input_channel": 9,
-              "extractor": "tf_efficientnet_b2_ns"
-          }
-        },
-        "ensemble_net": {
-            "model_list": ["texture_efficient_net","temporal_pwc_net"],
-            "loss_list": ["ce","ce"],
-            "weight_net_type": "weight_temporal_net",
-            "activate_train_model_epoch": [50,50]
-        },
+                "geomloss":{
+                    "attr": "points",
+                    "args": {"blur":0.1, "scaling":0.5, "debais":true}
+                },
+                "l2": {
+                    "attr": "points"
+                },
+                "varifold": {
+                    "kernel_backend": "keops",
+                    "sigma": 0.1
 
+                },
+                "current": {
+                    "kernel_backend": "keops",
+                    "sigma": 0.1
+                }
+            }
+        },
+        "multi_scale_optimization": {
+            "scales": [0.1, 0.02],
+            "iter_per_scale": [100, 100],
+            "rel_ftol_per_scale": [1e-4, 1e-4],
+            "interp_kernel_width_list": 0.1,
+             "optim": {
+                 "lr": 0.0005,
+                 "type": "adam",
+                 "adam": {
+                     "betas": [
+                         0.9,
+                         0.999
+                     ]
+                 },
+                 "lbgfs": {
+                     "rel_ftol": 1e-4,
+                     "max_iter": 1,
+                     "max_eval": 5,
+                     "history_size": 5
+                 },
+                 "sgd": {
+                     "momentum": 0.9,
+                     "dampening": 0.0,
+                     "weight_decay": 0.0,
+                     "nesterov": true
+                 }
+             },
+            "scheduler": {
+                "type": "step_lr",
+                "step_lr": {
+                    "gamma": 0.5,
+                    "step_size": 50
+                },
+                "plateau": {
+                    "patience": 10,
+                    "mode": "min",
+                    "factor": 0.5,
+                    "threshold_mode": "rel",
+                    "threshold": 1e-3,
+                    "cooldown": 0,
+                    "min_lr": 1e-8
+                }
+            }
+        },
         "save_fig_on": true,
-        "train": true,
-        "val_period": 10,
-        "warmming_up_epoch": 2
+        "is_train": false
     }
 }

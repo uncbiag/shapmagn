@@ -1,3 +1,4 @@
+import torch
 from pykeops.torch import LazyTensor
 
 def kernel_interpolator(scale=0.1, exp_order=2):
@@ -10,7 +11,7 @@ def kernel_interpolator(scale=0.1, exp_order=2):
     #todo write plot-test on this function
 
     assert exp_order in [1,2,0.5]
-    def sampling(points,control_points,control_value,control_weights):
+    def interp(points,control_points,control_value,control_weights):
         """
 
         :param points: NxD Tensor
@@ -45,7 +46,7 @@ def kernel_interpolator(scale=0.1, exp_order=2):
 
         points_value = ((scores_i - C_ij).exp() * value_weight_j).sum(dim=1)
         return points_value
-    return sampling
+    return interp
 
 
 def spline_intepolator(scale=5, kernel="gauss"):
@@ -78,7 +79,7 @@ def spline_intepolator(scale=5, kernel="gauss"):
 
         return K_ij  # (N, N) kernel matrix
 
-    def sampling(points, control_points, control_weights, control_value):
+    def interp(points, control_points, control_weights, control_value):
         """
 
         :param points: NxD Tensor
@@ -96,4 +97,6 @@ def spline_intepolator(scale=5, kernel="gauss"):
         # Apply the spline deformation on the full point cloud:
         K_px = kernel_matrix(points, control_points)
         return  K_px @ momentum
-    return sampling
+    return interp
+
+

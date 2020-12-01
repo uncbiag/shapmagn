@@ -26,7 +26,7 @@ class PolyLine(ShapeBase):
         self.edges =None
         self.index = None
 
-    def set_data(self, points, weights=None, landmarks=None, pointfea=None, label=None, seg=None, edges=None, index=None, reindex=False):
+    def set_data(self, **args):
         """
 
         :param points: BxNxD
@@ -35,20 +35,18 @@ class PolyLine(ShapeBase):
         :param reindex: generate index over batch for two ends
         :return:
         """
-        self.points = points
-        self.weights = weights
-        self.landmarks = landmarks
-        self.pointfea = pointfea
-        self.label = label
-        self.seg = seg
+        ShapeBase.set_data(**args)
+        edges = args["edges"]
         assert edges is not None
         self.edges = edges
+        index = args["index"] if "index" in args else None
+        reindex = args["reindex"] if "reindex" in args else False
         if index is not None:
             self.index = index
         if self.index is None or reindex:
             index_a_list = []
             index_b_list = []
-            for b in range(self.batch):
+            for b in range(self.nbatch):
                 index_a_list += edges[b,0]+ b*self.npoints
                 index_b_list += edges[b,1]+ b*self.npoints
             self.index = [index_a_list, index_b_list]
@@ -88,4 +86,4 @@ class PolyLine(ShapeBase):
         if zero_normal_index.shape[0] > 0:
             currents.data[zero_normal_index] = 1e-7
             print(" {} zero normal is detected, set the zero value to 1e-7".format(len(zero_normal_index)))
-        return centers.view([self.batch,-1, self.dimension]), currents.view([self.batch,-1, self.dimension])
+        return centers.view([self.nbatch,-1, self.dimension]), currents.view([self.nbatch,-1, self.dimension])

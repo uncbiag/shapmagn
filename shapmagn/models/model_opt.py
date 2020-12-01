@@ -29,8 +29,8 @@ class OptModel(ModelBase):
         method_opt = opt[(method_name,{}, "method settings")]
         self._model = MODEL_POOL[method_name](method_opt)
         """create a model with given method"""
-        if gpus and len(gpus) >= 1:
-            self._model = nn.DataParallel(self._model, gpus)
+        # if gpus and len(gpus) >= 1:
+        #     self._model = nn.DataParallel(self._model, gpus)
         self._model.to(device)
         self.step_count = 0
         """ count of the step"""
@@ -53,13 +53,8 @@ class OptModel(ModelBase):
         self.batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"]}
-
-        reg_param_initializer = obj_factory(self.opt["reg_param_initializer","default_shape_pair.reg_param_initializer()",
-                                                     "functions that take take 'data_input' as the input and return the registration parameters"])
         input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
         input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
-        reg_param = reg_param_initializer(input_data)
-        input_data["reg_param"] = reg_param.to(device)
         return input_data
 
 

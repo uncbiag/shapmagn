@@ -4,3 +4,4 @@ __pycache__
 weights
 geomloss
 torchdiffeq
+torchdiffeq_mine

@@ -19,7 +19,7 @@ class ShapeBase(object):
         :param points: BxNxD
         """
         self.type = 'ShapeBase'
-        self.batch = None
+        self.nbatch = None
         self.dimension = None
         self.points = None
         self.weights = None
@@ -35,25 +35,31 @@ class ShapeBase(object):
     def update_info(self):
         points = self.points
         points_shape = points.shape
-        self.batch = points_shape[0]
+        self.nbatch = points_shape[0]
         self.dimension = points.shape[-1]
         self.points = points
         self.npoints = points_shape[1]
         if self.weights is None:
-            self.weights = torch.ones(self.batch,self.npoints,1)/self.npoints
+            self.weights = torch.ones(self.nbatch,self.npoints,1)/self.npoints
         if self.compute_bd:
             self.update_bounding_box()
 
 
 
-    def set_data(self, points, weights=None, landmarks=None, pointfea=None, label=None, seg=None, *args):
+    def set_data(self, **args):
         """
 
         :param points: BxNxD
         :param args:
         :return:
         """
+        points = args["points"]
         assert len(points.shape) == 3
+        weights = args["weights"] if "weights" in args else None
+        landmarks = args["landmarks"] if "landmarks" in args else None
+        pointfea = args["pointfea"] if "pointfea" in args else None
+        label = args["label"] if "label" in args else None
+        seg = args["seg"] if "seg" in args else None
         self.points = points
         self.weights = weights
         self.landmarks = landmarks
@@ -125,8 +131,8 @@ class ShapeBase(object):
 
         :return: bounding box: BxNx2
         """
-        self.bounding_box = np.zeros((self.batch, self.dimension, 2))
-        for b in range(self.batch):
+        self.bounding_box = np.zeros((self.nbatch, self.dimension, 2))
+        for b in range(self.nbatch):
             for d in range(self.dimension):
                 self.bounding_box[b, d, 0] = np.min(self.points[b,:, d])
                 self.bounding_box[b, d, 1] = np.max(self.points[b,:, d])
@@ -136,7 +142,7 @@ class ShapeBase(object):
     def write(self, output_dir):
         if self.points is not None:
             points = self.points.cpu().numpy().detach()
-            for b in range(self.batch):
+            for b in range(self.nbatch):
                 with open(os.path.join(output_dir, self.name_list[b]), 'w', encoding='utf-8') as f:
                     f.write(s)
                     for p in points[b]:

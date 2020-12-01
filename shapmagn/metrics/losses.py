@@ -75,10 +75,10 @@ class GeomDistance(object):
         self.gemoloss = obj_factory(geom_obj)
 
     def __call__(self,flowed, target):
-        attr1 = flowed.getattr(self.attr)
-        attr2 = target.getattr(self.attr)
-        weight1 = flowed.weights
-        weight2 = target.weights
+        attr1 = getattr(flowed,self.attr)
+        attr2 = getattr(target,self.attr)
+        weight1 = flowed.weights[:,:,0] #remove the last dim
+        weight2 = target.weights[:,:,0] #remove the last dim
         return self.gemoloss(weight1,attr1,weight2,attr2)
 
 
@@ -93,7 +93,7 @@ class Loss():
     def __init__(self, opt):
         from shapmagn.global_variable import LOSS_POOL
         loss_name_list = opt[("loss_list",['l2'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
-        self.loss_weight_strategy_dict = opt[("loss_weight_strategy_dict",{}, "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
+        self.loss_weight_strategy_dict = opt[("loss_weight_strategy","", "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
         self.loss_activate_epoch_list = opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]
         self.loss_fn_list = [LOSS_POOL[name](opt[(name,{},"settings")]) for name in loss_name_list ]
 
@@ -101,7 +101,7 @@ class Loss():
         if len(self.loss_weight_strategy_dict)==0:
             return [1.]* len(self.loss_fn_list)
 
-    def __call__(self, flowed, target, epoch):
+    def __call__(self, flowed, target, epoch=-1):
         weights_list = self.update_weight(epoch)
         loss_list = [weight*loss_fn(flowed, target) for weight, loss_fn in zip(weights_list, self.loss_fn_list)]
         total_loss = sum(loss_list)

@@ -59,7 +59,7 @@ class ODEBlock(nn.Module):
         odesolver = torchdiffeq.odeint_adjoint if self.adjoin_on else torchdiffeq.odeint
         #out = odeint(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol)
         out = odesolver(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol,method=self.method, options={'step_size':self.dt})
-        return out #[1] todo check [1] here
+        return (elem[1] for elem in out)
 
     @property
     def nfe(self):

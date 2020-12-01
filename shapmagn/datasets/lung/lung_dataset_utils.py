@@ -65,9 +65,9 @@ def lung_sampler(method="uniform", **args):
         weights = data_dict["weights"]
         pointfea = data_dict["pointfea"]
         sampler= uniform_sampler(num_sample, local_rand)
-        sampled_points, _, ind = sampler(points)
+        sampled_points, sampled_weights, ind = sampler(points,weights)
         data_dict["points"] = sampled_points
-        data_dict["weights"] = weights[ind]
+        data_dict["weights"] = sampled_weights/sum(sampled_weights)
         data_dict["pointfea"] = pointfea[ind]
         return data_dict
 

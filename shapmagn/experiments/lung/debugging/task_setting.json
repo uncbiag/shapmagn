@@ -21,9 +21,9 @@
         "model": "optimization",
         "method_name": "lddmm_opt",
         "loss_name": "geomloss",
-        "reg_param_initializer": "default_shape_pair.reg_param_initializer()",
         "lddmm_opt": {
             "module":"hamiltonian",
+            "print_step":10,
             "hamiltonian": {
                 "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)"
             },
@@ -63,13 +63,15 @@
             }
         },
         "multi_scale_optimization": {
-            "scales": [0.1, 0.02],
+            "scales": [0.1,  -1],
             "iter_per_scale": [100, 100],
             "rel_ftol_per_scale": [1e-4, 1e-4],
-            "interp_kernel_width_list": 0.1,
+            "shape_sampler_type": "point_grid",
+            "source_target_generator": "default_shape_pair_utils.create_source_and_target_shape()",
+            "interp_kernel_width_list": [0.1],
              "optim": {
                  "lr": 0.0005,
-                 "type": "adam",
+                 "type": "lbgfs",
                  "adam": {
                      "betas": [
                          0.9,

@@ -10,8 +10,7 @@ import requests
 from tqdm import tqdm
 import torch.backends.cudnn as cudnn
 import torch.nn.init as init
-from shapmagn.utils.obj_factory import extract_args, obj_factory
-
+import numpy as np
 
 def init_weights(m, init_type='normal', gain=0.02):
     """ Randomly initialize a module's weights.
@@ -111,134 +110,40 @@ def str2int(s):
 
 
 
-def rgb2bgr(rgb):
-    bgr = torch.zeros_like(rgb)
-    bgr[:,:,0] = rgb[:,:,2]
-    bgr[:,:,1] = rgb[:,:,1]
-    bgr[:,:,2] = rgb[:,:,0]
-    return bgr
-
-
-def get_arch(obj, *args, **kwargs):
-    """ Extract the architecture (string representation) of an object given as a string or partial together
-    with additional provided arguments.
-
-    The returned architecture can be used to create the object using the obj_factory function.
-
-    Args:
-        obj (str or partial): The object string expresion or partial to be converted into an object
-        *args: Additional arguments to pass to the object
-        **kwargs: Additional keyword arguments to pass to the object
-
-    Returns:
-        arch (str): The object's architecture (string representation).
+def sigmoid_explode(ep, static =5, k=5):
     """
-    obj_args, obj_kwargs = [], {}
-    if isinstance(obj, str):
-        if '(' in obj and ')' in obj:
-            arg_pos = obj.find('(')
-            func = obj[:arg_pos]
-            args_exp = obj[arg_pos:]
-            obj_args, obj_kwargs = eval('extract_args' + args_exp)
-        else:
-            func = obj
-    elif isinstance(obj, partial):
-        func = obj.func.__module__ + '.' + obj.func.__name__
-        obj_args, obj_kwargs = obj.args, obj.keywords
+    factor  increase with epoch, factor = (k + exp(ep / k))/k
+    :param ep: cur epoch
+    :param static: at the first #  epoch, the factor keep unchanged
+    :param k: the explode factor
+    :return:
+    """
+    static = static
+    if ep < static:
+        return 1.
     else:
-        return None
+        ep = ep - static
+        factor= (k + np.exp(ep / k))/k
+        return float(factor)
 
-    # Concatenate arguments
-    obj_args = obj_args + args
-    obj_kwargs.update(kwargs)
-
-    # Convert object components to string representation
-    args = ",".join(map(repr, obj_args))
-    kwargs = ",".join("{}={!r}".format(k, v) for k, v in obj_kwargs.items())
-    comma = ',' if args != '' and kwargs != '' else ''
-    format_string = '{func}({args}{comma}{kwargs})'
-    arch = format_string.format(func=func, args=args, comma=comma, kwargs=kwargs).replace(' ', '')
-
-    return arch
-
-
-def load_model(model_path, name='', device=None, arch=None, return_checkpoint=False, train=False):
-    """ Load a model from checkpoint.
-
-    This is a utility function that combines the model weights and architecture (string representation) to easily
-    load any model without explicit knowledge of its class.
-
-    Args:
-        model_path (str): Path to the model's checkpoint (.pth)
-        name (str): The name of the model (for printing and error management)
-        device (torch.device): The device to load the model to
-        arch (str): The model's architecture (string representation)
-        return_checkpoint (bool): If True, the checkpoint will be returned as well
-        train (bool): If True, the model will be set to train mode, else it will be set to test mode
-
-    Returns:
-        (nn.Module, dict (optional)): A tuple that contains:
-            - model (nn.Module): The loaded model
-            - checkpoint (dict, optional): The model's checkpoint (only if return_checkpoint is True)
+def sigmoid_decay(ep, static =5, k=5):
     """
-    assert model_path is not None, '%s model must be specified!' % name
-    assert os.path.exists(model_path), 'Couldn\'t find %s model in path: %s' % (name, model_path)
-    print('=> Loading %s model: "%s"...' % (name, os.path.basename(model_path)))
-    checkpoint = torch.load(model_path, map_location='cpu')
-    assert arch is not None or 'arch' in checkpoint, 'Couldn\'t determine %s model architecture!' % name
-    arch = checkpoint['arch'] if arch is None else arch
-    arch = arch.replace("fsgan.models","video_cue.models.preprocess")
-    model = obj_factory(arch)
-    if device is not None:
-        model.to(device)
-    model.load_state_dict(checkpoint['state_dict'])
-    model.train(train)
-
-    if return_checkpoint:
-        return model, checkpoint
+    factor  decease with epoch, factor = k/(k + exp(ep / k))
+    :param ep: cur epoch
+    :param static: at the first #  epoch, the factor keep unchanged
+    :param k: the decay factor
+    :return:
+    """
+    static = static
+    if ep < static:
+        return float(1.)
     else:
-        return model
+        ep = ep - static
+        factor =  k/(k + np.exp(ep / k))
+        return float(factor)
 
 
-def random_pair(n, min_dist=1, index1=None):
-    """ Return a random pair of integers in the range [0, n) with a minimum distance between them.
 
-    Args:
-        n (int): Determine the range size
-        min_dist (int): The minimum distance between the random pair
-        index1 (int, optional): If specified, this will determine the first integer
-
-    Returns:
-        (int, int): The random pair of integers.
-    """
-    r1 = random.randint(0, n - 1) if index1 is None else index1
-    d_left = min(r1, min_dist)
-    d_right = min(n - 1 - r1, min_dist)
-    r2 = random.randint(0, n - 2 - d_left - d_right)
-    r2 = r2 + d_left + 1 + d_right if r2 >= (r1 - d_left) else r2
-
-    return r1, r2
-
-
-def random_pair_range(a, b, min_dist=1, index1=None):
-    """ Return a random pair of integers in the range [a, b] with a minimum distance between them.
-
-    Args:
-        a (int): The minimum number in the range
-        b (int): The maximum number in the range
-        min_dist (int): The minimum distance between the random pair
-        index1 (int, optional): If specified, this will determine the first integer
-
-    Returns:
-        (int, int): The random pair of integers.
-    """
-    r1 = random.randint(a, b) if index1 is None else index1
-    d_left = min(r1 - a, min_dist)
-    d_right = min(b - r1, min_dist)
-    r2 = random.randint(a, b - 1 - d_left - d_right)
-    r2 = r2 + d_left + 1 + d_right if r2 >= (r1 - d_left) else r2
-
-    return r1, r2
 
 
 # Adapted from: https://github.com/Sudy/coling2018/blob/master/torchtext/utils.py
@@ -278,29 +183,3 @@ def download_from_url(url, output_path):
 
     process_response(response)
 
-
-def main():
-    from torch.optim.lr_scheduler import StepLR
-    scheduler = partial(StepLR, step_size=10, gamma=0.5)
-    print(get_arch(scheduler))
-    scheduler = partial(StepLR, 10, 0.5)
-    print(get_arch(scheduler))
-    scheduler = partial(StepLR, 10, gamma=0.5)
-    print(get_arch(scheduler))
-    scheduler = partial(StepLR)
-    print(get_arch(scheduler))
-    print(get_arch(scheduler, 10, gamma=0.5))
-
-    scheduler = 'torch.optim.lr_scheduler.StepLR(step_size=10,gamma=0.5)'
-    print(get_arch(scheduler))
-    scheduler = 'torch.optim.lr_scheduler.StepLR(10,0.5)'
-    print(get_arch(scheduler))
-    scheduler = 'torch.optim.lr_scheduler.StepLR(10,gamma=0.5)'
-    print(get_arch(scheduler))
-    scheduler = 'torch.optim.lr_scheduler.StepLR()'
-    print(get_arch(scheduler))
-    print(get_arch(scheduler, 10, gamma=0.5))
-
-
-if __name__ == "__main__":
-    main()

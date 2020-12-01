@@ -46,14 +46,19 @@ class ShapePair():
         self.flowed = None
         self.reg_param = None
         self.control_points = None
+        self.control_weights = None
         self.flowed_control_points = None
         self.dense_mode = dense_mode
         self.extra_info = None
+        self.shape_type = None
+        self.nbatch = -1
 
     def set_source_and_target(self, source, target):
         self.source = source
         self.target = target
-        self.toflow = source.clone()
+        self.toflow = source
+        self.shape_type = self.source.type
+        self.nbatch = source.nbatch
 
     def set_toflow(self, toflow):
         self.toflow = toflow
@@ -65,25 +70,32 @@ class ShapePair():
     def set_reg_param(self, reg_param):
         self.reg_param = reg_param
 
+
     def set_flowed_control_points(self, flowed_control_points):
         self.flowed_control_points = flowed_control_points
 
     def infer_flowed(self):
         if self.dense_mode:
-            self.flowed = Shape().set_data_with_refer_to(self.flowed_control_points,self.toflow)
+            self.flowed = Shape()
+            self.flowed.set_data_with_refer_to(self.flowed_control_points,self.toflow)
             return True
         else:
             return False
 
 
-    def set_control_points(self, control_points):
+    def set_control_points(self, control_points, control_weights=None):
         self.control_points = control_points
+        if control_weights is None and self.control_weights is None:
+            control_weights = torch.ones(control_points.shape[0],control_points.shape[1],1)
+            control_weights = control_weights/control_points.shape[1]
+        self.control_weights = control_weights
+        self.control_points.requires_grad_()
 
     def get_control_points(self):
-        if self.control_points is not None:
-            return self.control_points
-        else:
-            return self.source.points.clone()
+        if self.control_points is None:
+            self.control_points = self.source.points.clone()
+            self.control_weights = self.source.weights
+        return self.control_points
 
     def get_toflow_points(self):
         return self.toflow.points.clone()

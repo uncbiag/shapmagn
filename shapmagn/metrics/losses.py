@@ -4,7 +4,7 @@ here turns it into a batch version
 """
 
 import torch
-from shapmagn.utils.keops_kernels import LazyKeopsKernel
+from shapmagn.kernels.keops_kernels import LazyKeopsKernel
 from shapmagn.utils.torch_kernels import TorchKernel
 from shapmagn.utils.obj_factory import obj_factory
 

@@ -101,13 +101,13 @@ class OptModel(ModelBase):
         """
         multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
         sovler = build_multi_scale_solver(multi_scale_opt,self._model)
-        output, loss = sovler(input_data)
-        return output, loss
+        output = sovler(input_data)
+        return output
 
 
 
     def get_evaluation(self,input_data):
-        output, loss = self.optimize_parameters(input_data)
+        output = self.optimize_parameters(input_data)
         return None, None
 
 
@@ -115,7 +115,7 @@ class OptModel(ModelBase):
     def save_visual_res(self, save_visual_results, input_data, eval_res, phase):
         if not save_visual_results:
             return
-        self.save_shapmagn(input_data,eval_res, phase)
+        pass
 
 
 

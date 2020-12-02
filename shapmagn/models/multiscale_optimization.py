@@ -1,8 +1,8 @@
 from shapmagn.modules.optimizer import optimizer_builder
 from shapmagn.modules.scheduler import scheduler_builder
 from shapmagn.global_variable import SHAPE_SAMPLER_POOL
-from shapmagn.shape.default_shape_pair_utils import create_shape_pair,updater_for_shape_pair_from_low_scale
-from shapmagn.utils.obj_factory import  obj_factory
+from shapmagn.shape.shape_pair_utils import create_shape_pair,updater_for_shape_pair_from_low_scale
+from shapmagn.utils.obj_factory import obj_factory
 def build_multi_scale_solver(opt, model):
     """
     :param opt:
@@ -34,11 +34,11 @@ def build_multi_scale_solver(opt, model):
         output_shape_pair = None
         for i, en_scale in enumerate(scale_args_list):
             print("{} th scale optimization begins, with  the strategy '{}' with setting {}".format(i, shape_sampler_type, scale_args_list[i]))
-            scale_source = scale_shape_sampler_list[0](source) if scale_args_list[0] > 0 else source
-            scale_target = scale_shape_sampler_list[0](target) if scale_args_list[0] > 0 else target
+            scale_source = scale_shape_sampler_list[i](source) if scale_args_list[i] > 0 else source
+            scale_target = scale_shape_sampler_list[i](target) if scale_args_list[i] > 0 else target
             toinput_shape_pair = create_shape_pair(scale_source, scale_target)
             if i != 0:
-                toinput_shape_pair = updater_list[i](output_shape_pair, toinput_shape_pair)
+                toinput_shape_pair = updater_list[i-1](output_shape_pair, toinput_shape_pair)
                 del output_shape_pair
             output_shape_pair = single_scale_solver_list[i](toinput_shape_pair)
         return output_shape_pair

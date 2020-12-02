@@ -64,10 +64,10 @@
         },
         "multi_scale_optimization": {
             "scales": [0.1,  -1],
-            "iter_per_scale": [100, 100],
+            "iter_per_scale": [10, 10],
             "rel_ftol_per_scale": [1e-4, 1e-4],
             "shape_sampler_type": "point_grid",
-            "source_target_generator": "default_shape_pair_utils.create_source_and_target_shape()",
+            "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
             "interp_kernel_width_list": [0.1],
              "optim": {
                  "lr": 0.0005,
@@ -79,7 +79,7 @@
                      ]
                  },
                  "lbgfs": {
-                     "rel_ftol": 1e-4,
+                     "rel_ftol": 1e-7,
                      "max_iter": 1,
                      "max_eval": 5,
                      "history_size": 5

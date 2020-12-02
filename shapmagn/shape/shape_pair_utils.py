@@ -1,7 +1,7 @@
 import torch
 from shapmagn.shape.shape_pair import ShapePair
 from shapmagn.global_variable import Shape
-from shapmagn.utils.point_interpolator import kernel_interpolator,spline_intepolator
+from shapmagn.shape.point_interpolator import kernel_interpolator,spline_intepolator
 
 
 def reg_param_initializer():

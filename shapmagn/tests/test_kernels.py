@@ -1,11 +1,10 @@
-import os, sys
 # sys.path.insert(0, os.path.abspath('..'))
 # sys.path.insert(0, os.path.abspath('../tests'))
 # sys.path.insert(0,os.path.abspath('../shapmagn'))
 import torch
 from torch.autograd import grad
 import unittest
-from shapmagn.utils.keops_kernels import LazyKeopsKernel
+from shapmagn.kernels.keops_kernels import LazyKeopsKernel
 from shapmagn.utils.torch_kernels import TorchKernel
 torch.backends.cudnn.deterministic = True
 

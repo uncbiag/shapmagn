@@ -46,7 +46,7 @@
                 "loss_activate_epoch_list": [0],
                 "geomloss":{
                     "attr": "points",
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.1, scaling=0.5, debias=True)"
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.05, scaling=0.8, debias=True)"
                 },
                 "l2": {
                     "attr": "points"
@@ -64,14 +64,14 @@
         },
         "multi_scale_optimization": {
             "scales": [0.1,  -1],
-            "iter_per_scale": [10, 10],
+            "iter_per_scale": [100, 100],
             "rel_ftol_per_scale": [1e-4, 1e-4],
             "shape_sampler_type": "point_grid",
             "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
             "interp_kernel_width_list": [0.1],
              "optim": {
-                 "lr": 0.0005,
-                 "type": "lbgfs",
+                 "lr": 1e-3,
+                 "type": "sgd",
                  "adam": {
                      "betas": [
                          0.9,

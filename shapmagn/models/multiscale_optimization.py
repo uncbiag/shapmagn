@@ -41,6 +41,10 @@ def build_multi_scale_solver(opt, model):
                 toinput_shape_pair = updater_list[i-1](output_shape_pair, toinput_shape_pair)
                 del output_shape_pair
             output_shape_pair = single_scale_solver_list[i](toinput_shape_pair)
+            ###################################### debugging  todo  del
+            from shapmagn.utils.visual_utils import save_shape_pair_into_vtks
+            save_shape_pair_into_vtks("/playpen-raid1/zyshen/debug/shapmagn", "scale_{}".format(en_scale), output_shape_pair)
+            ####################################3
         return output_shape_pair
 
     return solve
@@ -52,6 +56,9 @@ def build_single_scale_solver(opt,model, num_iter, rel_ftol=1e-4):
         """settings for the optimizer"""
         opt_scheduler = opt['scheduler']
         """settings for the scheduler"""
+        ######################################3
+        shape_pair.reg_param.register_hook(grad_hook)
+        ############################################3
         optimizer = optimizer_builder(opt_optim)([shape_pair.reg_param])
         lr_scheduler = scheduler_builder(opt_scheduler)(optimizer)
         """initialize the optimizer and scheduler"""
@@ -66,12 +73,21 @@ def build_single_scale_solver(opt,model, num_iter, rel_ftol=1e-4):
             cur_energy = optimizer.step(closure)
             lr_scheduler.step(iter)
             cur_energy = cur_energy.item()
-            rel_f = abs(last_energy - cur_energy) / (1 + abs(cur_energy))
+            rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
-            if rel_f < rel_ftol:
-                print('Reached relative function tolerance of = ' + str(rel_ftol))
-                break
+            # if rel_f < rel_ftol:
+            #     print('Reached relative function tolerance of = ' + str(rel_ftol))
+            #     break
         model.reset_iter()
         return shape_pair
 
     return solve
+
+###################
+
+def grad_hook(grad):
+    # import pydevd
+    # pydevd.settrace(suspend=False, trace_only_current_thread=True)
+    print("the grad_norm is {} ".format(grad.norm()))
+    return grad
+############################3

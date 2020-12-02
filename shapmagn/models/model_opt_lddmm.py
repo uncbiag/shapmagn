@@ -65,13 +65,13 @@ class LDDMMOPT(nn.Module):
         :return:
         """
         sim_factor = 10
-        reg_factor_init =1000 #self.initial_reg_factor
-        static_epoch = 10
+        reg_factor_init =100 #self.initial_reg_factor
+        static_epoch = 50
         min_threshold = reg_factor_init/10
         decay_factor = 5
         reg_factor = float(
             max(sigmoid_decay(self.iter, static=static_epoch, k=decay_factor) * reg_factor_init, min_threshold))
-        return sim_factor, reg_factor
+        return sim_factor, 0
 
 
     def forward(self, shape_pair):
@@ -85,7 +85,7 @@ class LDDMMOPT(nn.Module):
         reg_loss = reg_loss*reg_factor
         if self.iter%10==0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
-                  .format(self.iter, sim_loss, sim_factor, reg_loss, reg_factor))
+                  .format(self.iter, sim_loss.item(), sim_factor, reg_loss.item(), reg_factor))
         loss = sim_loss + reg_loss
         self.iter +=1
         return loss

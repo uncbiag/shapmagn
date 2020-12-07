@@ -5,11 +5,12 @@ class TorchKernel(object):
     Torch Kernel,  support batch
     """
     def __init__(self, kernel_type="gauss", **kernel_args):
-        assert kernel_type in ["gauss","multi_gauss", "gauss_lin", "gauss_grad", "gauss_lin"]
+        assert kernel_type in ["gauss","multi_gauss", "gauss_lin", "gauss_grad","multi_gauss_grad", "gauss_lin"]
         self.kernel_type = kernel_type
         self.kernels = {"gauss": self.gauss_kernel,
                         "multi_gauss": self.multi_gauss_kernel,
                         "gauss_grad": self.gaussian_gradient,
+                        "multi_gauss_grad": self.multi_gaussian_gradient,
                         "gauss_lin": self.gauss_lin_kernel}
         self.kernel = self.kernels[self.kernel_type](**kernel_args)
 
@@ -55,7 +56,7 @@ class TorchKernel(object):
             :param b: torch.Tensor, BxKxd, input val
             :return: torch.Tensor, BxNxd, output
             """
-            kernel=0
+            kernel = 0.
             x = x[:, :, None]
             y = y[:, None]
             b = b[:, None]  # Bx1xKxd
@@ -84,6 +85,29 @@ class TorchKernel(object):
             B, N, K, D = diff_kernel.shape
             pyx = (px*py).sum(-1) # BxNxK
             return (-2*gamma) * torch.bmm(pyx.view(-1,1,K),diff_kernel.view(-1,K,D)).view(B,N,D)
+        return reduce
+
+    @staticmethod
+    def multi_gaussian_gradient(sigma_list=None,weight_list=None):
+        gamma_list = [1 / (sigma * sigma) for sigma in sigma_list]
+
+        def reduce(px, x, py=None, y=None):
+            if y is None:
+                y = x
+            if py is None:
+                py = px
+            kernel=0.
+            x = x[:, :, None]
+            y = y[:, None]
+            px = px[:, :, None]  # BxNx1xD
+            py = py[:, None]  # Bx1xKxD
+            dist2 = ((x - y) ** 2).sum(-1, keepdim=True)  # BxNxKx1
+            for gamma, weight in zip(gamma_list, weight_list):
+                kernel += ((-dist2 * gamma).exp())*gamma*weight  # BxNxKx1
+            diff_kernel = (x - y) * kernel  # BxNxKxD
+            B, N, K, D = diff_kernel.shape
+            pyx = (px * py).sum(-1)  # BxNxK
+            return (-2) * torch.bmm(pyx.view(-1, 1, K), diff_kernel.view(-1, K, D)).view(B, N, D)
         return reduce
 
 

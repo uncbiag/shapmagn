@@ -5,8 +5,10 @@ import torch
 from torch.autograd import grad
 import unittest
 from shapmagn.kernels.keops_kernels import LazyKeopsKernel
-from shapmagn.utils.torch_kernels import TorchKernel
+from shapmagn.kernels.torch_kernels import TorchKernel
 torch.backends.cudnn.deterministic = True
+# import pykeops
+# pykeops.clean_pykeops()
 
 torch.manual_seed(123)
 
@@ -97,6 +99,21 @@ class Test_Kernels(unittest.TestCase):
         torch.testing.assert_allclose(keops_gauss, torch_gauss,rtol=1e-2, atol=1e-5)
         self.compare_tensors(keops_grads, torch_grads,rtol=1e-3, atol=1e-7)
 
+
+    def test_kernel_multi_gaussian_grad(self, task_name="multi_gauss_grad"):
+        keops_kernel = LazyKeopsKernel(kernel_type="multi_gauss_grad", sigma_list=[0.01,0.05,0.1],weight_list=[0.2,0.3,0.5])
+        torch_kernel = TorchKernel(kernel_type="multi_gauss_grad", sigma_list=[0.01,0.05,0.1],weight_list=[0.2,0.3,0.5])
+        keops_kernel = timming(keops_kernel, "test_kernel_{} with keops".format(task_name))
+        torch_kernel = timming(torch_kernel, "test_kernel_{} with torch".format(task_name))
+        keops_gauss = keops_kernel(self.px, self.x, self.py, self.y)
+        torch_gauss = torch_kernel(self.px, self.x, self.py, self.y)
+        grad_keops = timming(grad, "test_kernel_{} grad with keops".format(task_name))
+        grad_torch = timming(grad, "test_kernel_{} grad with torch".format(task_name))
+        keops_grads = grad_keops(keops_gauss.mean(), (self.px, self.x, self.py, self.y), retain_graph=True)
+        torch_grads = grad_torch(torch_gauss.mean(), (self.px, self.x, self.py, self.y), retain_graph=True)
+        torch.testing.assert_allclose(keops_gauss, torch_gauss,rtol=1e-2, atol=1e-5)
+        self.compare_tensors(keops_grads, torch_grads,rtol=1e-3, atol=1e-7)
+
     def test_kernel_gaussian_lin(self, task_name="gauss_lin"):
         keops_kernel = LazyKeopsKernel(kernel_type="gauss_lin", sigma=0.1)
         torch_kernel = TorchKernel(kernel_type="gauss_lin", sigma=0.1)
@@ -125,5 +142,6 @@ if __name__ == '__main__':
        run_by_name('test_kernel_gaussian')
        run_by_name('test_kernel_mutli_gaussian')
        run_by_name('test_kernel_gaussian_grad')
+       run_by_name('test_kernel_multi_gaussian_grad')
        run_by_name('test_kernel_gaussian_lin')
 

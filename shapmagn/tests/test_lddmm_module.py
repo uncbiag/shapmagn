@@ -51,7 +51,33 @@ class Test_Kernels(unittest.TestCase):
         for tensor1, tensor2 in zip(tensors1, tensors2):
             torch.testing.assert_allclose(tensor1, tensor2, rtol=rtol, atol=atol)
 
-    def test_lddmm_shooting(self, task_name="gauss"):
+
+
+    def compare_hamiltonian_and_variational(self, hamiltonian_module, variational_module, task_name):
+        hamiltonian_module = timming(hamiltonian_module, "hamiltonian_forward_{}".format(task_name))
+        variational_module = timming(variational_module, "variational_forward_{}".format(task_name))
+
+        hamiltonian_forward = hamiltonian_module(t=1.0, input=(self.momentum, self.control_points))
+        variational_forward = variational_module(t=1.0, input=(self.momentum, self.control_points))
+        self.compare_tensors(hamiltonian_forward, variational_forward, rtol=1e-3, atol=1e-5)
+
+        hamiltonian_mom_grad = timming(grad, "hamiltonian_backward_momentum{}".format(task_name))
+        hamiltonian_point_grad = timming(grad, "hamiltonian_backward_points{}".format(task_name))
+        variational_mom_grad = timming(grad, "variational_backward_momentum{}".format(task_name))
+        variational_point_grad = timming(grad, "variational_backward_points{}".format(task_name))
+        hamiltonian_mom_backward = hamiltonian_mom_grad(hamiltonian_forward[0].mean(),
+                                                        (self.momentum, self.control_points), retain_graph=True)
+        hamiltonian_point_backward = hamiltonian_point_grad(hamiltonian_forward[1].mean(),
+                                                            (self.momentum, self.control_points), retain_graph=True)
+        variational_mom_backward = variational_mom_grad(variational_forward[0].mean(),
+                                                        (self.momentum, self.control_points), retain_graph=True)
+        variational_point_backward = variational_point_grad(variational_forward[1].mean(),
+                                                            (self.momentum, self.control_points), retain_graph=True)
+
+        self.compare_tensors(hamiltonian_mom_backward, variational_mom_backward, rtol=1e-3, atol=1e-5)
+        self.compare_tensors(hamiltonian_point_backward, variational_point_backward, rtol=1e-3, atol=1e-5)
+
+    def test_lddmm_shooting_single_gaussian(self, task_name="gauss"):
         hamiltonian_opt = ParameterDict()
         hamiltonian_opt["kernel"] = "torch_kernels.TorchKernel('gauss',sigma=0.1)"
         hamiltonian_opt["mode"] = "shooting"
@@ -59,30 +85,23 @@ class Test_Kernels(unittest.TestCase):
 
         variational_opt = ParameterDict()
         variational_opt["kernel"] = "torch_kernels.TorchKernel('gauss',sigma=0.1)"
-        variational_opt["grad_kernel"] = "torch_kernels.TorchKernel('gauss_grad',sigma=0.1)"
         variational_opt["mode"] = "shooting"
         variational_module = LDDMMVariational(variational_opt)
+        self.compare_hamiltonian_and_variational(hamiltonian_module, variational_module, task_name)
 
-        hamiltonian_module = timming(hamiltonian_module, "hamiltonian_forward_{}".format(task_name))
-        variational_module = timming(variational_module, "variational_forward_{}".format(task_name))
 
-        hamiltonian_forward = hamiltonian_module(t=1.0,input=(self.momentum,self.control_points))
-        variational_forward = variational_module(t=1.0,input=(self.momentum,self.control_points))
-        self.compare_tensors(hamiltonian_forward, variational_forward,rtol=1e-3, atol=1e-5)
 
-        hamiltonian_mom_grad = timming(grad,"hamiltonian_backward_momentum{}".format(task_name))
-        hamiltonian_point_grad = timming(grad,"hamiltonian_backward_points{}".format(task_name))
-        variational_mom_grad = timming(grad,"variational_backward_momentum{}".format(task_name))
-        variational_point_grad = timming(grad,"variational_backward_points{}".format(task_name))
-        hamiltonian_mom_backward = hamiltonian_mom_grad(hamiltonian_forward[0].mean(),(self.momentum,self.control_points), retain_graph=True)
-        hamiltonian_point_backward = hamiltonian_point_grad(hamiltonian_forward[1].mean(),(self.momentum,self.control_points), retain_graph=True)
-        variational_mom_backward = variational_mom_grad( variational_forward[0].mean(),
-                                                        (self.momentum, self.control_points), retain_graph=True)
-        variational_point_backward = variational_point_grad( variational_forward[1].mean(),
-                                                          (self.momentum, self.control_points), retain_graph=True)
+    def test_lddmm_shooting_multi_gaussian(self, task_name="multi_gauss"):
+        hamiltonian_opt = ParameterDict()
+        hamiltonian_opt["kernel"] = "torch_kernels.TorchKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.05,0.1],weight_list=[0.2,0.3,0.5])"
+        hamiltonian_opt["mode"] = "shooting"
+        hamiltonian_module = LDDMMHamilton(hamiltonian_opt)
 
-        self.compare_tensors(hamiltonian_mom_backward, variational_mom_backward,rtol=1e-3, atol=1e-5)
-        self.compare_tensors(hamiltonian_point_backward, variational_point_backward,rtol=1e-3, atol=1e-5)
+        variational_opt = ParameterDict()
+        variational_opt["kernel"] = "torch_kernels.TorchKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.05,0.1],weight_list=[0.2,0.3,0.5])"
+        variational_opt["mode"] = "shooting"
+        variational_module = LDDMMVariational(variational_opt)
+        self.compare_hamiltonian_and_variational(hamiltonian_module, variational_module, task_name)
 
 
 

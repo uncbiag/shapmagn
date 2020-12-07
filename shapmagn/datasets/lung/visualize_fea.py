@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import pykeops
-pykeops.clean_pykeops()
+# pykeops.clean_pykeops()
 from pykeops.torch import LazyTensor
 from pykeops.torch.cluster import grid_cluster, sort_clusters, cluster_ranges_centroids, from_matrix
 import pyvista as pv

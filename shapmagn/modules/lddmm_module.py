@@ -51,7 +51,7 @@ class LDDMMVariational(nn.Module):
         self.opt = opt
         kernel = opt[("kernel", "torch_kernels.TorchKernel('gauss',sigma=0.1)", "kernel object")]
         self.kernel = obj_factory(kernel)
-        grad_kernel = opt[("grad_kernel", "torch_kernels.TorchKernel('gauss_grad',sigma=0.1)", "kernel object")]
+        grad_kernel = kernel.replace("gauss","gauss_grad")
         self.grad_kernel = obj_factory(grad_kernel)
         self.mode = "shooting"
 

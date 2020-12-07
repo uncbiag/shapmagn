@@ -50,7 +50,7 @@ def init_task_env(setting_path,output_root_path, task_name):
     :return:
     """
     tsm_json_path = os.path.join(setting_path, 'task_setting.json')
-    assert os.path.isfile(tsm_json_path),"task setting not exists"
+    assert os.path.isfile(tsm_json_path),"task setting:{} not exists".format(tsm_json_path)
     tsm = ModelTask('task_reg',tsm_json_path)
     tsm.task_par['tsk_set']['task_name'] = task_name
     tsm.task_par['tsk_set']['output_root_path'] = output_root_path

@@ -16,7 +16,7 @@ def eval_model(opt,model,dataloaders,device, task_name=""):
     running_part_data = running_range[0]>=0
     if running_part_data:
         print("running part of the test data from range {}".format(running_range))
-    phases = ['val','test']
+    phases = ['test']
     if len(model_path):
         #todo  check  model loading for data parallel
         get_test_model(model_path, model.network,  model.optimizer)

@@ -12,13 +12,13 @@ class LDDMMHamilton(nn.Module):
     def __init__(self, opt):
         super(LDDMMHamilton,self).__init__()
         self.opt = opt
-        kernel = opt[("kernel","torch_kernels.TorchKernel('gauss',0.1)","kernel object")]
+        kernel = opt[("kernel","torch_kernels.TorchKernel('gauss',sigma=0.1)","kernel object")]
         self.kernel = obj_factory(kernel)
         self.mode = "shooting"
 
     def hamiltonian(self,mom, control_points):
         # todo check, the omitted 1/2 is consistant with variational version
-        return (mom * self.kernel(control_points, control_points, mom)).sum()
+        return (mom * self.kernel(control_points, control_points, mom)).sum()*0.5
     def hamiltonian_evolve(self,mom, control_points):
         record_is_grad_enabled = torch.is_grad_enabled()
         torch.set_grad_enabled(True)
@@ -49,9 +49,9 @@ class LDDMMVariational(nn.Module):
     def __init__(self, opt):
         super(LDDMMVariational, self).__init__()
         self.opt = opt
-        kernel = opt[("kernel", "torch_kernels.TorchKernel('gauss',0.1)", "kernel object")]
+        kernel = opt[("kernel", "torch_kernels.TorchKernel('gauss',sigma=0.1)", "kernel object")]
         self.kernel = obj_factory(kernel)
-        grad_kernel = opt[("grad_kernel", "torch_kernels.TorchKernel('gauss_grad',0.1)", "kernel object")]
+        grad_kernel = opt[("grad_kernel", "torch_kernels.TorchKernel('gauss_grad',sigma=0.1)", "kernel object")]
         self.grad_kernel = obj_factory(grad_kernel)
         self.mode = "shooting"
 

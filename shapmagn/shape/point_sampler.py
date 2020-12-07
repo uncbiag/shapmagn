@@ -2,7 +2,6 @@ from pykeops.torch.cluster import grid_cluster
 import torch
 from torch_scatter import scatter
 from random import Random
-from shapmagn.global_variable import Shape
 import time
 
 def grid_sampler(scale):
@@ -57,6 +56,7 @@ def grid_shape_sampler(scale):
     """
     grid_point_sampler = grid_sampler(scale)
     def sampling(input_shape):
+        from shapmagn.global_variable import Shape
         nbatch = input_shape.nbatch
         sampled_points_list = []
         sampled_weights_list = []
@@ -93,6 +93,7 @@ def uniform_shape_sampler(num_sample, rand_generator=Random(0)):
 
     uniform_point_sampler = uniform_sampler(num_sample, rand_generator=rand_generator)
     def sampling(input_shape):
+        from shapmagn.global_variable import Shape
         nbatch = input_shape.nbatch
         sampled_points_list = []
         sampled_weights_list = []

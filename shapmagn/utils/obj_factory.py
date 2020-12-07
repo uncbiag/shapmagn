@@ -6,6 +6,7 @@ from functools import partial
 KNOWN_MODULES = {
     # Torch
     'lung_dataset_utils': 'shapmagn.datasets.lung.lung_dataset_utils',
+    'toy_dataset_utils': 'shapmagn.datasets.synth.toy_dataset_utils',
     "shape_pair_utils":"shapmagn.shape.shape_pair_utils",
     "lung_shape_pair":"shapmagn.datasets.lung.lung_shape_pair",
     "torch_kernels": 'shapmagn.kernels.torch_kernels',

@@ -61,7 +61,7 @@ class DataManager(object):
         if is_train:
             self.phases = ['train', 'val','debug']
         else:
-            self.phases = ['val','test']
+            self.phases = ['test']
         name = self.data_opt["name"]
         dataset_opt = self.data_opt[(name,{},"settings for {} dataset".format(name))]
         assert name in DATASET_POOL, "{} not in dataset pool {}".format(name, DATASET_POOL)

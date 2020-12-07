@@ -1,0 +1,114 @@
+{
+    "dataset": {
+        "name": "pair_dataset",
+        "pair_dataset": {
+            "reader" : "toy_dataset_utils.toy_reader()",
+                "sampler" : "toy_dataset_utils.toy_sampler()",
+            "normalizer": "toy_dataset_utils.toy_normalizer()",
+            "max_num_for_loading": [-1,-1,-1,-1],
+            "load_training_data_into_memory": true,
+            "aug_data_via_inverse_reg_direction": false
+        }
+    },
+    "tsk_set": {
+        "batch_sz": [2,1,1,1],
+        "gpu_ids": 0,
+        "max_batch_num_per_epoch": [
+                800,
+                600,
+                50
+            ],
+        "model": "optimization",
+        "method_name": "lddmm_opt",
+        "loss_name": "geomloss",
+        "lddmm_opt": {
+            "module":"variational",
+            "print_step":10,
+            "hamiltonian": {
+                "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)"
+            },
+            "variational": {
+                "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)",
+                "grad_kernel": "keops_kernels.LazyKeopsKernel('gauss_grad',sigma=0.05)"
+            },
+            "integrator": {
+                    "tFrom": 0.0,
+                    "tTo": 1.0,
+                    "solver":"dopri5",
+                    "adjoin_on": true,
+                    "rtol": 1e-5,
+                    "atol": 1e-5,
+                    "number_of_time_steps": 15
+            },
+            "sim_loss": {
+                "loss_list": ["geomloss"],
+                "loss_weight_strategy_dict":{},
+                "loss_activate_epoch_list": [0],
+                "geomloss":{
+                    "attr": "points",
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, scaling=0.8, debias=True)"
+                },
+                "l2": {
+                    "attr": "points"
+                },
+                "varifold": {
+                    "kernel_backend": "keops",
+                    "sigma": 0.1
+
+                },
+                "current": {
+                    "kernel_backend": "keops",
+                    "sigma": 0.1
+                }
+            }
+        },
+        "multi_scale_optimization": {
+            "scales": [0.1,  -1],
+            "iter_per_scale": [100, 60],
+            "rel_ftol_per_scale": [1e-4, 1e-4],
+            "shape_sampler_type": "point_grid",
+            "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
+            "interp_kernel_width_list": [0.1],
+             "optim": {
+                 "lr": 1e-3,
+                 "type": "lbgfs",
+                 "adam": {
+                     "betas": [
+                         0.9,
+                         0.999
+                     ]
+                 },
+                 "lbgfs": {
+                     "rel_ftol": 1e-7,
+                     "max_iter": 1,
+                     "max_eval": 5,
+                     "history_size": 5
+                 },
+                 "sgd": {
+                     "momentum": 0.9,
+                     "dampening": 0.0,
+                     "weight_decay": 0.0,
+                     "nesterov": true
+                 }
+             },
+            "scheduler": {
+                "type": "step_lr",
+                "step_lr": {
+                    "gamma": 0.5,
+                    "step_size": 50
+                },
+                "plateau": {
+                    "patience": 10,
+                    "mode": "min",
+                    "factor": 0.5,
+                    "threshold_mode": "rel",
+                    "threshold": 1e-3,
+                    "cooldown": 0,
+                    "min_lr": 1e-8
+                }
+            }
+        },
+        "save_fig_on": true,
+        "is_train": false
+    }
+}

@@ -10,15 +10,6 @@ def reg_param_initializer():
         return reg_param
     return init
 
-def create_shape_pair_from_dict(input_data):
-    source_dict, target_dict = input_data["source"], input_data["target"]
-    shape_pair = ShapePair(dense_mode=True)
-    source_shape = Shape()
-    source_shape.set_data(points= source_dict['points'],  pointfea=source_dict['point_fea'])
-    target_shape = Shape()
-    target_shape.set_data(points= target_shape['points'],  pointfea=target_shape['point_fea'])
-    shape_pair.set_source_and_target(source_shape, target_shape)
-    return shape_pair
 
 def create_source_and_target_shape():
     def create(input_dict):

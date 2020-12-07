@@ -1,23 +1,36 @@
 import vtk
 from vtk.util import numpy_support as ns
-
+import pyvista as pv
 
 
 def read_vtk(path):
-    reader = vtk.vtkGenericDataObjectReader()
-    reader.SetFileName(path)
-    reader.Update()
-    pointData = reader.GetOutput()
-    pointData.GetNumberOfPoints()
+    data = pv.read(path)
     data_dict = {}
-    data_dict["points"] = ns.vtk_to_numpy(pointData.GetPoints().GetData())
-    # data_dict["lines"] = ns.vtk_to_numpy(pointData.GetLines().GetData())
-    assosciatedData = pointData.GetPointData()
-    for j in range(assosciatedData.GetNumberOfArrays()):
-        attr_name = assosciatedData.GetArrayName(j)
-        attr_val = ns.vtk_to_numpy(assosciatedData.GetAbstractArray(j))
-        data_dict[attr_name] = attr_val
+    data_dict["points"] = data.points
+    data_dict["faces"] = data.faces.reshape(-1,4)[:,1:]
+    for name in data.array_names:
+        data_dict[name] = data[name]
     return data_dict
+
+
+
+
+
+# def read_vtk(path):
+#     reader = vtk.vtkGenericDataObjectReader()
+#     reader.SetFileName(path)
+#     reader.Update()
+#     pointData = reader.GetOutput()
+#     pointData.GetNumberOfPoints()
+#     data_dict = {}
+#     data_dict["points"] = ns.vtk_to_numpy(pointData.GetPoints().GetData())
+#     # data_dict["lines"] = ns.vtk_to_numpy(pointData.GetLines().GetData())
+#     assosciatedData = pointData.GetPointData()
+#     for j in range(assosciatedData.GetNumberOfArrays()):
+#         attr_name = assosciatedData.GetArrayName(j)
+#         attr_val = ns.vtk_to_numpy(assosciatedData.GetAbstractArray(j))
+#         data_dict[attr_name] = attr_val
+#     return data_dict
 
 
 def save_vtk(filename, points):

@@ -22,7 +22,7 @@ def build_multi_scale_solver(opt, model):
     scale_shape_sampler_list = [SHAPE_SAMPLER_POOL[shape_sampler_type](scale) for scale in scale_args_list]
     num_scale = len(scale_iter_list)
     updater_list = [updater_for_shape_pair_from_low_scale(model=model) for _ in range(num_scale-1)]
-    source_target_generator = opt[("source_target_generator", "default_shape_pair_util.create_source_and_target_shape()","generator func")]
+    source_target_generator = opt[("source_target_generator", "shape_pair_util.create_source_and_target_shape()","generator func")]
     source_target_generator = obj_factory(source_target_generator)
     single_scale_solver_list = [build_single_scale_solver(opt,model, scale_iter_list[i], scale_rel_ftol_list[i])
                                 for i in range(num_scale)]

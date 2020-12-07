@@ -25,6 +25,8 @@ class PolyLine(ShapeBase):
         self.type = 'polyline'
         self.edges =None
         self.index = None
+        self.points_mode_on = False
+        """the mesh sampling is not implemented, if the topology changed, only points related operators are allowed"""
 
     def set_data(self, **args):
         """
@@ -35,7 +37,7 @@ class PolyLine(ShapeBase):
         :param reindex: generate index over batch for two ends
         :return:
         """
-        ShapeBase.set_data(**args)
+        ShapeBase.set_data(self,**args)
         edges = args["edges"]
         assert edges is not None
         self.edges = edges
@@ -63,6 +65,8 @@ class PolyLine(ShapeBase):
         self.pointfea = polyline.pointfea
         self.weights = polyline.weights
         self.seg = polyline.seg
+        self.points_mode_on = self.points.shape[1]!=self.faces.shape[1]
+
         self.update_info()
 
 
@@ -77,6 +81,8 @@ class PolyLine(ShapeBase):
 
         :return: centers:BxNxD, currents: BxNxD
         """
+        if self.points_mode_on:
+            raise NotImplemented("the topology of the shape has changed, only point related operators are allowed")
 
         a = self.points.view(-1)[self.index[0]]
         b = self.points.view(-1)[self.index[1]]

@@ -40,7 +40,7 @@ class ShapeBase(object):
         self.points = points
         self.npoints = points_shape[1]
         if self.weights is None:
-            self.weights = torch.ones(self.nbatch,self.npoints,1)/self.npoints
+            self.weights = torch.ones(self.nbatch,self.npoints,1).to(points.device)/self.npoints
         if self.compute_bd:
             self.update_bounding_box()
 

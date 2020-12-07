@@ -9,7 +9,8 @@ import numpy as np
 from pykeops.torch.cluster import grid_cluster
 import torch
 from torch_scatter import scatter
-from shapmagn.utils.point_sampler import grid_sampler, uniform_sampler
+from shapmagn.shape.point_sampler import grid_sampler, uniform_sampler
+from shapmagn.shape.shape_utils import get_scale_and_center
 
 """
 attri points with size (73412, 3)
@@ -42,7 +43,7 @@ def lung_reader():
         raw_data_dict = reader(path)
         data_dict = {}
         data_dict["points"] = raw_data_dict["points"]
-        data_dict["weights"] = raw_data_dict["scale"][:,None]
+        data_dict["weights"] = raw_data_dict["dnn_radius"][:,None]
         fea_list = [norm_fea(exp_dim_fn(raw_data_dict[fea_name])) for fea_name in fea_to_merge]
         data_dict["pointfea"] = np.concatenate(fea_list,1)
         return data_dict
@@ -102,18 +103,6 @@ def lung_normalizer(**args):
     :param args: a dict include "scale" : [scale_x,scale_y,scale_z]: , "shift":[shift_x. shift_y, shift_z]
     :return:
     """
-
-    def get_scale_and_center(points,percentile=99):
-        dim = points.shape[1]
-        scale = np.zeros([1,dim])
-        center = np.zeros([1,dim])
-        interval = [(100.-percentile)/2,100-(100.-percentile)/2]
-        for d in range(dim):
-            filtered_low_thre =  np.percentile(points[:,d],interval[0])
-            filtered_up_thre =  np.percentile(points[:,d],interval[1])
-            scale[0,d] = filtered_up_thre - filtered_low_thre
-            center[0,d] = (filtered_up_thre + filtered_low_thre)/2
-        return scale/2, center
 
     def normalize(data_dict):
         if 'scale' in args and 'shift' in args:

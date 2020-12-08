@@ -50,10 +50,10 @@ def build_multi_scale_solver(opt, model):
     return solve
 
 
-def build_single_scale_solver(opt,model, num_iter,scale=1, rel_ftol=1e-4, patient=5):
+def build_single_scale_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patient=5):
     def solve(shape_pair):
         save_every_n_iter = opt[("save_every_n_iter", 20, "save output every n iteration")]
-        record_path = opt[("record_path", "./", "record path")]
+        record_path = opt[("record_path", "", "record path")]
         record_path = os.path.join(record_path,"scale_{}".format(scale))
         os.makedirs(record_path,exist_ok=True)
         opt_optim = opt['optim']
@@ -84,6 +84,7 @@ def build_single_scale_solver(opt,model, num_iter,scale=1, rel_ftol=1e-4, patien
             if iter%save_every_n_iter==0:
                 save_shape_pair_into_vtks(record_path, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
+                print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count+1 if (iter-previous_converged_iter)==1 else 0
                 previous_converged_iter = iter
                 if patient_count>patient:

@@ -40,11 +40,8 @@ class Pipline():
         run training based model or evaluation based model
         :return: None
         """
-        if is_train:
-            train_model(self.tsk_opt, self.model, self.data_loaders,self.writer, self.device)
-
-        else:
-            eval_model(self.tsk_opt, self.model, self.data_loaders, self.device)
+        _run_model = train_model if is_train else eval_model
+        _run_model(self.tsk_opt, self.model, self.data_loaders,self.writer, self.device)
         saving_comment_path = self.task_setting_pth.replace('.json','_comment.json')
         self.tsk_opt.write_JSON_comments(saving_comment_path)
 

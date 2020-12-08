@@ -22,6 +22,8 @@ class ShapeBase(object):
         self.nbatch = None
         self.dimension = None
         self.points = None
+        self.faces = None
+        self.edges = None
         self.weights = None
         self.npoints = None
         self.label = None

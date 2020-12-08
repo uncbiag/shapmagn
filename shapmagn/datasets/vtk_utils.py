@@ -1,6 +1,8 @@
 import vtk
-from vtk.util import numpy_support as ns
 import pyvista as pv
+import numpy as np
+
+
 
 
 def read_vtk(path):
@@ -13,7 +15,10 @@ def read_vtk(path):
     return data_dict
 
 
-
+def convert_faces_into_vtk_format(faces):
+    ind = np.ones([faces.shape[0],1])*3
+    faces = np.concatenate((ind,faces),1).astype(np.int64)
+    return faces.flatten()
 
 
 # def read_vtk(path):

@@ -58,10 +58,6 @@ class OptModel(ModelBase):
         return input_data
 
 
-
-    def backward_net(self, loss):
-        loss.backward()
-
     def get_debug_info(self):
         """ get filename of the failed cases"""
         info = {'file_name': self.batch_info["fname_list"]}
@@ -100,6 +96,7 @@ class OptModel(ModelBase):
         :return:
         """
         multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
+        multi_scale_opt['record_path'] = self.record_path
         sovler = build_multi_scale_solver(multi_scale_opt,self._model)
         output = sovler(input_data)
         return output

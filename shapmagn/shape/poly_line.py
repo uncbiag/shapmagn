@@ -23,7 +23,7 @@ class PolyLine(ShapeBase):
         """
         super(PolyLine,self).__init__()
         self.type = 'polyline'
-        self.edges =None
+        self.edges = None
         self.index = None
         self.points_mode_on = False
         """the mesh sampling is not implemented, if the topology changed, only points related operators are allowed"""

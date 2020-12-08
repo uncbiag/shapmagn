@@ -5,7 +5,7 @@ import numpy as np
 
 
 
-def eval_model(opt,model,dataloaders,device, task_name=""):
+def eval_model(opt,model,dataloaders,writer,device, task_name=""):
     model_path = opt['tsk_set']['path'][('model_load_path',"","trained model path")]
     since = time()
     record_path = opt['tsk_set']['path']['record_path']

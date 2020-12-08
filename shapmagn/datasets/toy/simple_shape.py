@@ -7,6 +7,7 @@ import numpy as np
 import trimesh
 import pyvista as pv
 from shapmagn.shape.shape_utils import get_scale_and_center
+from shapmagn.datasets.vtk_utils import convert_faces_into_vtk_format
 
 PROGRAM_PATH="./"
 get_shape_path = lambda shape_name: os.path.join(os.path.join(PROGRAM_PATH,"simple_shape",shape_name,"train",shape_name))+'.off'
@@ -34,10 +35,7 @@ def subdivide(vertices, faces, level=2):
         vertices, faces = trimesh.remesh.subdivide(vertices, faces)
     return vertices, faces
 
-def transfer_faces_into_vtk_format(faces):
-    ind = np.ones([faces.shape[0],1])*3
-    faces = np.concatenate((ind,faces),1).astype(np.int64)
-    return faces.flatten()
+
 
 def compute_interval(vertices):
     vert_i  = vertices[:,None]
@@ -56,7 +54,7 @@ if __name__ =="__main__":
     verts, faces = get_shape(shape_name)
     verts, faces =subdivide(verts, faces, level=level)
     verts = normalize_vertice(verts)
-    faces = transfer_faces_into_vtk_format(faces)
+    faces = convert_faces_into_vtk_format(faces)
     compute_interval(verts)
     data = pv.PolyData(verts,faces)
     data.save(saving_path)
@@ -66,7 +64,7 @@ if __name__ =="__main__":
     verts, faces = get_shape(shape_name)
     verts, faces = subdivide(verts, faces, level=level)
     verts = normalize_vertice(verts)
-    faces = transfer_faces_into_vtk_format(faces)
+    faces = convert_faces_into_vtk_format(faces)
     compute_interval(verts)
     data = pv.PolyData(verts, faces)
     data.save(saving_path)

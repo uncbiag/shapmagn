@@ -100,3 +100,4 @@ def spline_intepolator(scale=5, kernel="gauss"):
     return interp
 
 
+

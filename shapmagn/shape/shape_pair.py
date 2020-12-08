@@ -91,11 +91,14 @@ class ShapePair():
         self.control_weights = control_weights
         self.control_points.requires_grad_()
 
-    def get_control_points(self):
+    def get_control_points(self,detach=False):
         if self.control_points is None:
             self.control_points = self.source.points.clone()
             self.control_weights = self.source.weights
-        return self.control_points
+        return self.control_points if not detach else self.control_points.detach()
 
-    def get_toflow_points(self):
-        return self.toflow.points.clone()
+    def get_toflow_points(self,detach=False):
+        return self.toflow.points if not detach else self.toflow.points.detach()
+
+    def get_flowed_points(self,detach=False):
+        return self.flowed.points if not detach else self.flowed.points.detach()

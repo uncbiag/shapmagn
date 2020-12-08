@@ -28,7 +28,7 @@ def build_multi_scale_solver(opt, model):
     updater_list = [updater_for_shape_pair_from_low_scale(model=model) for _ in range(num_scale-1)]
     source_target_generator = opt[("source_target_generator", "shape_pair_util.create_source_and_target_shape()","generator func")]
     source_target_generator = obj_factory(source_target_generator)
-    single_scale_solver_list = [build_single_scale_solver(opt,model, scale_iter_list[i],scale_args_list[i], scale_rel_ftol_list[i])
+    single_scale_solver_list = [build_single_scale_custom_solver(opt,model, scale_iter_list[i],scale_args_list[i], scale_rel_ftol_list[i])
                                 for i in range(num_scale)]
     print("Multi-scale solver initialized!")
     print("The optimization works on the strategy '{}' with setting {}".format(shape_sampler_type, scale_args_list))
@@ -50,16 +50,16 @@ def build_multi_scale_solver(opt, model):
     return solve
 
 
-def build_single_scale_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patient=5):
+def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patient=5):
+    save_every_n_iter = opt[("save_every_n_iter", 20, "save output every n iteration")]
+    record_path = opt[("record_path", "", "record path")]
+    record_path = os.path.join(record_path, "scale_{}".format(scale))
+    os.makedirs(record_path, exist_ok=True)
+    opt_optim = opt['optim']
+    """settings for the optimizer"""
+    opt_scheduler = opt['scheduler']
+    """settings for the scheduler"""
     def solve(shape_pair):
-        save_every_n_iter = opt[("save_every_n_iter", 20, "save output every n iteration")]
-        record_path = opt[("record_path", "", "record path")]
-        record_path = os.path.join(record_path,"scale_{}".format(scale))
-        os.makedirs(record_path,exist_ok=True)
-        opt_optim = opt['optim']
-        """settings for the optimizer"""
-        opt_scheduler = opt['scheduler']
-        """settings for the scheduler"""
         ######################################3
         shape_pair.reg_param.register_hook(grad_hook)
         ############################################3
@@ -94,6 +94,35 @@ def build_single_scale_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patie
         model.reset_iter()
         return shape_pair
 
+    return solve
+
+
+def build_single_scale_gradient_flow_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patient=5):
+    save_every_n_iter = opt[("save_every_n_iter", 20, "save output every n iteration")]
+    record_path = opt[("record_path", "", "record path")]
+    record_path = os.path.join(record_path, "scale_{}".format(scale))
+    os.makedirs(record_path, exist_ok=True)
+    def solve(shape_pair):
+        last_energy = 0.0
+        patient_count = 0
+        previous_converged_iter = 0.
+        for iter in range(num_iter):
+            cur_energy = model(shape_pair)
+            cur_energy = cur_energy.item()
+            rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
+            last_energy = cur_energy
+            if iter % save_every_n_iter == 0:
+                save_shape_pair_into_vtks(record_path, "iter_{}".format(iter), shape_pair)
+            if rel_f < rel_ftol:
+                print("the converge rate: {} is too small".format(rel_f))
+                patient_count = patient_count + 1 if (iter - previous_converged_iter) == 1 else 0
+                previous_converged_iter = iter
+                if patient_count > patient:
+                    print('Reached relative function tolerance of = ' + str(rel_ftol))
+                    break
+        save_shape_pair_into_vtks(record_path, "iter_last", shape_pair)
+        model.reset_iter()
+        return shape_pair
     return solve
 
 ###################

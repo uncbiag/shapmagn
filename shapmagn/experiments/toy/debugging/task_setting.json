@@ -22,10 +22,10 @@
         "method_name": "lddmm_opt",
         "loss_name": "geomloss",
         "lddmm_opt": {
-            "module":"variational",
+            "module":"hamiltonian",
             "print_step":10,
             "hamiltonian": {
-                "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)"
+                "kernel": "torch_kernels.TorchKernel(kernel_type='multi_gauss', sigma_list=[0.005],weight_list=[1.0])"
             },
             "variational": {
                 "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)",
@@ -46,7 +46,7 @@
                 "loss_activate_epoch_list": [0],
                 "geomloss":{
                     "attr": "points",
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, scaling=0.8, debias=True)"
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.005, scaling=0.8, debias=True)"
                 },
                 "l2": {
                     "attr": "points"
@@ -63,14 +63,14 @@
             }
         },
         "multi_scale_optimization": {
-            "scales": [0.1,  -1],
-            "iter_per_scale": [100, 60],
+            "scales": [ 0.05, -1],
+            "iter_per_scale": [100,50],
             "rel_ftol_per_scale": [1e-4, 1e-4],
             "shape_sampler_type": "point_grid",
             "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
             "interp_kernel_width_list": [0.1],
              "optim": {
-                 "lr": 1e-3,
+                 "lr": 1e-2,
                  "type": "lbgfs",
                  "adam": {
                      "betas": [

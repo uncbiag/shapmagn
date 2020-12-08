@@ -65,10 +65,10 @@ class LDDMMOPT(nn.Module):
         :return:
         """
         sim_factor = 10
-        reg_factor_init =100 #self.initial_reg_factor
-        static_epoch = 50
+        reg_factor_init =0 #self.initial_reg_factor
+        static_epoch = 100
         min_threshold = reg_factor_init/10
-        decay_factor = 5
+        decay_factor = 8
         reg_factor = float(
             max(sigmoid_decay(self.iter.item(), static=static_epoch, k=decay_factor) * reg_factor_init, min_threshold))
         return sim_factor, reg_factor

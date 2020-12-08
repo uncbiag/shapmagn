@@ -43,6 +43,8 @@ class ODEBlock(nn.Module):
         """ absolute error tolerance for dopri5"""
         self.n_step = param[('number_of_time_steps', 20,'Number of time-steps to per unit time-interval integrate the ode')]
         """ Number of time-steps to per unit time-interval integrate the PDE, for fixed time-step solver, i.e. rk4"""
+        self.min_step = param[('min_step', 1e-3, 'the min step that can tolerate in adaptive method ')]
+        """ absolute error tolerance for dopri5"""
         self.dt = 1./self.n_step
         """time step, we assume integration time is from 0,1 so the step is 1/n_step"""
     def solve(self,x):
@@ -58,7 +60,7 @@ class ODEBlock(nn.Module):
         self.integration_time = self.integration_time.type_as(x) if type(x) is not tuple else self.integration_time.type_as(x[0])
         odesolver = torchdiffeq.odeint_adjoint if self.adjoin_on else torchdiffeq.odeint
         #out = odeint(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol)
-        out = odesolver(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol,method=self.method, options={'step_size':self.dt})
+        out = odesolver(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol,method=self.method, options={'step_size':self.dt, "eps":self.min_step})
         return (elem[1] for elem in out)
 
     @property

@@ -10,7 +10,7 @@ def save_shape_into_vtk(folder_path, name, **args):
         if isinstance(item, torch.Tensor):
             args[key] = item.cpu().detach().numpy()
     points = args["points"]
-    faces = args["faces"]
+    faces = args["faces"] if "faces" in args else None
     if len(points.shape)==3:
         nbatch,_,_ = points.shape
     elif len(points.shape)==2:
@@ -23,12 +23,12 @@ def save_shape_into_vtk(folder_path, name, **args):
     for b in range(nbatch):
         if faces is not None:
             face = convert_faces_into_vtk_format(faces[b])
-            data = pv.PolyData(points[b],faces=face)
+            data = pv.PolyData(points[b],face)
         else:
             data = pv.PolyData(points[b])
         for key, item in args.items():
             if key not in ['points','faces']:
-                data.point_arrays[key] = item
+                data.point_arrays[key] = item[b]
         fpath = os.path.join(folder_path, name)+"_{}.vtk".format(b)
         data.save(fpath)
 
@@ -36,7 +36,8 @@ def save_shape_into_vtk(folder_path, name, **args):
 
 def save_shape_into_vtks(folder_path,name, shape):
 
-    attri_dict_to_save = {"points":shape.points, "faces":shape.faces,"weights":shape.weights}
+    attri_dict_to_save = {"points":shape.points, "weights":shape.weights}
+    attri_dict_to_save["faces"] = shape.faces if not shape.points_mode_on else None
     if shape.pointfea is not None:
         attri_dict_to_save["pointfea"] = torch.norm(shape.pointfea, 2, dim=2)
     save_shape_into_vtk(folder_path,name, **attri_dict_to_save)

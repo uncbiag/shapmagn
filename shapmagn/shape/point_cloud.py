@@ -21,6 +21,8 @@ class PointCloud(ShapeBase):
         """
         super(PointCloud,self).__init__()
         self.type = 'pointcloud'
+        self.points_mode_on = True
+
 
     def set_data_with_refer_to(self, points, pointcloud):
         self.points = points
@@ -30,6 +32,7 @@ class PointCloud(ShapeBase):
         self.pointfea = pointcloud.pointfea
         self.weights = pointcloud.weights
         self.seg = pointcloud.seg
+        self.scale = pointcloud.scale
         self.update_info()
 
     def get_centers(self):

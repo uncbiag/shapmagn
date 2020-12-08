@@ -65,8 +65,8 @@ class PolyLine(ShapeBase):
         self.pointfea = polyline.pointfea
         self.weights = polyline.weights
         self.seg = polyline.seg
-        self.points_mode_on = self.points.shape[1]!=self.faces.shape[1]
-
+        self.scale = polyline.scale
+        self.points_mode_on = self.scale != -1
         self.update_info()
 
 

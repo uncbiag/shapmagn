@@ -64,7 +64,8 @@ class SurfaceMesh(ShapeBase):
         self.pointfea = mesh.pointfea
         self.weights = mesh.weights
         self.seg = mesh.seg
-        self.points_mode_on = self.points.shape[1]!=self.faces.shape[1]
+        self.scale = mesh.scale
+        self.points_mode_on = self.scale != -1
 
         self.update_info()
 

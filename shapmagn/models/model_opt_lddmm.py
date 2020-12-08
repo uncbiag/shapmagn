@@ -65,7 +65,7 @@ class LDDMMOPT(nn.Module):
         :return:
         """
         sim_factor = 10
-        reg_factor_init =0 #self.initial_reg_factor
+        reg_factor_init =1 #self.initial_reg_factor
         static_epoch = 100
         min_threshold = reg_factor_init/10
         decay_factor = 8

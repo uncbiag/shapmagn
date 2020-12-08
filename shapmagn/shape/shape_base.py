@@ -32,6 +32,7 @@ class ShapeBase(object):
         self.compute_bd = False
         self.landmarks = None
         self.pointfea = None
+        self.scale =-1
         #self.update_bounding_box()
 
     def update_info(self):
@@ -62,12 +63,14 @@ class ShapeBase(object):
         pointfea = args["pointfea"] if "pointfea" in args else None
         label = args["label"] if "label" in args else None
         seg = args["seg"] if "seg" in args else None
+        scale = args["scale"] if "scale" in args else -1
         self.points = points
         self.weights = weights
         self.landmarks = landmarks
         self.pointfea = pointfea
         self.label = label
         self.seg = seg
+        self.scale = scale
         self.update_info()
 
     def set_weights(self, weights):
@@ -110,7 +113,8 @@ class ShapeBase(object):
         """
         self.pointfea = pointfea
 
-
+    def set_scale(self, scale):
+        self.scale = scale
 
     def set_name_list(self, name_list):
         self.name_list = name_list

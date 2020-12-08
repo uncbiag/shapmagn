@@ -25,7 +25,7 @@
             "module":"hamiltonian",
             "print_step":10,
             "hamiltonian": {
-                "kernel": "torch_kernels.TorchKernel(kernel_type='multi_gauss', sigma_list=[0.005],weight_list=[1.0])"
+                "kernel": "torch_kernels.TorchKernel(kernel_type='multi_gauss', sigma_list=[0.005, 0.01,0.02],weight_list=[0.3,0.3,0.4])"
             },
             "variational": {
                 "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)",
@@ -63,15 +63,15 @@
             }
         },
         "multi_scale_optimization": {
-            "scales": [ 0.05, -1],
-            "iter_per_scale": [100,50],
-            "rel_ftol_per_scale": [1e-4, 1e-4],
+            "scales": [ 0.1, 0.05, -1],
+            "iter_per_scale": [100,70,30],
+            "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
             "save_every_n_iter": 20,
             "shape_sampler_type": "point_grid",
             "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
             "interp_kernel_width_list": [0.1],
              "optim": {
-                 "lr": 1e-2,
+                 "lr": 5e-3,
                  "type": "lbgfs",
                  "adam": {
                      "betas": [

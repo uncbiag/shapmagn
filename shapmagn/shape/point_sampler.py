@@ -77,6 +77,7 @@ def grid_shape_sampler(scale):
         new_shape = Shape()
         new_shape.set_data_with_refer_to(sampled_batch_points, input_shape)
         new_shape.set_weights(sampled_batch_weights)
+        new_shape.set_scale(scale)
         if input_shape.pointfea is not None:
             sampled_batch_pointfea = torch.stack(sampled_pointfea_list,dim=0)
             new_shape.set_pointfea(sampled_batch_pointfea)
@@ -114,6 +115,7 @@ def uniform_shape_sampler(num_sample, rand_generator=Random(0)):
         new_shape = Shape()
         new_shape.set_data_with_refer_to(sampled_batch_points, input_shape)
         new_shape.set_weights(sampled_batch_weights)
+        new_shape.set_scale(num_sample)
         if input_shape.pointfea is not None:
             sampled_batch_pointfea = torch.stack(sampled_pointfea_list,dim=0)
             new_shape.set_pointfea(sampled_batch_pointfea)

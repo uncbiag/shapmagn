@@ -25,10 +25,12 @@ def build_multi_scale_solver(opt, model):
     scale_args_list = sampler_scale_list if shape_sampler_type=='point_grid' else sampler_npoints_list
     scale_shape_sampler_list = [SHAPE_SAMPLER_POOL[shape_sampler_type](scale) for scale in scale_args_list]
     num_scale = len(scale_iter_list)
-    updater_list = [updater_for_shape_pair_from_low_scale(model=model) for _ in range(num_scale-1)]
+    task_type = opt[("task_type", "custom", "task type: 'custom' or 'gradient_flow'")]
+    build_single_scale_solver = build_single_scale_custom_solver if task_type=="custom" else build_single_scale_gradient_flow_solver
+    updater_list = [updater_for_shape_pair_from_low_scale(model=model, task_type=task_type) for _ in range(num_scale-1)]
     source_target_generator = opt[("source_target_generator", "shape_pair_util.create_source_and_target_shape()","generator func")]
     source_target_generator = obj_factory(source_target_generator)
-    single_scale_solver_list = [build_single_scale_custom_solver(opt,model, scale_iter_list[i],scale_args_list[i], scale_rel_ftol_list[i])
+    single_scale_solver_list = [build_single_scale_solver(opt,model, scale_iter_list[i],scale_args_list[i], scale_rel_ftol_list[i])
                                 for i in range(num_scale)]
     print("Multi-scale solver initialized!")
     print("The optimization works on the strategy '{}' with setting {}".format(shape_sampler_type, scale_args_list))
@@ -91,14 +93,14 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4
                     print('Reached relative function tolerance of = ' + str(rel_ftol))
                     break
         save_shape_pair_into_vtks(record_path, "iter_last", shape_pair)
-        model.reset_iter()
+        model.reset()
         return shape_pair
 
     return solve
 
 
 def build_single_scale_gradient_flow_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patient=5):
-    save_every_n_iter = opt[("save_every_n_iter", 20, "save output every n iteration")]
+    save_every_n_iter = opt[("save_every_n_iter", 1, "save output every n iteration")]
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
     os.makedirs(record_path, exist_ok=True)
@@ -106,6 +108,7 @@ def build_single_scale_gradient_flow_solver(opt,model, num_iter,scale=-1, rel_ft
         last_energy = 0.0
         patient_count = 0
         previous_converged_iter = 0.
+        control_points_clone = shape_pair.get_control_points().clone().detach()
         for iter in range(num_iter):
             cur_energy = model(shape_pair)
             cur_energy = cur_energy.item()
@@ -121,7 +124,7 @@ def build_single_scale_gradient_flow_solver(opt,model, num_iter,scale=-1, rel_ft
                     print('Reached relative function tolerance of = ' + str(rel_ftol))
                     break
         save_shape_pair_into_vtks(record_path, "iter_last", shape_pair)
-        model.reset_iter()
+        shape_pair = model.reset(shape_pair,control_points_clone)
         return shape_pair
     return solve
 

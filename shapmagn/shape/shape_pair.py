@@ -88,8 +88,9 @@ class ShapePair():
         if control_weights is None and self.control_weights is None:
             control_weights = torch.ones(control_points.shape[0],control_points.shape[1],1)
             control_weights = control_weights/control_points.shape[1]
-        self.control_weights = control_weights
-        self.control_points.requires_grad_()
+        if control_weights is not None:
+            self.control_weights = control_weights
+        #self.control_points.requires_grad_()
 
     def get_control_points(self,detach=False):
         if self.control_points is None:

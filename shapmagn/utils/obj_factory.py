@@ -11,6 +11,7 @@ KNOWN_MODULES = {
     "lung_shape_pair":"shapmagn.datasets.lung.lung_shape_pair",
     "torch_kernels": 'shapmagn.kernels.torch_kernels',
     "keops_kernels": 'shapmagn.kernels.keops_kernels',
+    "point_interpolator":"shapmagn.shape.point_interpolator",
     "geomloss": "geomloss",
     'nn': 'torch.nn',
     'optim': 'torch.optim',

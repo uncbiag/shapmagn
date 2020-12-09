@@ -8,10 +8,10 @@ import numpy as np
 def read_vtk(path):
     data = pv.read(path)
     data_dict = {}
-    data_dict["points"] = data.points
-    data_dict["faces"] = data.faces.reshape(-1,4)[:,1:]
+    data_dict["points"] = data.points.astype(np.float32)
+    data_dict["faces"] = data.faces.reshape(-1,4)[:,1:].astype(np.int32)
     for name in data.array_names:
-        data_dict[name] = data[name]
+        data_dict[name] = data[name].astype(np.float32)
     return data_dict
 
 

@@ -5,11 +5,13 @@ from shapmagn.metrics.losses import Loss
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.utils import sigmoid_decay
 from torch.autograd import grad
-class BayCenterOPT(nn.Module):
+class GradientFlowOPT(nn.Module):
     def __init__(self, opt):
-        super(BayCenterOPT, self).__init__()
+        super(GradientFlowOPT, self).__init__()
         self.opt = opt
         interpolator_obj = self.opt[("interpolator_obj","kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator")]
+        gauss_kernel_obbj = opt[("gauss_kernel_obbj","torch_kernels.TorchKernel('gauss',sigma=0.1)","kernel object")]
+        self.gauss_kernel = obj_factory(gauss_kernel_obbj)
         self.interp_kernel = obj_factory(interpolator_obj)
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
@@ -18,13 +20,13 @@ class BayCenterOPT(nn.Module):
         self.print_step = self.opt[('print_step',10,"print every n iteration")]
 
 
-
-
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
 
-    def reset_iter(self):
+    def reset(self,shape_pair, control_points):
         self.iter = self.iter*0
+        shape_pair.set_control_points(control_points)
+        return shape_pair
 
 
 
@@ -40,8 +42,8 @@ class BayCenterOPT(nn.Module):
         shape_pair.set_flowed(flowed)
         return shape_pair
 
-    def geodesic_distance(self,momentum, control_points):
-        dist = momentum * self.lddmm_kernel(control_points, control_points, momentum)
+    def geodesic_distance(self,flow, control_points):
+        dist = flow * self.gauss_kernel(control_points, control_points, flow)
         dist = dist.mean()
         return dist
 
@@ -51,8 +53,8 @@ class BayCenterOPT(nn.Module):
 
         :return:
         """
-        sim_factor = 10
-        reg_factor_init =1 #self.initial_reg_factor
+        sim_factor = 1
+        reg_factor_init =0 #self.initial_reg_factor
         static_epoch = 100
         min_threshold = reg_factor_init/10
         decay_factor = 8
@@ -64,13 +66,14 @@ class BayCenterOPT(nn.Module):
     def forward(self, shape_pair):
         """
         flowed(t) = control(t-1) + flow(t-1)
-        grad_flow(t) = Gradient(loss(flowed(t),target))
+        grad_flow(t) = Gradient(sim_loss(flowed(t),target)+reg_loss(flow(t-1),control(t-1)))
         flow(t) = - grad_flow(t)/weight
         control(t) = flowed(t)
         :param shape_pair:
         :return:
         """
-        flowed_control_points = shape_pair.control_points + shape_pair.reg_param
+        shape_pair.reg_param.requires_grad = False
+        flowed_control_points = shape_pair.get_control_points() + shape_pair.reg_param
         flowed_control_points.detach_()
         flowed_control_points.requires_grad_()
         shape_pair.set_flowed_control_points(flowed_control_points)
@@ -79,13 +82,13 @@ class BayCenterOPT(nn.Module):
         sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
         reg_loss = self.reg_loss_fn(shape_pair.reg_param, shape_pair.get_flowed_points())
         sim_factor, reg_factor = self.get_factor()
-        sim_loss = sim_loss*sim_factor
-        reg_loss = reg_loss*reg_factor
+        sim_loss = sim_loss * sim_factor
+        reg_loss = reg_loss * reg_factor
         if self.iter%10==0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.iter.item(), sim_loss.item(), reg_loss.item(),sim_factor, reg_factor))
         loss = sim_loss + reg_loss
-        grad_flow = grad(loss,shape_pair.flowed_control_points)
+        grad_flow = grad(loss,shape_pair.flowed_control_points)[0]
         shape_pair.set_control_points(shape_pair.control_points.detach() + shape_pair.reg_param.detach())
         shape_pair.reg_param = - grad_flow/shape_pair.control_weights
         self.iter +=1

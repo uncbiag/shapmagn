@@ -14,6 +14,7 @@ class LDDMMOPT(nn.Module):
         self.lddmm_module = LDDMMHamilton(self.opt[("hamiltonian",{},"settings for hamiltonian")])\
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
         self.lddmm_kernel = self.lddmm_module.kernel
+        self.interp_kernel = lambda x,y,p,w: self.lddmm_kernel(x,y,p)
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -29,8 +30,9 @@ class LDDMMOPT(nn.Module):
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
 
-    def reset_iter(self):
+    def reset(self):
         self.iter = self.iter*0
+
 
 
 

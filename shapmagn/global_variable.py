@@ -10,11 +10,12 @@ Shape = SHAPE_POOL[shape_type]
 from shapmagn.kernels.keops_kernels import LazyKeopsKernel
 from shapmagn.kernels.torch_kernels import TorchKernel
 from shapmagn.models.model_opt_lddmm import LDDMMOPT
+from shapmagn.models.model_opt_gradient_flow import GradientFlowOPT
 LOSS_POOL ={"current": CurrentDistance, "varifold":VarifoldDistance, "geomloss":GeomDistance, "l2":L2Distance}
 DATASET_POOL = {
     "pair_dataset": RegistrationDataset
 }
-MODEL_POOL = {"lddmm_opt": LDDMMOPT}
+MODEL_POOL = {"lddmm_opt": LDDMMOPT, "gradient_flow":GradientFlowOPT}
 
 from shapmagn.shape.point_sampler import grid_shape_sampler, uniform_shape_sampler
 

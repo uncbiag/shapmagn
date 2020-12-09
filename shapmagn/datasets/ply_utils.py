@@ -12,7 +12,7 @@ SAMPLING_BIN = os.path.join(BASE_DIR, 'third_party/mesh_sampling/build/pcsample'
 SAMPLING_POINT_NUM = 2048
 SAMPLING_LEAF_SIZE = 0.005
 
-MODELNET40_PATH = '../datasets/modelnet40'
+MODELNET40_PATH = '/modelnet40'
 def export_ply(pc, filename):
 	vertex = np.zeros(pc.shape[0], dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
 	for i in range(pc.shape[0]):

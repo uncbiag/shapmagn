@@ -6,11 +6,11 @@ given a file path, the reader will return a dict
 from random import Random
 from shapmagn.datasets.vtk_utils import read_vtk
 import numpy as np
-from pykeops.torch.cluster import grid_cluster
 import torch
 from torch_scatter import scatter
 from shapmagn.shape.point_sampler import grid_sampler, uniform_sampler
 from shapmagn.shape.shape_utils import get_scale_and_center
+from shapmagn.datasets.data_utils import compute_interval
 
 """
 attri points with size (73412, 3)
@@ -62,31 +62,33 @@ def lung_sampler(method="uniform", **args):
     local_rand = Random(0)
     def uniform_sample(data_dict):
         num_sample = args["num_sample"]
-        points = data_dict["points"]
-        weights = data_dict["weights"]
-        pointfea = data_dict["pointfea"]
-        sampler= uniform_sampler(num_sample, local_rand)
-        sampled_points, sampled_weights, ind = sampler(points,weights)
-        data_dict["points"] = sampled_points
-        data_dict["weights"] = sampled_weights/sum(sampled_weights)
-        data_dict["pointfea"] = pointfea[ind]
+        if num_sample !=-1:
+            points = data_dict["points"]
+            weights = data_dict["weights"]
+            pointfea = data_dict["pointfea"]
+            sampler= uniform_sampler(num_sample, local_rand)
+            sampled_points, sampled_weights, ind = sampler(points,weights)
+            data_dict["points"] = sampled_points
+            data_dict["weights"] = sampled_weights/sum(sampled_weights)
+            data_dict["pointfea"] = pointfea[ind]
         return data_dict
 
     def voxelgrid_sample(data_dict):
         scale = args["scale"]
-        points = torch.Tensor(data_dict["points"])
-        weights = torch.Tensor(data_dict["weights"])
-        pointfea = torch.Tensor(data_dict["pointfea"])
-        sampler = grid_sampler(scale)
-        points, cluster_weights, index = sampler(points,weights)
-        # here we assume the pointfea is summable
-        pointfea = scatter(pointfea*weights, index, dim=0)
-        pointfea = pointfea / cluster_weights
-        # otherwise random sample one from each voxel grid
-        # todo complete random sample code by unique sampling from index
-        data_dict["points"] = points.numpy()
-        data_dict["weights"] = cluster_weights.numpy()
-        data_dict["pointfea"] = pointfea.numpy()
+        if scale != -1:
+            points = torch.Tensor(data_dict["points"])
+            weights = torch.Tensor(data_dict["weights"])
+            pointfea = torch.Tensor(data_dict["pointfea"])
+            sampler = grid_sampler(scale)
+            points, cluster_weights, index = sampler(points,weights)
+            # here we assume the pointfea is summable
+            pointfea = scatter(pointfea*weights, index, dim=0)
+            pointfea = pointfea / cluster_weights
+            # otherwise random sample one from each voxel grid
+            # todo complete random sample code by unique sampling from index
+            data_dict["points"] = points.numpy()
+            data_dict["weights"] = cluster_weights.numpy()
+            data_dict["pointfea"] = pointfea.numpy()
         return data_dict
 
     assert method in ["uniform", "voxelgrid"], "Not in supported sampler: 'uniform' / 'voxelgrid'"
@@ -125,7 +127,7 @@ if __name__ == "__main__":
     from shapmagn.utils.obj_factory import obj_factory
     reader_obj = "lung_dataset_utils.lung_reader()"
     #sampler_obj = "lung_utils.lung_sampler(method='uniform',num_sample=1000)"
-    sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.05)"
+    sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=-1)"
     normalizer_obj = "lung_dataset_utils.lung_normalizer()"
     reader = obj_factory(reader_obj)
     normalizer = obj_factory(normalizer_obj)
@@ -135,4 +137,6 @@ if __name__ == "__main__":
     raw_data_dict  = reader(file_info)
     normalized_data_dict = normalizer(raw_data_dict)
     sampled_data_dict = sampler(normalized_data_dict)
+    compute_interval(sampled_data_dict["points"])
+
 

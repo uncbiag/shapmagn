@@ -1,16 +1,16 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All rights reserved.
 
 
-import torch
 import os
 import numpy as np
 import trimesh
 import pyvista as pv
 from shapmagn.shape.shape_utils import get_scale_and_center
 from shapmagn.datasets.vtk_utils import convert_faces_into_vtk_format
+from shapmagn.datasets.data_utils import compute_interval
 
-PROGRAM_PATH="./"
-get_shape_path = lambda shape_name: os.path.join(os.path.join(PROGRAM_PATH,"simple_shape",shape_name,"train",shape_name))+'.off'
+PROGRAM_PATH= "/"
+get_shape_path = lambda shape_name: os.path.join(os.path.join(PROGRAM_PATH, "shapes", shape_name, "train", shape_name)) + '.off'
 
 def read_off(fpath):
     shape = trimesh.load(fpath)
@@ -37,12 +37,7 @@ def subdivide(vertices, faces, level=2):
 
 
 
-def compute_interval(vertices):
-    vert_i  = vertices[:,None]
-    vert_j  = vertices[None]
-    vert_dist = ((vert_i-vert_j)**2).sum(-1)
-    vert_dist = np.sqrt(vert_dist)
-    print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
+
 
 
 

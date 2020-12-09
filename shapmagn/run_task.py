@@ -4,9 +4,9 @@ run shape registration
 
 import os, sys
 from distutils.dir_util import copy_tree
-sys.path.insert(0,os.path.abspath('..'))
-sys.path.insert(0,os.path.abspath('.'))
-sys.path.insert(0,os.path.abspath('../shapmagn'))
+sys.path.insert(0, os.path.abspath(''))
+sys.path.insert(0, os.path.abspath(''))
+sys.path.insert(0, os.path.abspath(''))
 import torch
 torch.backends.cudnn.benchmark=True
 import shapmagn.utils.module_parameters as pars

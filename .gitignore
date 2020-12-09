@@ -5,4 +5,4 @@ weights
 geomloss
 torchdiffeq
 torchdiffeq_mine
-shapmagn/datasets/toy/simple_shape
+shapmagn/experiments/datasets/toy/shapes

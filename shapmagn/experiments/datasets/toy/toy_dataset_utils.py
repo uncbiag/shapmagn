@@ -51,7 +51,7 @@ if __name__ == "__main__":
     reader = obj_factory(reader_obj)
     normalizer = obj_factory(normalizer_obj)
     sampler = obj_factory(sampler_obj)
-    file_path = "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/datasets/toy/toy_synth/divide_3d_sphere_level1.vtk"
+    file_path = "/playpen-raid1/zyshen/proj/shapmagn/settings/datasets/toy/toy_synth/divide_3d_sphere_level1.vtk"
     file_info = {"name":file_path,"data_path":file_path}
     raw_data_dict  = reader(file_info)
     normalized_data_dict = normalizer(raw_data_dict)

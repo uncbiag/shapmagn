@@ -2,13 +2,12 @@ import os
 import importlib
 from functools import partial
 
-
 KNOWN_MODULES = {
     # Torch
-    'lung_dataset_utils': 'shapmagn.datasets.lung.lung_dataset_utils',
-    'toy_dataset_utils': 'shapmagn.datasets.toy.toy_dataset_utils',
+    'lung_dataset_utils': 'shapmagn.experiments.datasets.lung.lung_dataset_utils',
+    'toy_dataset_utils': 'shapmagn.experiments.datasets.toy.toy_dataset_utils',
+    "lung_shape_pair": "shapmagn.experiments.datasets.lung.lung_shape_pair",
     "shape_pair_utils":"shapmagn.shape.shape_pair_utils",
-    "lung_shape_pair":"shapmagn.datasets.lung.lung_shape_pair",
     "torch_kernels": 'shapmagn.kernels.torch_kernels',
     "keops_kernels": 'shapmagn.kernels.keops_kernels',
     "point_interpolator":"shapmagn.shape.point_interpolator",

@@ -11,7 +11,10 @@ def read_vtk(path):
     data_dict["points"] = data.points.astype(np.float32)
     data_dict["faces"] = data.faces.reshape(-1,4)[:,1:].astype(np.int32)
     for name in data.array_names:
-        data_dict[name] = data[name].astype(np.float32)
+        try:
+            data_dict[name] = data[name].astype(np.float32)
+        except:
+            pass
     return data_dict
 
 

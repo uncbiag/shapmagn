@@ -1,7 +1,6 @@
-from glob import glob
 import os
 from shapmagn.datasets.data_utils import save_json
-data_folder_path = "./toy_synth"
+data_folder_path = "toy_synth"
 source_path_list= [os.path.join(data_folder_path,"divide_3d_sphere_level1.vtk")]
 target_path_list = [os.path.join(data_folder_path,"divide_3d_cube_level4.vtk")]
 for path in target_path_list:

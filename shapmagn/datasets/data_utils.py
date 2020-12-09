@@ -3,8 +3,7 @@ from os.path import isfile, join
 import json
 import os
 import numpy as np
-
-
+from pykeops.torch import LazyTensor
 
 def list_dic(path):
     return [ dic for dic in listdir(path) if not isfile(join(path,dic))]
@@ -213,6 +212,15 @@ def generate_pair_name(pair_path,return_separate_name=False):
         return pair_name
     else:
         return pair_name, s, t
+
+
+def compute_interval(vertices):
+    vert_i  = vertices[:,None]
+    vert_j  = vertices[None]
+    vert_dist = ((vert_i-vert_j)**2).sum(-1)
+    vert_dist = np.sqrt(vert_dist)
+    print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
+    # around 0.003
 
 
 

@@ -14,16 +14,24 @@ class LDDMMOPT(nn.Module):
         self.lddmm_module = LDDMMHamilton(self.opt[("hamiltonian",{},"settings for hamiltonian")])\
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
         self.lddmm_kernel = self.lddmm_module.kernel
-        self.interp_kernel = lambda x,y,p,w: self.lddmm_kernel(x,y,p)
+        self.interp_kernel = self.lddmm_kernel
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
         self.integrator_opt = self.opt[("integrator", {}, "settings for integrator")]
         self.integrator = ODEBlock(self.integrator_opt)
         self.integrator.set_func(self.lddmm_module)
+        self.call_thirdparty_package = False
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',10,"print every n iteration")]
 
+
+
+    def init_reg_param(self,shape_pair):
+        reg_param = torch.zeros_like(shape_pair.get_control_points()).normal_(0, 1e-7)
+        reg_param.requires_grad_()
+        shape_pair.set_reg_param(reg_param)
+        return shape_pair
 
 
 
@@ -74,6 +82,17 @@ class LDDMMOPT(nn.Module):
         reg_factor = float(
             max(sigmoid_decay(self.iter.item(), static=static_epoch, k=decay_factor) * reg_factor_init, min_threshold))
         return sim_factor, reg_factor
+
+
+    def update_reg_param_from_low_scale_to_high_scale(self, shape_pair_low, shape_pair_high):
+        control_points_high = shape_pair_high.get_control_points()
+        control_points_low = shape_pair_low.get_control_points()
+        reg_param_low = shape_pair_low.reg_param
+        reg_param_high = self.interp_kernel(control_points_high, control_points_low, reg_param_low)
+        reg_param_high.detach_()
+        reg_param_high.requires_grad_()
+        shape_pair_high.set_reg_param(reg_param_high)
+        return shape_pair_high
 
 
     def forward(self, shape_pair):

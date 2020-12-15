@@ -6,3 +6,5 @@ geomloss
 torchdiffeq
 torchdiffeq_mine
 shapmagn/experiments/datasets/toy/shapes
+TEASER-plusplus
+probreg

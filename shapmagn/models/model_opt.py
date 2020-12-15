@@ -1,17 +1,25 @@
 import os
-import torch
-import torch.nn as nn
 import numpy as np
 import pandas as pd
 
 from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
-from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.net_utils import print_model
 from shapmagn.models.multiscale_optimization import build_multi_scale_solver
+from shapmagn.utils.visual_utils import save_shape_pair_into_vtks
+from shapmagn.shape.shape_pair_utils import create_shape_pair
 
 class OptModel(ModelBase):
-    """ Optimization models """
+    """
+    Optimization models include two step optimization: affine and non-parametric optimization
+    the affine optimization (optional, Teaser, a scaled rigid reigstration approach, for default),
+    ('true' affine approaches needs to be implemented)
+     currently affine optimization is not warped by multi-scale optimization framework)
+     # todo implement gradient flow based affine param regression for cases that noise level is low
+    the non-parametric optimization (optional, gradient flow for default) is implemented multi-scale optimization framework
+
+
+    """
 
     def name(self):
         return 'Optimization Model'
@@ -25,24 +33,49 @@ class OptModel(ModelBase):
         :return:
         """
         ModelBase.initialize(self,opt, device, gpus)
-        method_name= opt[('method_name',"lddmm_opt","specific optimization method")]
-        method_opt = opt[(method_name,{}, "method settings")]
-        self._model = MODEL_POOL[method_name](method_opt)
-        """create a model with given method"""
-        # if gpus and len(gpus) >= 1:
-        #     self._model = nn.DataParallel(self._model, gpus)
-        self._model.to(device)
+        self.init_optimization_env(self.opt,device)
         self.step_count = 0
         """ count of the step"""
         self.cur_epoch = 0
         """visualize condition"""
         self.visualize_condition = {}
-        print('---------- A model instance for {} is initialized -------------'.format(method_name))
-        print_model(self._model)
-        print('-----------------------------------------------')
+        source_target_generator = opt[
+            ("source_target_generator", "shape_pair_util.create_source_and_target_shape()", "generator func")]
+        self.source_target_generator = obj_factory(source_target_generator)
 
 
 
+    def init_optimization_env(self, opt, device):
+        method_name = opt[('method_name', "lddmm_opt", "specific optimization method")]
+        prealign_opt = opt[("prealign_opt",{}, "method settings")]
+        if method_name in ["lddmm_opt","discrete_flow_opt"]:
+            self.run_prealign = False
+            self.run_nonparametric = True
+            self._prealign_model = None
+            method_opt = opt[(method_name, {}, "method settings")]
+            self._model = MODEL_POOL[method_name](method_opt).to(device)
+        elif method_name == "prealign_opt":
+            self.run_prealign = True
+            self.run_nonparametric = False
+            self._prealign_model = MODEL_POOL["prealign_opt"](prealign_opt).to(device)
+            self._model = None
+        elif "_and_prealign_opt" in method_name:
+            self.run_prealign = True
+            self.run_nonparametric = True
+            self._prealign_model = MODEL_POOL["prealign_opt"](prealign_opt).to(device)
+            method_name = method_name.replace("_and_prealign_opt","")
+            method_opt = opt[(method_name, {}, "method settings")]
+            self._model = MODEL_POOL[method_name](method_opt).to(device)
+        # if gpus and len(gpus) >= 1:
+        #     self._model = nn.DataParallel(self._model, gpus)
+        if self._prealign_model is not None:
+            print('---------- A model instance for {} is initialized -------------'.format("prealign_opt"))
+            print_model(self._prealign_model)
+            print('-----------------------------------------------')
+        if self._model is not None:
+            print('---------- A model instance for {} is initialized -------------'.format(method_name))
+            print_model(self._model)
+            print('-----------------------------------------------')
 
     def set_input(self, input_data, device, is_train=False):
         """
@@ -88,18 +121,29 @@ class OptModel(ModelBase):
     #         self.optimizer.step()
     #         self.optimizer.zero_grad()
 
-    def optimize_parameters(self, input_data=None):
+    def optimize_parameters(self, data=None):
         """
         forward and backward the model, optimize parameters and manage the learning rate
 
-        :param input_data: input_data(not used
+        :param data: input_data(not used
         :return:
         """
-        multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
-        multi_scale_opt['record_path'] = self.record_path
-        sovler = build_multi_scale_solver(multi_scale_opt,self._model)
-        output = sovler(input_data)
-        return output
+        source, target = self.source_target_generator(data)
+        shape_pair = create_shape_pair(source, target)
+        if self.run_prealign:
+            multi_scale_opt = self.opt[("multi_scale_optimization_prealign",{},"settings for multi_scale_optimization_prealign")]
+            sovler = build_multi_scale_solver(multi_scale_opt,self._prealign_model)
+            shape_pair = sovler(shape_pair)
+            save_shape_pair_into_vtks(self.record_path, "shape_affined", shape_pair)
+            if self.run_nonparametric:
+                shape_pair.control_points = shape_pair.flowed_control_points
+        if self.run_nonparametric:
+            multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
+            multi_scale_opt['record_path'] = self.record_path
+            sovler = build_multi_scale_solver(multi_scale_opt,self._model)
+            shape_pair = sovler(shape_pair)
+            save_shape_pair_into_vtks(self.record_path, "shape_nonparametric", shape_pair)
+        return shape_pair
 
 
 

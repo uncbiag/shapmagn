@@ -5,8 +5,10 @@ from functools import partial
 KNOWN_MODULES = {
     # Torch
     'lung_dataset_utils': 'shapmagn.experiments.datasets.lung.lung_dataset_utils',
+    'body_dataset_utils': 'shapmagn.experiments.datasets.body.body_dataset_utils',
     'toy_dataset_utils': 'shapmagn.experiments.datasets.toy.toy_dataset_utils',
     "lung_shape_pair": "shapmagn.experiments.datasets.lung.lung_shape_pair",
+    "probreg_module": "shapmagn.modules.probreg_module",
     "shape_pair_utils":"shapmagn.shape.shape_pair_utils",
     "torch_kernels": 'shapmagn.kernels.torch_kernels',
     "keops_kernels": 'shapmagn.kernels.keops_kernels',
@@ -15,6 +17,7 @@ KNOWN_MODULES = {
     'nn': 'torch.nn',
     'optim': 'torch.optim',
     'lr_scheduler': 'torch.optim.lr_scheduler',
+    'probreg':'probreg'
 }
 
 

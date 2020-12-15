@@ -3,6 +3,7 @@ from os.path import isfile, join
 import json
 import os
 import numpy as np
+import random
 from pykeops.torch import LazyTensor
 
 def list_dic(path):
@@ -215,12 +216,22 @@ def generate_pair_name(pair_path,return_separate_name=False):
 
 
 def compute_interval(vertices):
-    vert_i  = vertices[:,None]
-    vert_j  = vertices[None]
-    vert_dist = ((vert_i-vert_j)**2).sum(-1)
-    vert_dist = np.sqrt(vert_dist)
-    print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
-    # around 0.003
+    if len(vertices)<1000:
+        vert_i  = vertices[:,None]
+        vert_j  = vertices[None]
+        vert_dist = ((vert_i-vert_j)**2).sum(-1)
+        vert_dist = np.sqrt(vert_dist)
+        print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
+    else:
+        sampled_index = random.sample(list(range(len(vertices - 1))), 800)
+        sampled_index_plus = [index+1 for index in sampled_index]
+        vertices_sampled = vertices[sampled_index]
+        vertices_sampled_plus = vertices[sampled_index_plus]
+        vert_dist = np.sqrt(((vertices_sampled-vertices_sampled_plus)**2).sum(-1))
+        print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
+
+
+
 
 
 

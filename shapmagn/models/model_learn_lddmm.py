@@ -15,6 +15,7 @@ class LDDMMOPT(nn.Module):
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
+        self.call_thirdparty_package = False
         self.integrator_opt = self.opt[("integrator", {}, "settings for integrator")]
         self.integrator = ODEBlock(self.integrator_opt)
         self.integrator.set_func(self.lddmm_module)

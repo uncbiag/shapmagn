@@ -1,7 +1,7 @@
 """
 data reader for the toys
 given a file path, the reader will return a dict
-{"points":Nx3, "pointfea": NxFeaDim, "weights":Nx1}
+{"points":Nx3, "weights":Nx1, "faces":Nx3}
 """
 from shapmagn.datasets.vtk_utils import read_vtk
 

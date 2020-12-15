@@ -48,7 +48,7 @@ class RegistrationDataset(Dataset):
         """
         """
         if not os.path.exists(self.data_path):
-            raise IOError("Non data loaded")
+            raise IOError("Non data detected")
         self.pair_name_list, self.pair_info_list = read_json_into_list(os.path.join(self.data_path,'pair_data.json'))
         read_num = min(self.max_num_for_loading, len(self.pair_info_list))
         if self.max_num_for_loading>0:

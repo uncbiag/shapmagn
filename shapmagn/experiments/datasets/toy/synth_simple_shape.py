@@ -6,7 +6,7 @@ import numpy as np
 import trimesh
 import pyvista as pv
 from shapmagn.shape.shape_utils import get_scale_and_center
-from shapmagn.datasets.vtk_utils import convert_faces_into_vtk_format
+from shapmagn.datasets.vtk_utils import convert_faces_into_file_format
 from shapmagn.datasets.data_utils import compute_interval
 
 PROGRAM_PATH= "/"
@@ -49,7 +49,7 @@ if __name__ =="__main__":
     verts, faces = get_shape(shape_name)
     verts, faces =subdivide(verts, faces, level=level)
     verts = normalize_vertice(verts).astype(np.float32)
-    faces = convert_faces_into_vtk_format(faces)
+    faces = convert_faces_into_file_format(faces)
     compute_interval(verts)
     data = pv.PolyData(verts,faces)
     data.save(saving_path)
@@ -59,7 +59,7 @@ if __name__ =="__main__":
     verts, faces = get_shape(shape_name)
     verts, faces = subdivide(verts, faces, level=level)
     verts = normalize_vertice(verts).astype(np.float32)
-    faces = convert_faces_into_vtk_format(faces)
+    faces = convert_faces_into_file_format(faces)
     compute_interval(verts)
     data = pv.PolyData(verts, faces)
     data.save(saving_path)

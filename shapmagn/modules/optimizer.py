@@ -6,10 +6,10 @@ def optimizer_builder(opt):
 
     def init_lbgfs(opt):
         rel_ftol = opt['lbgfs'][('rel_ftol', 1e-4,'relative termination tolerance for optimizer')]
-        max_iter = opt['lbfgs'][('max_iter', 1, 'maximum number of iterations')]
-        max_eval = opt['lbfgs'][('max_eval', 5, 'maximum number of evaluation')]
-        history_size = opt['lbfgs'][('history_size', 5, 'Size of the optimizer history')]
-        #line_search_fn = opt['lbfgs'][('line_search_fn', 'backtracking', 'Type of line search function')]
+        max_iter = opt['lbgfs'][('max_iter', 1, 'maximum number of iterations')]
+        max_eval = opt['lbgfs'][('max_eval', 5, 'maximum number of evaluation')]
+        history_size = opt['lbgfs'][('history_size', 5, 'Size of the optimizer history')]
+        #line_search_fn = opt['lbgfs'][('line_search_fn', 'backtracking', 'Type of line search function')]
         def create_instance(params):
             opt_instance = optim.LBFGS(params,
                                        lr=lr, max_iter=max_iter, max_eval=max_eval,

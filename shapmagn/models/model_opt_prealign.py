@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from shapmagn.modules.teaser_module import Teaser
-from shapmagn.modules.probreg_module import ProbReg
+#from shapmagn.modules.probreg_module import ProbReg
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
 from shapmagn.utils.utils import sigmoid_decay
@@ -17,7 +17,7 @@ class PrealignOPT(nn.Module):
         self.prealign_module.set_mode("prealign")
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.call_thirdparty_package = self.module_type in self.thirdparty_package
-        self.sim_loss_fn = Loss(sim_loss_opt) if not self.call_thirdparty_package else lambda x: -1
+        self.sim_loss_fn = Loss(sim_loss_opt) if not self.call_thirdparty_package else lambda x,y: torch.tensor(-1)
         self.reg_loss_fn = self.compute_regularization
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',10,"print every n iteration, disabled in teaser")]
@@ -41,13 +41,13 @@ class PrealignOPT(nn.Module):
     def apply_prealign_transform(self, prealign_param, points):
         """
 
-        :param prealign_param: BxDx(D+1): BxDxD transfrom matrix and BxDx1 translation
+        :param prealign_param: Bx(D+1)xD: BxDxD transfrom matrix and Bx1xD translation
         :param points: BxNxD
         :return:
         """
         dim = points.shape[-1]
-        points = torch.bmm(points,prealign_param[:, :, :dim])
-        points = prealign_param[:, :, dim:].contiguous() + points
+        points = torch.bmm(points,prealign_param[:, :dim, :])
+        points = prealign_param[:, dim:, :].contiguous() + points
         return points
 
     def prealign(self, shape_pair):
@@ -76,7 +76,7 @@ class PrealignOPT(nn.Module):
 
     def compute_regularization(self, prealign_params):
         if self.call_thirdparty_package:
-            return -1
+            return torch.tensor(-1)
 
     def get_factor(self):
         """

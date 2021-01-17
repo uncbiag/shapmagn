@@ -72,6 +72,8 @@ class ShapeBase(object):
         self.seg = seg
         self.scale = scale
         self.update_info()
+        self.points_mode_on = False
+
 
     def set_weights(self, weights):
         """
@@ -115,6 +117,8 @@ class ShapeBase(object):
 
     def set_scale(self, scale):
         self.scale = scale
+        if scale!=-1:
+            self.points_mode_on = self.scale != -1
 
     def set_name_list(self, name_list):
         self.name_list = name_list

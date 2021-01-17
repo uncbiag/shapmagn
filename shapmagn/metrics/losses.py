@@ -60,7 +60,7 @@ class L2Distance(object):
     def __init__(self, opt):
         self.attr = opt[('attr','landmarks',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
     def __call__(self,flowed, target):
-        batch = flowed.batch
+        batch = flowed.nbatch
         attr1 = flowed.getattr(self.attr)
         attr2 = target.getattr(self.attr)
         return ((attr1.view(batch,-1)-attr2.view(batch,-1))**2).sum(-1) # B

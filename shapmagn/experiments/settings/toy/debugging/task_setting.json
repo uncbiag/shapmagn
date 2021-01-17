@@ -67,11 +67,10 @@
             "point_grid_scales": [ 0.1, 0.05, -1],
             "iter_per_scale": [20,20,20],
             "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
+            "init_lr_list": [5e-3,5e-4],
             "save_every_n_iter": 20,
             "shape_sampler_type": "point_grid",
-            "interp_kernel_width_list": [0.1],
              "optim": {
-                 "lr": 5e-3,
                  "type": "lbgfs",
                  "adam": {
                      "betas": [

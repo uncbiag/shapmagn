@@ -105,7 +105,7 @@ def uniform_shape_sampler(num_sample, rand_generator=Random(0)):
             sampled_points, sampled_weights, index =uniform_point_sampler(points, weights)
             sampled_weights = sampled_weights/sum(sampled_weights)
             if input_shape.pointfea is not None:
-                sampled_pointfea =input_shape.pointfea[index]
+                sampled_pointfea =input_shape.pointfea[i][index]
                 sampled_pointfea_list.append(sampled_pointfea)
             sampled_points_list.append(sampled_points)
             sampled_weights_list.append(sampled_weights)

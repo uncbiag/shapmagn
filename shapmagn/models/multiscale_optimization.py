@@ -1,9 +1,10 @@
 import os
+from copy import deepcopy
 from shapmagn.modules.optimizer import optimizer_builder
 from shapmagn.modules.scheduler import scheduler_builder
 from shapmagn.global_variable import SHAPE_SAMPLER_POOL
-from shapmagn.shape.shape_pair_utils import create_shape_pair,updater_for_shape_pair_from_low_scale
-from shapmagn.utils.visual_utils import save_shape_pair_into_vtks
+from shapmagn.shape.shape_pair_utils import create_shape_pair
+from shapmagn.utils.shape_visual_utils import save_shape_pair_into_files
 
 
 def build_multi_scale_solver(opt, model):
@@ -19,18 +20,19 @@ def build_multi_scale_solver(opt, model):
                                              " the scale is from rough to fine resolution, -1 refers to the original resolution")]
     scale_iter_list = opt[("iter_per_scale", [100, 100], "number of iterations per scale")]
     scale_iter_list = scale_iter_list if not model.call_thirdparty_package else [1 for _ in scale_iter_list]
-    scale_rel_ftol_list = opt[("rel_ftol_per_scale", [1e-4, 1e-4], "number of iterations per scale")]
+    scale_rel_ftol_list = opt[("rel_ftol_per_scale", [1e-4, 1e-4], "rel_ftol threshold for each scale")]
+    init_lr_list =  opt[("init_lr_per_scale", [1e-3, 1e-4], "inital learning rate for each scale")]
     shape_sampler_type = opt[("shape_sampler_type", "point_grid", "shape sampler type: 'point_grid' or 'uniform'")]
     assert shape_sampler_type in ["point_grid","point_uniform"], "currently only point sampling {} is supported".format(["point_grid","point_uniform"])
     scale_args_list = sampler_scale_list if shape_sampler_type=='point_grid' else sampler_npoints_list
     scale_shape_sampler_list = [SHAPE_SAMPLER_POOL[shape_sampler_type](scale) for scale in scale_args_list]
     num_scale = len(scale_iter_list)
-    stragtegy = opt[("stragtegy", "use_solver_from_model','use_solver_defined_here")]
-    build_single_scale_solver = build_single_scale_custom_solver if stragtegy =="use_solver_defined_here" else build_single_scale_model_embedded_solver()
+    stragtegy = opt[("stragtegy", "use_optimizer_defined_from_model','use_optimizer_defined_here")]
+    build_single_scale_solver = build_single_scale_custom_solver if stragtegy =="use_optimizer_defined_here" else build_single_scale_model_embedded_solver
     reg_param_initializer = model.init_reg_param
     param_updater = model.update_reg_param_from_low_scale_to_high_scale
-    infer_shape_pair_after_upsampling = model.flow
-    single_scale_solver_list = [build_single_scale_solver(opt,model, scale_iter_list[i],scale_args_list[i], scale_rel_ftol_list[i])
+    update_shape_pair_after_upsampling = model.flow
+    single_scale_solver_list = [build_single_scale_solver(opt,model, scale_iter_list[i],scale_args_list[i],init_lr_list[i], scale_rel_ftol_list[i])
                                 for i in range(num_scale)]
     print("Multi-scale solver initialized!")
     print("The optimization works on the strategy '{}' with setting {}".format(shape_sampler_type, scale_args_list))
@@ -44,19 +46,20 @@ def build_multi_scale_solver(opt, model):
             scale_target = scale_shape_sampler_list[i](target) if scale_args_list[i] > 0 else target
             toinput_shape_pair = create_shape_pair(scale_source, scale_target)
             reg_param_initializer(toinput_shape_pair)
+            #save_shape_pair_into_files(opt["record_path"], "debugging".format(iter), toinput_shape_pair)
             if i != 0:
                 toinput_shape_pair = param_updater(output_shape_pair, toinput_shape_pair)
                 del output_shape_pair
             output_shape_pair = single_scale_solver_list[i](toinput_shape_pair)
         if scale_args_list[-1]!=-1:
             output_shape_pair = param_updater(output_shape_pair, create_shape_pair(source, target))
-            output_shape_pair = infer_shape_pair_after_upsampling(output_shape_pair)
+            output_shape_pair = update_shape_pair_after_upsampling(output_shape_pair)
         return output_shape_pair
 
     return solve
 
 
-def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4, patient=5):
+def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_ftol=1e-4, patient=5):
     """
     custom solver where the param needs to optimize iteratively
     this is typically required by native displacement method, lddmm method,
@@ -73,9 +76,11 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
     os.makedirs(record_path, exist_ok=True)
-    opt_optim = opt['optim']
+    opt_optim = opt[('optim',{},"setting for the optimizer")]
+    opt_optim = deepcopy(opt_optim)
     """settings for the optimizer"""
-    opt_scheduler = opt['scheduler']
+    opt_optim["lr"] = lr
+    opt_scheduler = opt[('scheduler',{},"setting for the scheduler")]
     """settings for the scheduler"""
     def solve(shape_pair):
         ######################################3
@@ -100,7 +105,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4
             rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
             if iter%save_every_n_iter==0:
-                save_shape_pair_into_vtks(record_path, "iter_{}".format(iter), shape_pair)
+                save_shape_pair_into_files(record_path, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
                 print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count+1 if (iter-previous_converged_iter)==1 else 0
@@ -108,7 +113,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, rel_ftol=1e-4
                 if patient_count>patient:
                     print('Reached relative function tolerance of = ' + str(rel_ftol))
                     break
-        save_shape_pair_into_vtks(record_path, "iter_last", shape_pair)
+        save_shape_pair_into_files(record_path, "iter_last", shape_pair)
         model.reset()
         return shape_pair
 
@@ -143,7 +148,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
             rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
             if iter % save_every_n_iter == 0:
-                save_shape_pair_into_vtks(record_path, "iter_{}".format(iter), shape_pair)
+                save_shape_pair_into_files(record_path, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
                 print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count + 1 if (iter - previous_converged_iter) == 1 else 0
@@ -151,7 +156,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
                 if patient_count > patient:
                     print('Reached relative function tolerance of = ' + str(rel_ftol))
                     break
-        save_shape_pair_into_vtks(record_path, "iter_last", shape_pair)
+        save_shape_pair_into_files(record_path, "iter_last", shape_pair)
         model.reset()
         return shape_pair
     return solve

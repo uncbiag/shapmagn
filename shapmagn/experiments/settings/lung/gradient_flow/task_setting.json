@@ -19,10 +19,10 @@
                 50
             ],
         "model": "optimization",
-        "method_name": "discrete_flow_opt",
+        "method_name": "gradient_flow_opt",
         "loss_name": "geomloss",
         "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
-        "discrete_flow_opt": {
+        "gradient_flow_opt": {
             "print_step":1,
             "gauss_kernel_obj": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)",
             "interpolator_obj": "point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)",

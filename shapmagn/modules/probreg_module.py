@@ -15,7 +15,7 @@ NonRigid Affine, MCT 	        TPS 	                  - 	        Deformable Kinem
 import numpy as np
 import torch
 from shapmagn.utils.obj_factory import partial_obj_factory
-import cupy as cp
+import probreg
 if torch.cuda.is_available():
     to_cpu = cp.asnumpy
     cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
@@ -135,10 +135,12 @@ class ProbReg(object):
            Keyword Args:
                tf_init_params (dict, optional): Parameters to initialize transformation (for rigid).
            """
-        filterreg_obj = opt[("gmmtree_obj", "probreg.filterreg.registration_filterreg(sigma2=None, update_sigma2=False, w=0, "
+        filterreg_obj = opt[("filterreg_obj", "probreg.filterreg.registration_filterreg(sigma2=None, update_sigma2=True, w=0, "
                                             "objective_type='pt2pt', maxiter=50, tol=0.001, min_sigma2=1.0e-4, "
                                             "feature_fn=lambda x: x", "filterreg object")]
         filterreg_sovler = partial_obj_factory(filterreg_obj)
+        feature_fn = probreg.features.FPFH()
+        filterreg_sovler.keywords["feature_fn"] = feature_fn
         return filterreg_sovler
 
     def _init_bcpd(self,opt):
@@ -183,19 +185,19 @@ class ProbReg(object):
         return source_list, target_list
 
     def _get_transform_matrix(self, solution):
-        if self.method_name is ["cpd"]:
+        if self.method_name in ["cpd"]:
             try:
-                return to_cpu(solution[0].b).T
+                return (to_cpu(solution[0].b).T).astype(np.float32)
             except:
-                return to_cpu(solution[0].rot).T * to_cpu(solution[0].scale)
+                return (to_cpu(solution[0].rot).T * to_cpu(solution[0].scale)).astype(np.float32)
         else:
-            return (solution[0].rot).T * solution[0].scale
+            return ((solution[0].rot).T * solution[0].scale).astype(np.float32)
 
     def _get_translation(self,solution):
-        if self.method_name is ["cpd"]:
-            return to_cpu(solution[0].t)[None]
+        if self.method_name in ["cpd"]:
+            return (to_cpu(solution[0].t)[None]).astype(np.float32)
         else:
-            return (solution[0].t)[None]
+            return ((solution[0].t)[None]).astype(np.float32)
 
 
     def _get_deformation(self,solution):

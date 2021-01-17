@@ -17,7 +17,9 @@ KNOWN_MODULES = {
     'nn': 'torch.nn',
     'optim': 'torch.optim',
     'lr_scheduler': 'torch.optim.lr_scheduler',
-    'probreg':'probreg'
+    'probreg':'probreg',
+    'features':'probreg.features'
+    #'probreg.filterreg':'probreg.filterreg'
 }
 
 

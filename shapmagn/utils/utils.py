@@ -12,6 +12,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn.init as init
 import numpy as np
 
+
 def init_weights(m, init_type='normal', gain=0.02):
     """ Randomly initialize a module's weights.
 
@@ -142,7 +143,21 @@ def sigmoid_decay(ep, static =5, k=5):
         factor =  k/(k + np.exp(ep / k))
         return float(factor)
 
+def t2np(v):
+    """
+    Takes a torch array and returns it as a numpy array on the cpu
 
+    :param v: torch array
+    :return: numpy array
+    """
+
+    if type(v) == torch.Tensor:
+        return v.detach().cpu().numpy()
+    else:
+        try:
+            return v.cpu().numpy()
+        except:
+            return v
 
 
 
@@ -183,3 +198,122 @@ def download_from_url(url, output_path):
 
     process_response(response)
 
+
+def identity_map(sz,spacing,dtype='float32'):
+    """
+    Returns an identity map.
+
+    :param sz: just the spatial dimensions, i.e., XxYxZ
+    :param spacing: list with spacing information [sx,sy,sz]
+    :param dtype: numpy data-type ('float32', 'float64', ...)
+    :return: returns the identity map of dimension dimxXxYxZ
+    """
+    dim = len(sz)
+    if dim==1:
+        id = np.mgrid[0:sz[0]]
+    elif dim==2:
+        id = np.mgrid[0:sz[0],0:sz[1]]
+    elif dim==3:
+        id = np.mgrid[0:sz[0],0:sz[1],0:sz[2]]
+    else:
+        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+
+    # now get it into range [0,(sz-1)*spacing]^d
+    id = np.array( id.astype(dtype) )
+    if dim==1:
+        id = id.reshape(1,sz[0]) # add a dummy first index
+
+    for d in range(dim):
+        id[d]*=spacing[d]
+
+        #id[d]*=2./(sz[d]-1)
+        #id[d]-=1.
+
+    # and now store it in a dim+1 array
+    if dim==1:
+        idnp = np.zeros([1, sz[0]], dtype=dtype)
+        idnp[0,:] = id[0]
+    elif dim==2:
+        idnp = np.zeros([2, sz[0], sz[1]], dtype=dtype)
+        idnp[0,:, :] = id[0]
+        idnp[1,:, :] = id[1]
+    elif dim==3:
+        idnp = np.zeros([3,sz[0], sz[1], sz[2]], dtype=dtype)
+        idnp[0,:, :, :] = id[0]
+        idnp[1,:, :, :] = id[1]
+        idnp[2,:, :, :] = id[2]
+    else:
+        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+
+    return idnp
+
+def identity_map_multiN(sz,spacing,dtype='float32'):
+    """
+    Create an identity map
+
+    :param sz: size of an image in BxCxXxYxZ format
+    :param spacing: list with spacing information [sx,sy,sz]
+    :param dtype: numpy data-type ('float32', 'float64', ...)
+    :return: returns the identity map
+    """
+    dim = len(sz)-2
+    nrOfI = int(sz[0])
+
+    if dim == 1:
+        id = np.zeros([nrOfI,1,sz[2]],dtype=dtype)
+    elif dim == 2:
+        id = np.zeros([nrOfI,2,sz[2],sz[3]],dtype=dtype)
+    elif dim == 3:
+        id = np.zeros([nrOfI,3,sz[2],sz[3],sz[4]],dtype=dtype)
+    else:
+        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+
+    for n in range(nrOfI):
+        id[n,...] = identity_map(sz[2::],spacing,dtype=dtype)
+
+    return id
+
+
+def point_to_grid(points, grid_size,return_np=False):
+    """
+
+    :param points: prod(grid_size)xC
+    :param grid_size: 3d: [X,Y,Z], 2d:[X,Y]
+    :return: C xgrid_size
+    """
+    dim = len(grid_size)
+    ch = points.shape[-1]
+    if isinstance(points, np.ndarray):
+        points = torch.Tensor(points)
+    grid = points.reshape(grid_size + [ch])
+    if dim == 2:
+        grid = grid.permute(2, 0, 1)
+    if dim == 3:
+        grid = grid.permute(3, 0, 1, 2)
+    if not return_np:
+        return grid
+    else:
+        return grid.cpu().numpy()
+
+def get_grid_wrap_points(points, spacing, pad_size= 10, return_np=False):
+    """
+
+    :param points: N*D
+    :param spacing:
+    :return: prod(grid_size)*D, where grid size is computed from points range and spacing
+    """
+    device = None
+    if isinstance(points,torch.Tensor):
+        device = points.device
+        points = points.cpu().numpy()
+    dim = points.shape[-1]
+    low_bound = np.min(points,0)
+    up_bound =  np.max(points,0)
+    grid_size = (up_bound-low_bound)/spacing +2*pad_size
+    grid_size = list(map(int,grid_size))
+    id_map = identity_map(grid_size,spacing)
+    id_map = id_map.reshape(dim,-1).transpose() +low_bound[None] - pad_size*spacing
+    if not return_np:
+        return torch.tensor(id_map).contiguous().to(device), grid_size
+    else:
+        return id_map, grid_size

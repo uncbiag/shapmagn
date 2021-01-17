@@ -75,7 +75,7 @@ class Teaser(object):
 
         :param source_batch: BxNxD
         :param target_batch: BxNxD
-        :return: BxDx(D+1) transform matrix
+        :return: Bx(D+1)xD transform matrix
         """
         device = source_batch.device
         source_list, target_list = self._get_input(source_batch, target_batch)

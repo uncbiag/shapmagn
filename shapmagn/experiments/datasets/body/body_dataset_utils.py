@@ -128,6 +128,25 @@ if __name__ == "__main__":
     sampler = obj_factory(sampler_obj)
     file_path = "/playpen-raid1/zyshen/debug/body_registration/source.ply"
     file_info = {"name":"body","data_path":file_path}
+
+    #####################  normalize and save into obj ######################
+    raw_data_dict = reader(file_info)
+    normalized_data_dict = normalizer(raw_data_dict)
+    from shapmagn.utils.shape_visual_utils import save_shape_into_file
+    import os
+    output_path = "/playpen-raid1/zyshen/debug/body_registration/normalized"
+    os.makedirs(output_path,exist_ok=True)
+    save_shape_into_file(output_path,"source",ftype="ply", **normalized_data_dict)
+    file_path = "/playpen-raid1/zyshen/debug/body_registration/target.ply"
+    file_info = {"name": "body", "data_path": file_path}
+    raw_data_dict = reader(file_info)
+    normalized_data_dict = normalizer(raw_data_dict)
+    save_shape_into_file(output_path, "target", ftype="ply", **normalized_data_dict)
+
+    ##################################################################
+
+
+
     raw_data_dict  = reader(file_info)
     normalized_data_dict = normalizer(raw_data_dict)
     sampled_data_dict = sampler(normalized_data_dict)

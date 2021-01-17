@@ -1,7 +1,7 @@
 from shapmagn.shape.point_cloud import PointCloud
 from shapmagn.shape.surface_mesh import SurfaceMesh
 from shapmagn.shape.poly_line import PolyLine
-shape_type = "surfacemesh"
+shape_type = "pointcloud"
 SHAPE_POOL = {"pointcloud": PointCloud, "surfacemesh": SurfaceMesh, "polyline": PolyLine}
 Shape = SHAPE_POOL[shape_type]
 

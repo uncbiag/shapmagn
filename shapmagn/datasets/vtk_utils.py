@@ -18,7 +18,7 @@ def read_vtk(path):
     return data_dict
 
 
-def convert_faces_into_vtk_format(faces):
+def convert_faces_into_file_format(faces):
     ind = np.ones([faces.shape[0],1])*3
     faces = np.concatenate((ind,faces),1).astype(np.int64)
     return faces.flatten()
@@ -29,7 +29,7 @@ def save_vtk(fpath,attr_dict):
     points = attr_dict["points"]
     faces = attr_dict["faces"] if "faces" in attr_dict else None
     if faces is not None:
-        faces = convert_faces_into_vtk_format(faces)
+        faces = convert_faces_into_file_format(faces)
         data = pv.PolyData(points, faces)
     else:
         data = pv.PolyData(points)

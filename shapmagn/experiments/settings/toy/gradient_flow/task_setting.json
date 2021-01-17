@@ -19,10 +19,10 @@
                 50
             ],
         "model": "optimization",
-        "method_name": "discrete_flow_opt",
+        "method_name": "gradient_flow_opt",
         "loss_name": "geomloss",
         "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
-        "discrete_flow_opt": {
+        "gradient_flow_opt": {
             "print_step":10,
             "gauss_kernel_obj": "torch_kernels.TorchKernel('gauss',sigma=0.05)",
             "interpolator_obj": "point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)",
@@ -54,7 +54,7 @@
             "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
             "save_every_n_iter": 20,
             "shape_sampler_type": "point_grid",
-            "stragtegy" : "gradient_flow"
+            "stragtegy" : "use_optimizer_defined_from_model"
         },
         "save_fig_on": true,
         "is_train": false

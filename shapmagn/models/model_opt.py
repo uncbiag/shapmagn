@@ -6,7 +6,7 @@ from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
 from shapmagn.utils.net_utils import print_model
 from shapmagn.models.multiscale_optimization import build_multi_scale_solver
-from shapmagn.utils.visual_utils import save_shape_pair_into_vtks
+from shapmagn.utils.shape_visual_utils import save_shape_pair_into_files
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 
 class OptModel(ModelBase):
@@ -40,7 +40,7 @@ class OptModel(ModelBase):
         """visualize condition"""
         self.visualize_condition = {}
         source_target_generator = opt[
-            ("source_target_generator", "shape_pair_util.create_source_and_target_shape()", "generator func")]
+            ("source_target_generator", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
         self.source_target_generator = obj_factory(source_target_generator)
 
 
@@ -48,7 +48,7 @@ class OptModel(ModelBase):
     def init_optimization_env(self, opt, device):
         method_name = opt[('method_name', "lddmm_opt", "specific optimization method")]
         prealign_opt = opt[("prealign_opt",{}, "method settings")]
-        if method_name in ["lddmm_opt","discrete_flow_opt"]:
+        if method_name in ["lddmm_opt","discrete_flow_opt","gradient_flow_opt"]:
             self.run_prealign = False
             self.run_nonparametric = True
             self._prealign_model = None
@@ -132,9 +132,10 @@ class OptModel(ModelBase):
         shape_pair = create_shape_pair(source, target)
         if self.run_prealign:
             multi_scale_opt = self.opt[("multi_scale_optimization_prealign",{},"settings for multi_scale_optimization_prealign")]
+            multi_scale_opt['record_path'] = self.record_path
             sovler = build_multi_scale_solver(multi_scale_opt,self._prealign_model)
             shape_pair = sovler(shape_pair)
-            save_shape_pair_into_vtks(self.record_path, "shape_affined", shape_pair)
+            save_shape_pair_into_files(self.record_path, "shape_affined", shape_pair)
             if self.run_nonparametric:
                 shape_pair.control_points = shape_pair.flowed_control_points
         if self.run_nonparametric:
@@ -142,7 +143,7 @@ class OptModel(ModelBase):
             multi_scale_opt['record_path'] = self.record_path
             sovler = build_multi_scale_solver(multi_scale_opt,self._model)
             shape_pair = sovler(shape_pair)
-            save_shape_pair_into_vtks(self.record_path, "shape_nonparametric", shape_pair)
+            save_shape_pair_into_files(self.record_path, "shape_nonparametric", shape_pair)
         return shape_pair
 
 

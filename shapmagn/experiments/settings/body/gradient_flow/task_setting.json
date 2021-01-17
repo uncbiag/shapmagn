@@ -26,11 +26,17 @@
             "module_type": "probreg",
             "print_step": 10,
             "probreg": {
-                "method_name": "cpd",
-                "cpd_obj": "probreg.cpd.registration_cpd(tf_type_name='affine', w=0.0, maxiter=50, tol=0.001,use_cuda=True,callbacks=[])"
+                "method_name": "filterreg",
+                "cpd": {
+                    "cpd_obj": "probreg_module.registration_cpd(tf_type_name='rigid', w=0.0, maxiter=200, tol=0.00001,use_cuda=True,callbacks=[])"
+                },
+                "filterreg":
+                {
+                    "filterreg_obj": "probreg.filterreg.registration_filterreg(sigma2=None, update_sigma2=True, w=0.3,objective_type='pt2pt', maxiter=200, tol=0.001, min_sigma2=1.0e-4, feature_fn=lambda x: x)"
+                }
             }
         },
-        "discrete_flow_opt": {
+        "gradient_flow_opt": {
             "print_step":1,
             "gauss_kernel_obj": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)",
             "interpolator_obj": "point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)",
@@ -59,18 +65,20 @@
         "multi_scale_optimization_prealign": {
             "iter_per_scale": [1],
             "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
+            "init_lr_list": [1e-3,1e-4],
             "save_every_n_iter": 20,
-            "shape_sampler_type": "point_uniform",
-            "point_uniform_npoints": [ 3000],
-            "stragtegy" : "use_solver_from_model"
+            "shape_sampler_type": "point_grid",
+            "point_grid_scales": [ 0.01],
+            "stragtegy" : "use_optimizer_defined_from_model"
         },
         "multi_scale_optimization": {
             "point_grid_scales": [ -1],
             "iter_per_scale": [3],
             "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
+            "init_lr_list": [1e-3,1e-4],
             "save_every_n_iter": 20,
             "shape_sampler_type": "point_grid",
-            "stragtegy" : "gradient_flow"
+            "stragtegy" : "use_optimizer_defined_here"
         },
         "save_fig_on": true,
         "is_train": false

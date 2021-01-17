@@ -26,7 +26,7 @@ def scheduler_builder(opt):
             return scheduler
         return create_instance
 
-    scheduler_type = opt['type']
+    scheduler_type = opt[('type',"step_lr","scheduler type")]
     assert scheduler_type in ["step_lr", "plateau"]
     init_scheduler_dict = {"step_lr": init_step_lr, "plateau": init_plateau}
     init_scheduler = init_scheduler_dict[scheduler_type](opt)

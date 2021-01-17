@@ -216,19 +216,23 @@ def generate_pair_name(pair_path,return_separate_name=False):
 
 
 def compute_interval(vertices):
-    if len(vertices)<1000:
+    if len(vertices)<2000:
         vert_i  = vertices[:,None]
         vert_j  = vertices[None]
         vert_dist = ((vert_i-vert_j)**2).sum(-1)
         vert_dist = np.sqrt(vert_dist)
-        print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
+        min_interval = np.min(vert_dist[np.where(vert_dist>0)])
+        print("the min interval is {}".format(min_interval))
+        return min_interval
     else:
-        sampled_index = random.sample(list(range(len(vertices - 1))), 800)
+        sampled_index = random.sample(list(range(len(vertices)-1)), 2000)
         sampled_index_plus = [index+1 for index in sampled_index]
         vertices_sampled = vertices[sampled_index]
         vertices_sampled_plus = vertices[sampled_index_plus]
         vert_dist = np.sqrt(((vertices_sampled-vertices_sampled_plus)**2).sum(-1))
-        print("the min interval is {}".format(np.min(vert_dist[np.where(vert_dist>0)])))
+        sampled_min_interval = np.min(vert_dist[np.where(vert_dist>0)])
+        print("the min interval is {}".format(sampled_min_interval))
+        return sampled_min_interval
 
 
 

@@ -18,8 +18,8 @@ class ShapePair():
         >>> do_registration(shape_pair)
 
 
-    if the dense mode is false, which refers the control points are different from the source,
-    , the toflow by default is set as the source, additional inference on the toflow is needed to get the flowed
+    if the dense mode is false, which refers the control points are different from the toflow points,
+    , (the toflow by default is set as the source points), an additional forward on the toflow is needed to get the flowed points
     The similarity measure will be computed between the flowed and the target
 
     Examples:
@@ -31,8 +31,8 @@ class ShapePair():
 
 
     2. During external inference, e.g. given ambient points, in this case, assume the reg_param
-    and the control points have already known. the dense mode is set to false, the  toflow need to be
-    initialized externally. The flowed can be return after the inference.
+    and the control points have already known. toflow need to be externally initialized as the given ambient points .
+    the dense mode is set to false,  The flowed ambient points can be return after the inference.
 
     Examples:
         >>> ....
@@ -88,6 +88,7 @@ class ShapePair():
         if control_weights is None and self.control_weights is None:
             control_weights = torch.ones(control_points.shape[0],control_points.shape[1],1)
             control_weights = control_weights/control_points.shape[1]
+            control_weights = control_weights.to(control_points.device)
         if control_weights is not None:
             self.control_weights = control_weights
         #self.control_points.requires_grad_()

@@ -17,6 +17,7 @@ class GradientFlowOPT(nn.Module):
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
 
 
+
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
 
@@ -75,8 +76,8 @@ class GradientFlowOPT(nn.Module):
         sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
         loss = sim_loss
         print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.item(),))
-        grad_reg_param = grad(loss,shape_pair.shape_pair.reg_param)[0]
-        shape_pair.reg_param += - grad_reg_param/shape_pair.control_weights
+        grad_reg_param = grad(loss,shape_pair.reg_param)[0]
+        shape_pair.reg_param = shape_pair.reg_param - grad_reg_param/shape_pair.control_weights
         shape_pair.reg_param.detach_()
         shape_pair.set_flowed_control_points(shape_pair.reg_param)
         shape_pair.infer_flowed()

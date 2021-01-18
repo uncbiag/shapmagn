@@ -15,6 +15,7 @@ class LDDMMOPT(nn.Module):
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
         self.lddmm_kernel = self.lddmm_module.kernel
         self.interp_kernel = self.lddmm_kernel
+        self.fea_mode = opt[("fea_mode", "points", "feature mode")]
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -24,14 +25,24 @@ class LDDMMOPT(nn.Module):
         self.call_thirdparty_package = False
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',10,"print every n iteration")]
+        self.use_gradflow_guided = self.opt[
+            ("use_gradflow_guided", False, "optimization guided by gradient flow, to accererate the convergence")]
+        self.gradflow_guided_buffer = {}
+        if self.use_gradflow_guided:
+            print("the gradient flow approach is use to guide the optimization of lddmm")
+            print("the feature extraction mode should be disabled")
+            assert self.fea_mode == "points"
 
 
 
-    def init_reg_param(self,shape_pair):
-        reg_param = torch.zeros_like(shape_pair.get_control_points()).normal_(0, 1e-7)
-        reg_param.requires_grad_()
-        shape_pair.set_reg_param(reg_param)
-        return shape_pair
+    def init_reg_param(self,shape_pair, force=False):
+        if shape_pair.reg_param is None or force:
+            reg_param = torch.zeros_like(shape_pair.get_control_points()).normal_(0, 1e-7)
+            reg_param.requires_grad_()
+            shape_pair.set_reg_param(reg_param)
+            return shape_pair
+
+
 
 
 
@@ -40,12 +51,14 @@ class LDDMMOPT(nn.Module):
 
     def reset(self):
         self.iter = self.iter*0
+        self.gradflow_guided_buffer = {}
 
 
 
 
     def shooting(self, shape_pair):
         momentum = shape_pair.reg_param
+        momentum = momentum.clamp(-1,1)
         control_points = shape_pair.get_control_points()
         self.lddmm_module.set_mode("shooting")
         _, flowed_control_points = self.integrator.solve((momentum, control_points))
@@ -64,6 +77,7 @@ class LDDMMOPT(nn.Module):
         return shape_pair
 
     def geodesic_distance(self,momentum, control_points):
+        momentum = momentum.clamp(-1,1)
         dist = momentum * self.lddmm_kernel(control_points, control_points, momentum)
         dist = dist.mean()
         return dist
@@ -74,7 +88,7 @@ class LDDMMOPT(nn.Module):
 
         :return:
         """
-        sim_factor = 10
+        sim_factor = 100
         reg_factor_init =1 #self.initial_reg_factor
         static_epoch = 100
         min_threshold = reg_factor_init/10
@@ -84,22 +98,94 @@ class LDDMMOPT(nn.Module):
         return sim_factor, reg_factor
 
 
+
+
+
+
+
+
     def update_reg_param_from_low_scale_to_high_scale(self, shape_pair_low, shape_pair_high):
+        def estimate_factor_ratio(control_points_low, control_points_high,point_scale=False):
+            """
+            an estimation of the scaling factor when upsampling the momentum
+            :param control_points_low:
+            :param control_points_high:
+            :return:
+            """
+            device = control_points_low.device
+            if not point_scale:
+                ones_low = torch.ones(control_points_low.shape[0],control_points_low.shape[1],1).to(device)
+                weight_low = self.interp_kernel(control_points_low, control_points_low, ones_low)
+                weight_high_low = self.interp_kernel(control_points_high, control_points_low, ones_low)
+                weight_low_new = self.interp_kernel(control_points_low, control_points_high, weight_high_low)
+                weight_high_ratio = self.interp_kernel(control_points_high, control_points_low, weight_low/weight_low_new)
+                weight_high_ratio.clamp_(0,1)
+                # inf_mask = torch.isinf(weight_high_ratio)
+                # if torch.sum(inf_mask)>0:
+                #     print(" {} inf detected".format(torch.sum(inf_mask).item()))
+                #     weight_high_ratio[inf_mask] = 0
+            else:
+                weight_high_ratio = torch.ones(control_points_high.shape[0], control_points_high.shape[1], 1).to(device)
+                weight_high_ratio = weight_high_ratio*control_points_low.shape[1]/control_points_high.shape[1]
+            return weight_high_ratio
+
         control_points_high = shape_pair_high.get_control_points()
         control_points_low = shape_pair_low.get_control_points()
         reg_param_low = shape_pair_low.reg_param
         reg_param_high = self.interp_kernel(control_points_high, control_points_low, reg_param_low)
+        reg_param_high = estimate_factor_ratio(control_points_low,control_points_high)*reg_param_high
         reg_param_high.detach_()
         reg_param_high.requires_grad_()
         shape_pair_high.set_reg_param(reg_param_high)
         return shape_pair_high
 
 
+    def wasserstein_gradient_flow_guidence(self, flowed, target):
+        """
+        wassersten gradient flow only works when self.fea_mode = "points"
+        """
+        def update():
+            from shapmagn.metrics.losses import GeomDistance
+            from torch.autograd import grad
+            gemloss_setting = self.opt["sim_loss"]["geomloss"]
+            geomloss = GeomDistance(gemloss_setting)
+            flowed_points_clone = flowed.points.detach().clone()
+            flowed_points_clone.requires_grad_()
+            flowed_clone = Shape()
+            flowed_clone.set_data_with_refer_to(flowed_points_clone, flowed)   # shallow copy, only points are cloned, other attr are not
+            loss = geomloss(flowed_clone, target)
+            print("{} th step, before gradient flow, the ot distance between the flowed and the target is {}".format(self.iter.item(), loss.item()))
+            grad_flowed_points = grad(loss, flowed_points_clone)[0]
+            flowed_points_clone = flowed_points_clone - grad_flowed_points / flowed_clone.weights
+            flowed_clone.points = flowed_points_clone.detach()
+            loss = geomloss(flowed_clone, target)
+            print("{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(self.iter.item(), loss.item()))
+            self.gradflow_guided_buffer["gradflowed"] = flowed_clone
+
+        gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
+        self.gradflow_guided_every_step = gradflow_guided_opt[
+            ("gradflow_guided_every_step", 10, "update the gradflow every # step")]
+        if self.iter % self.gradflow_guided_every_step==0 or len(self.gradflow_guided_buffer)==0:
+            update()
+        return flowed, self.gradflow_guided_buffer["gradflowed"]
+
+
+
+    def extract_fea(self, flowed, target):
+        """LDDMMM support feature extraction"""
+        if self.fea_mode=="points":
+            return flowed, target
+        else:
+            raise ValueError("the feature extraction approach {} hasn't implemented".format(self.fea_mode))
+
     def forward(self, shape_pair):
         shape_pair = self.shooting(shape_pair)
         flowed_has_inferred = shape_pair.infer_flowed()
         shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
-        sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
+        flowed, target = self.extract_fea(shape_pair.flowed, shape_pair.target)
+        if self.use_gradflow_guided:
+            flowed, target = self.wasserstein_gradient_flow_guidence(flowed, target)
+        sim_loss = self.sim_loss_fn(flowed, target)
         reg_loss = self.reg_loss_fn(shape_pair.reg_param, shape_pair.get_control_points())
         sim_factor, reg_factor = self.get_factor()
         sim_loss = sim_loss*sim_factor

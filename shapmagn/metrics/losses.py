@@ -61,9 +61,9 @@ class L2Distance(object):
         self.attr = opt[('attr','landmarks',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
     def __call__(self,flowed, target):
         batch = flowed.nbatch
-        attr1 = flowed.getattr(self.attr)
-        attr2 = target.getattr(self.attr)
-        return ((attr1.view(batch,-1)-attr2.view(batch,-1))**2).sum(-1) # B
+        attr1 = getattr(flowed, self.attr)
+        attr2 = getattr(target, self.attr)
+        return ((attr1.view(batch,-1)-attr2.view(batch,-1))**2).mean(-1) # B
 
 
 
@@ -93,17 +93,20 @@ class Loss():
     def __init__(self, opt):
         from shapmagn.global_variable import LOSS_POOL
         loss_name_list = opt[("loss_list",['l2'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
-        self.loss_weight_strategy_dict = opt[("loss_weight_strategy","", "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
+        loss_weight_strategy = opt[("loss_weight_strategy","", "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
+        self.loss_weight_strategy = obj_factory(loss_weight_strategy) if loss_weight_strategy else None
         self.loss_activate_epoch_list = opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]
         self.loss_fn_list = [LOSS_POOL[name](opt[(name,{},"settings")]) for name in loss_name_list ]
 
     def update_weight(self, epoch):
-        if len(self.loss_weight_strategy_dict)==0:
+        if not self.loss_weight_strategy:
             return [1.]* len(self.loss_fn_list)
+        else:
+            return self.loss_weight_strategy(epoch)
 
     def __call__(self, flowed, target, epoch=-1):
         weights_list = self.update_weight(epoch)
-        loss_list = [weight*loss_fn(flowed, target) for weight, loss_fn in zip(weights_list, self.loss_fn_list)]
+        loss_list = [weight*loss_fn(flowed, target) if weight else 0. for weight, loss_fn in zip(weights_list, self.loss_fn_list)]
         total_loss = sum(loss_list)
         return total_loss
 

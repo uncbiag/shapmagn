@@ -32,7 +32,7 @@
                 "loss_activate_epoch_list": [0],
                 "geomloss":{
                     "attr": "points",
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.005, scaling=0.8, debias=True)"
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.005, scaling=0.8, reach=0.1,debias=True)"
                 },
                 "l2": {
                     "attr": "points"

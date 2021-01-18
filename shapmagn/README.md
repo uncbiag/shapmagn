@@ -1,29 +1,20 @@
 ## shapmagn
 
-shapmagn is a project for Shape Registration. The repository provides a general framework for the pointcloud/mesh registration task.
-
-
-## Requirements
-- High-end NVIDIA GPUs with at least 11GB of DRAM.
-- Either Linux or Windows. We recommend Linux for better performance.
-- CUDA Toolkit 10.1, CUDNN 7.5, and the latest NVIDIA driver.
-- Python 3.6+ and PyTorch 1.4.0+.
+shapmagn is a research project for Shape Registration. The repository provides a general framework for the point cloud/mesh registration task, supporting both optimization and learning
+based approaches. Currently, we are at the early stage of the development.
 
 ## Installation
 ```
 pip install -r requirement.txt
 ```
-
-## Data Organization
-The repository provides a general interface for shape registration task.
-
-The data need to be organized as: task_output_folder/PHASE/data_info.json,
-
-where PHASE include refers to "train", "val", "test" and "debug". "debug" is a subset of training data.
+Addtionally, torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
 
 
-## Preprocess
-We currently provide data preprocessing code for the lung registration. 
-
-## Setting
-All settings can be found in a "task_setting.json", where descriptions can be found at "task_setting_comment.json".
+## Demo
+```
+cd shapmagn/demos/data
+gdown https://drive.google.com/uc?id=19YG-je_7QfKd-Z8Rhg4R0nL6hVIpEco6
+unzip lung_vessel_demo_data.zip
+cd ..
+python gradient_lung_reg.py
+```

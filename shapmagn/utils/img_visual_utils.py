@@ -45,7 +45,7 @@ def transfer_point_to_grid_then_save(points,grid_size,file_path, spacing=None):
 
 
 
-def compute_jacobi_map(map, spacing,record_path, fname_list, appendix='3D'):
+def compute_jacobi_map(map, spacing,record_path, fname_list, appendix='jacobi'):
     """
     compute determinant jacobi on transformatiomm map,  the coordinate should be canonical.
 

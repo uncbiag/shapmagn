@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
-from shapmagn.metrics.losses import Loss
+from shapmagn.metrics.losses import GeomDistance
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad
 class GradientFlowOPT(nn.Module):
@@ -10,8 +10,8 @@ class GradientFlowOPT(nn.Module):
         self.opt = opt
         interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator")]
         self.interp_kernel = obj_factory(interpolator_obj)
-        sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
-        self.sim_loss_fn = Loss(sim_loss_opt)
+        assert self.opt["sim_loss"]['loss_list'] == ["geomloss"], "gradient flow only supports geomloss"
+        self.sim_loss_fn = GeomDistance(self.opt["sim_loss"]["geomloss"])
         self.call_thirdparty_package = False
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
@@ -59,6 +59,10 @@ class GradientFlowOPT(nn.Module):
         shape_pair.set_reg_param(reg_param)
         return shape_pair
 
+    def extract_fea(self, flowed, target):
+        """Gradient Flow doesn't support feature extraction"""
+        return flowed, target
+
     def forward(self, shape_pair):
         """
         reg_param here is the displacement
@@ -77,9 +81,9 @@ class GradientFlowOPT(nn.Module):
         loss = sim_loss
         print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.item(),))
         grad_reg_param = grad(loss,shape_pair.reg_param)[0]
-        shape_pair.reg_param = shape_pair.reg_param - grad_reg_param/shape_pair.control_weights
+        shape_pair.reg_param = shape_pair.reg_param - grad_reg_param/(shape_pair.control_weights)
         shape_pair.reg_param.detach_()
-        shape_pair.set_flowed_control_points(shape_pair.reg_param)
+        shape_pair.set_flowed_control_points(shape_pair.reg_param.clone())
         shape_pair.infer_flowed()
         shape_pair.reg_param.requires_grad = True
         self.iter +=1

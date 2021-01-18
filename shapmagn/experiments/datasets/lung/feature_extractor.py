@@ -51,14 +51,18 @@ def compute_local_fea(fea_type_list, raidus=1, normalize=True):
             vals = cov.symeig(eigenvectors=False).eigenvalues
             fea = (mass ** 2) * vals[:, 1] * vals[:, 2]
         elif fea_type=="eignvector":
+            stand_ori = torch.Tensor([1.0,0.,0])
             vector = cov.symeig(eigenvectors=True).eigenvectors
             fea = vector[:,:,0]
+            stand_ori=stand_ori.repeat(len(mass), 1)
+            fea = torch.sign(stand_ori*fea).sum(1)[...,None]*fea
+
 
         if normalize:
             fea = _normalize_fea(fea)
         return fea
     def _normalize_fea(fea):
-        fea = fea.clamp(0, 10).sqrt() #* (mass > 2)
+        fea = fea.clamp(0, 10).sqrt()#* (mass > 2)
         return fea
 
     def _compute(points):
@@ -73,7 +77,7 @@ def compute_local_fea(fea_type_list, raidus=1, normalize=True):
         mass, dev, cov = compute_local_moments(xyz, radius=raidus, ranges=ranges_xyz)  # (N,), (N, D), (N, D, D)
         fea_combined = [_compute_local_fea(fea_type, mass, dev, cov) for fea_type in fea_type_list]
         fea_combined = torch.stack(fea_combined,1)
-        return fea_combined.numpy()
+        return xyz, fea_combined.numpy(), mass
     return _compute
 
 
@@ -91,23 +95,27 @@ def compute_local_fea(fea_type_list, raidus=1, normalize=True):
 
 if __name__ == "__main__":
     cloud_1 = pv.read(
-        "/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
+        "/home/zyshen/remote/llr11_mount/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
     cloud_2 = pv.read(
-        "/playpen-raid1/Data/UNC_vesselParticles/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
-    saving_path = "/playpen-raid1/zyshen/debug/debugg_point_visual2.vtk"
+        "/home/zyshen/remote/llr11_mount/Data/UNC_vesselParticles/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
+    saving_path = "/playpen-raid1//home/zyshen/remote/llr11_mount/zyshen/debug/debugg_point_visual2.vtk"
     points_1 = cloud_1.points
     points_2 = cloud_2.points
     # fea_type_list = ["mass","dev","eignvalue"]
     fea_type_list = ["eignvector"]
-    compute_fea = compute_local_fea(fea_type_list,raidus=50,normalize=False)
-    combined_fea1= compute_fea(points_1,)
-    combined_fea2= compute_fea(points_2)
+    compute_fea = compute_local_fea(fea_type_list,raidus=1,normalize=True)
+    points_1, combined_fea1, mass1= compute_fea(points_1)
+    points_2, combined_fea2, mass2= compute_fea(points_2)
+    filter1 = mass1>2.5
+    points_1 = points_1[filter1]
+    combined_fea1 = combined_fea1[filter1]
+
     visual_scalars1 = combined_fea1[:,0]
-    visual_scalars1 = (visual_scalars1 - visual_scalars1.min(0)) / (visual_scalars1.max(0) - visual_scalars1.min(0))
+    #visual_scalars1 = (visual_scalars1 - visual_scalars1.min(0)) / (visual_scalars1.max(0) - visual_scalars1.min(0))
     fea_index = 0
     # visual_scalars1 = combined_fea1[:,fea_index]
     # visual_scalars2 = combined_fea2[:,fea_index]
     #visual_scalars1 = (points_1-points_1.min(0))/(points_1.max(0)-points_1.min(0))
-    visualize_point_fea(points_1, visual_scalars1)
+    visualize_point_fea(points_1, visual_scalars1,rgb=True)
     #visualize_point_fea(points_2,visual_scalars2)
 

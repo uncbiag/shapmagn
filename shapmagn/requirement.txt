@@ -1,0 +1,13 @@
+torch
+torchvision
+pykeops
+dipy
+geomloss
+gdown
+pyvista
+matplotlib
+vtk
+SimpleITK
+tqdm
+visdom
+tensorboard

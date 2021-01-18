@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import pyvista as pv
 
-def visualize_point_fea(points, fea, saving_path=None):
+def visualize_point_fea(points, fea, rgb=True, saving_path=None):
     if isinstance(points, torch.Tensor):
         points = points.detach().cpu().numpy()
     plotter = pv.Plotter()
@@ -10,7 +10,7 @@ def visualize_point_fea(points, fea, saving_path=None):
                      scalars=fea,
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
-                     rgb=True,
+                     rgb=rgb,
                      opacity="linear",
                      lighting=True,
                      style="points", show_scalar_bar=True)
@@ -81,7 +81,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, saving_
 
 
 
-def visualize_multi_point(points_list, feas_list, titles_list, saving_path=None):
+def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_path=None):
     num_views = len(points_list)
     for i,points in enumerate(points_list):
         if isinstance(points, torch.Tensor):
@@ -89,6 +89,8 @@ def visualize_multi_point(points_list, feas_list, titles_list, saving_path=None)
     for i, feas in enumerate(feas_list):
         if isinstance(feas, torch.Tensor):
             feas_list[i] = feas.detach().cpu().numpy()
+    if isinstance(rgb_on,bool):
+        rgb_on = [rgb_on]* num_views
 
     p = pv.Plotter(notebook=0, shape=(1, num_views), border=False)
     for i in range(num_views):
@@ -98,7 +100,7 @@ def visualize_multi_point(points_list, feas_list, titles_list, saving_path=None)
                          scalars=feas_list[i],
                          cmap="magma", point_size=10,
                          render_points_as_spheres=True,
-                         rgb=True,
+                         rgb=rgb_on[i],
                          opacity="linear",
                          lighting=True,
                          style="points", show_scalar_bar=True)

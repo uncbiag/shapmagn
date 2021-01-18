@@ -15,6 +15,7 @@ class DiscreteFlowOPT(nn.Module):
         gauss_kernel_obj = opt[("gauss_kernel_obj","torch_kernels.TorchKernel('gauss',sigma=0.1)","kernel object")]
         self.gauss_kernel = obj_factory(gauss_kernel_obj)
         self.interp_kernel = obj_factory(interpolator_obj)
+        self.fea_mode = opt[("fea_mode", "points", "feature mode")]
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -72,33 +73,6 @@ class DiscreteFlowOPT(nn.Module):
 
 
 
-    def gradient_flow(self, shape_pair):
-        """
-        flowed(t) = control(t-1) + flow(t-1)
-        grad_flow(t) = Gradient(sim_loss(flowed(t),target)+reg_loss(flow(t-1),control(t-1)))
-        flow(t) = - grad_flow(t)/weight
-        control(t) = flowed(t)
-        :param shape_pair:
-        :return:
-        """
-        shape_pair.reg_param.requires_grad = False
-        flowed_control_points = shape_pair.get_control_points() + shape_pair.reg_param
-        flowed_control_points.detach_()
-        flowed_control_points.requires_grad_()
-        shape_pair.set_flowed_control_points(flowed_control_points)
-        flowed_has_inferred = shape_pair.infer_flowed()
-        shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
-        sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
-        sim_loss = sim_loss
-        if self.iter%self.print_step==0:
-            print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.item(),))
-        loss = sim_loss
-        grad_flow = grad(loss,shape_pair.flowed_control_points)[0]
-        shape_pair.set_control_points(shape_pair.control_points.detach() + shape_pair.reg_param.detach())
-        shape_pair.reg_param = - grad_flow/shape_pair.control_weights
-        self.iter +=1
-        return loss
-
 
     def init_reg_param(self,shape_pair):
         reg_param = torch.zeros_like(shape_pair.get_control_points()).normal_(0, 1e-7)
@@ -106,15 +80,22 @@ class DiscreteFlowOPT(nn.Module):
         shape_pair.set_reg_param(reg_param)
         return shape_pair
 
+
+    def extract_point_fea(self, flowed, target):
+        flowed.pointfea = flowed.points
+        target.pointfea = target.points
+        return flowed, target
+
+    def extract_fea(self, flowed, target):
+        """DiscreteFlowOPT supports feature extraction"""
+        if self.fea_mode=="points":
+            return self.extract_point_fea(flowed, target)
+        else:
+            raise ValueError("the feature extraction approach {} hasn't implemented".format(self.fea_mode))
+
     def forward(self, shape_pair):
         """
         reg_param here is the displacement
-        flowed_control(t-1) = control(t-1)+reg_param(t-1)
-        flowed(t-1) = interpolate(flowed_control(t-1))
-        grad_on_reg_param(t) = Gradient(sim_loss(flowed(t-1),target)+reg_loss(reg_param(t-1))
-        reg_param(t) = optimizer_strategy(grad_on_reg_param)
-        control(t) = flowed_control(t-1)
-        flowed_control(t) = control(t)+reg_param(t)
         :param shape_pair:
         :return:
         """
@@ -122,6 +103,7 @@ class DiscreteFlowOPT(nn.Module):
         shape_pair.set_flowed_control_points(flowed_control_points)
         flowed_has_inferred = shape_pair.infer_flowed()
         shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
+        shape_pair.flowed, shape_pair.target = self.extract_fea(shape_pair.flowed, shape_pair.target)
         sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
         reg_loss = self.reg_loss_fn(shape_pair.reg_param,shape_pair.get_control_points())
         sim_factor, reg_factor = self.get_factor()

@@ -83,6 +83,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
     opt_scheduler = opt[('scheduler',{},"setting for the scheduler")]
     """settings for the scheduler"""
     def solve(shape_pair):
+        model.init_reg_param(shape_pair)
         ######################################3
         shape_pair.reg_param.register_hook(grad_hook)
         ############################################3
@@ -124,7 +125,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
     """
     the optimizer and scheduler are not defined
     the model take responsibility to solve the optimal solution
-    this is typically required by thirdparty package, least square regression, gradient flow,
+    this is typically designed for calling the thirdparty package, least square regression, gradient flow,
      or approaches needs inner iteration ,e.g, coherent point drift
     :param opt:
     :param model:
@@ -139,6 +140,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
     record_path = os.path.join(record_path, "scale_{}".format(scale))
     os.makedirs(record_path, exist_ok=True)
     def solve(shape_pair):
+        model.init_reg_param(shape_pair)
         last_energy = 0.0
         patient_count = 0
         previous_converged_iter = 0.
@@ -166,6 +168,6 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
 def grad_hook(grad):
     # import pydevd
     # pydevd.settrace(suspend=False, trace_only_current_thread=True)
-    print("the grad_norm is {} ".format(grad.norm()))
+    print("debugging info, the grad_norm is {} ".format(grad.norm()))
     return grad
 ############################3

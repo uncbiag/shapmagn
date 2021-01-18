@@ -11,3 +11,6 @@ SimpleITK
 tqdm
 visdom
 tensorboard
+blosc
+torchdiffeq
+future

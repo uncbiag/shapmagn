@@ -5,6 +5,8 @@ import pyvista as pv
 def visualize_point_fea(points, fea, rgb=True, saving_path=None):
     if isinstance(points, torch.Tensor):
         points = points.detach().cpu().numpy()
+    if isinstance(fea, torch.Tensor):
+        fea = fea.detach().cpu().numpy()
     plotter = pv.Plotter()
     plotter.add_mesh(pv.PolyData(points),
                      scalars=fea,

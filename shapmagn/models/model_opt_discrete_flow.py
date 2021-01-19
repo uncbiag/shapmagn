@@ -15,7 +15,6 @@ class DiscreteFlowOPT(nn.Module):
         gauss_kernel_obj = opt[("gauss_kernel_obj","torch_kernels.TorchKernel('gauss',sigma=0.1)","kernel object")]
         self.gauss_kernel = obj_factory(gauss_kernel_obj)
         self.interp_kernel = obj_factory(interpolator_obj)
-        self.fea_mode = opt[("fea_mode", "points", "feature mode")]
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -88,10 +87,10 @@ class DiscreteFlowOPT(nn.Module):
 
     def extract_fea(self, flowed, target):
         """DiscreteFlowOPT supports feature extraction"""
-        if self.fea_mode=="points":
+        if not self.feature_extractor:
             return self.extract_point_fea(flowed, target)
         else:
-            raise ValueError("the feature extraction approach {} hasn't implemented".format(self.fea_mode))
+            raise ValueError("the feature extraction approach {} hasn't implemented".format(self.feature_extractor))
 
     def forward(self, shape_pair):
         """

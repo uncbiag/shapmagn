@@ -5,6 +5,7 @@ from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
 from shapmagn.modules.ode_int import ODEBlock
 from shapmagn.utils.utils import sigmoid_decay
+from shapmagn.utils.obj_factory import obj_factory
 class LDDMMOPT(nn.Module):
     def __init__(self, opt):
         super(LDDMMOPT, self).__init__()
@@ -15,7 +16,8 @@ class LDDMMOPT(nn.Module):
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
         self.lddmm_kernel = self.lddmm_module.kernel
         self.interp_kernel = self.lddmm_kernel
-        self.fea_mode = opt[("fea_mode", "points", "feature mode")]
+        feature_extractor_obj = opt[("feature_extractor_obj","","feature extraction function")]
+        self.feature_extractor = obj_factory(feature_extractor_obj)() if feature_extractor_obj else None
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -31,7 +33,7 @@ class LDDMMOPT(nn.Module):
         if self.use_gradflow_guided:
             print("the gradient flow approach is use to guide the optimization of lddmm")
             print("the feature extraction mode should be disabled")
-            assert self.fea_mode == "points"
+            assert self.feature_extractor is  None
 
 
 
@@ -142,7 +144,7 @@ class LDDMMOPT(nn.Module):
 
     def wasserstein_gradient_flow_guidence(self, flowed, target):
         """
-        wassersten gradient flow only works when self.fea_mode = "points"
+        wassersten gradient flow only works when self.feature_extractor = None
         """
         def update():
             from shapmagn.metrics.losses import GeomDistance
@@ -169,14 +171,19 @@ class LDDMMOPT(nn.Module):
             update()
         return flowed, self.gradflow_guided_buffer["gradflowed"]
 
-
+    def extract_point_fea(self, flowed, target):
+        flowed.pointfea = flowed.points
+        target.pointfea = target.points
+        return flowed, target
 
     def extract_fea(self, flowed, target):
         """LDDMMM support feature extraction"""
-        if self.fea_mode=="points":
-            return flowed, target
-        else:
-            raise ValueError("the feature extraction approach {} hasn't implemented".format(self.fea_mode))
+        if not self.feature_extractor:
+            return self.extract_point_fea(flowed, target)
+        elif self.feature_extractor:
+            return self.feature_extractor(flowed, target)
+
+
 
     def forward(self, shape_pair):
         shape_pair = self.shooting(shape_pair)

@@ -49,7 +49,7 @@ def uniform_sampler(num_sample, rand_generator=Random(0)):
     return sampling
 
 
-def grid_shape_sampler(scale):
+def point_grid_sampler(scale):
     """
     :param scale: voxelgrid gather the point info inside grids of "scale" size
     :return:
@@ -85,7 +85,7 @@ def grid_shape_sampler(scale):
     return sampling
 
 
-def uniform_shape_sampler(num_sample, rand_generator=Random(0)):
+def point_uniform_sampler(num_sample, rand_generator=Random(0)):
     """
     :param num_sample: float
     :param rand_generator:

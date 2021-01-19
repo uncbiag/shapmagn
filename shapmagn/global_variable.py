@@ -23,6 +23,6 @@ from shapmagn.models.model_opt_prealign import PrealignOPT
 MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prealign_opt": PrealignOPT,"gradient_flow_opt":GradientFlowOPT}
 
 
-from shapmagn.shape.point_sampler import grid_shape_sampler, uniform_shape_sampler
-SHAPE_SAMPLER_POOL = {"point_grid": grid_shape_sampler, "point_uniform": uniform_shape_sampler}
+from shapmagn.shape.point_sampler import point_grid_sampler, point_uniform_sampler
+SHAPE_SAMPLER_POOL = {"point_grid": point_grid_sampler, "point_uniform": point_uniform_sampler}
 # INTERPOLATOR_POOL = {"point_kernel":kernel_interpolator, "point_spline": spline_intepolator}

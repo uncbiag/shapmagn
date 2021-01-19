@@ -12,12 +12,12 @@ class DiscreteFlowOPT(nn.Module):
         super(DiscreteFlowOPT, self).__init__()
         self.opt = opt
         interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator")]
-        gauss_kernel_obj = opt[("gauss_kernel_obj","torch_kernels.TorchKernel('gauss',sigma=0.1)","kernel object")]
+        gauss_kernel_obj = opt[("gauss_kernel_obj","keops_kernels.KeopsKernel('gauss',sigma=0.1)","kernel object")]
         self.gauss_kernel = obj_factory(gauss_kernel_obj)
         self.interp_kernel = obj_factory(interpolator_obj)
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
-        self.reg_loss_fn = self.geodesic_distance
+        self.reg_loss_fn = self.regularization
         self.call_thirdparty_package = False
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
@@ -47,7 +47,7 @@ class DiscreteFlowOPT(nn.Module):
         shape_pair.set_flowed(flowed)
         return shape_pair
 
-    def geodesic_distance(self,flow, control_points):
+    def regularization(self,flow, control_points):
         dist = flow * self.gauss_kernel(control_points, control_points, flow)
         dist = dist.mean()
         return dist

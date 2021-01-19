@@ -24,7 +24,6 @@
         "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
         "gradient_flow_opt": {
             "print_step":10,
-            "gauss_kernel_obj": "torch_kernels.TorchKernel('gauss',sigma=0.05)",
             "interpolator_obj": "point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)",
             "sim_loss": {
                 "loss_list": ["geomloss"],

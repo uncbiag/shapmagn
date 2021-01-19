@@ -72,7 +72,7 @@ class LDDMMOPT(nn.Module):
         control_points = shape_pair.control_points
         toflow_points = shape_pair.get_toflow_points()
         self.lddmm_module.set_mode("flow")
-        _, flowed_points = self.integrator.solve((momentum, control_points,toflow_points))
+        _, _, flowed_points = self.integrator.solve((momentum, control_points,toflow_points))
         flowed = Shape()
         flowed.set_data_with_refer_to(flowed_points,shape_pair.source)
         shape_pair.set_flowed(flowed)

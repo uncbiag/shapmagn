@@ -16,10 +16,12 @@ pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cu102
 ```
 
 ## Demo
+For now, we provide two demos: registration between a lung pair and a registration from sphere to cube.
 ```
 cd shapmagn/shapmagn/demos/data
 gdown https://drive.google.com/uc?id=19YG-je_7QfKd-Z8Rhg4R0nL6hVIpEco6
 unzip lung_vessel_demo_data.zip
 cd ..
-python gradient_lung_reg.py
+python lung_reg.py
+python toy_reg.py
 ```

@@ -13,6 +13,7 @@ from shapmagn.models.multiscale_optimization import build_single_scale_model_emb
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_multi_point
+from shapmagn.demos.demo_utils import *
 # import pykeops
 # pykeops.clean_pykeops()
 
@@ -20,79 +21,16 @@ from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair,
 assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 server_path = "./" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path =  server_path+"data/toy_demo_data/divide_3d_sphere_level1.vtk"
-target_path = server_path + "data/toy_demo_data/divide_3d_cube_level4.vtk"
-
-
-
-def get_obj(reader_obj,normalizer_obj,sampler_obj):
-    def _get_obj(file_path):
-        name = get_file_name(file_path)
-        file_info = {"name":name,"data_path":file_path}
-        reader = obj_factory(reader_obj)
-        normalizer = obj_factory(normalizer_obj)
-        sampler = obj_factory(sampler_obj)
-        raw_data_dict  = reader(file_info)
-        normalized_data_dict = normalizer(raw_data_dict)
-        sampled_data_dict = sampler(normalized_data_dict)
-        min_interval = compute_interval(sampled_data_dict["points"])
-        obj_dict = sampled_data_dict
-        obj = {key: torch.from_numpy(fea)[None].to(device) for key, fea in obj_dict.items()}
-        return obj, min_interval
-    return _get_obj
-
-
-
-def detect_folding(warped_grid_points, grid_size,spacing, saving_path=None,file_name=None):
-    from shapmagn.utils.img_visual_utils import compute_jacobi_map
-    from shapmagn.utils.utils import point_to_grid
-    warped_grid = point_to_grid(warped_grid_points,grid_size)
-    compute_jacobi_map(warped_grid[None],spacing,saving_path,[file_name])
-
-
-def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,mode="hard", confid=0.1):
-    # here we assume batch_sz = 1
-    from shapmagn.metrics.losses import GeomDistance
-    from pykeops.torch import LazyTensor
-    geom_obj = gemloss_setting["geom_obj"].replace(")",",potentials=True)")
-    geomloss = obj_factory(geom_obj)
-    attr = gemloss_setting['attr']
-    attr1 = getattr(source, attr)
-    attr2 = getattr(target, attr)
-    weight1 = source.weights[:, :, 0]  # remove the last dim
-    weight2 = target.weights[:, :, 0]  # remove the last dim
-    F_i, G_j  = geomloss(weight1, attr1, weight2, attr2) # todo batch sz of input and output in geomloss is not consistent
-
-    N,M,D = source.points.shape[1], target.points.shape[1],  source.points.shape[2]
-    a_i, x_i = LazyTensor(source.weights.view(N,1,1)), LazyTensor(source.points.view(N, 1, D))
-    b_j, y_j = LazyTensor(target.weights.view(1, M,1)), LazyTensor(target.points.view(1, M, D))
-    F_i, G_j = LazyTensor(F_i.view(N, 1,1)), LazyTensor(G_j.view(1, M,1))
-    C_ij = (1 / p) * ((x_i - y_j) ** p).sum(-1)  # (N,M,1) cost matrix
-    eps = blur ** p  # temperature epsilon
-    P_j = ((F_i + G_j - C_ij) / eps).exp() * (a_i)  # (N,M,1) transport plan
-    if mode=="soft":
-        fea_to_map = LazyTensor(fea_to_map.view(N, 1, -1))  # Nx1xfea_dim
-        mapped_fea = (P_j*fea_to_map).sum_reduction(0) #(N,M,fea_dim)-> (M,fea_dim)
-    elif mode == "hard":
-        P_j_max, P_j_index = P_j.max_argmax(0)
-        mapped_fea = fea_to_map[P_j_index][:,0]
-        below_thre_index = (P_j_max<confid)[:,0]
-        mapped_fea[below_thre_index] = 0
-    elif mode == "confid":
-        # P_j_max, P_j_index = P_j.max_argmax(0)
-        # mapped_fea = P_j_max
-        mapped_fea = P_j.sum_reduction(0)
-    else:
-        raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
-    return mapped_fea
+source_path =  server_path+"data/lung_vessel_demo_data/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+target_path = server_path + "data/lung_vessel_demo_data/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
 
 
 ####################  prepare data ###########################
 pair_name = generate_pair_name([source_path,target_path])
-reader_obj = "toy_dataset_utils.toy_reader()"
-sampler_obj = "toy_dataset_utils.toy_sampler()"
-normalizer_obj = "toy_dataset_utils.toy_normalizer()"
-get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj)
+reader_obj = "lung_dataset_utils.lung_reader()"
+sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.01)"
+normalizer_obj = "lung_dataset_utils.lung_normalizer()"
+get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
 min_interval = min(source_interval,target_interval)
@@ -106,18 +44,18 @@ shape_pair = create_shape_pair(source, target)
 """ Experiment 1:  gradient flow """
 task_name = "gradient_flow"
 solver_opt = ParameterDict()
-record_path = server_path+"output/toy_demo/{}".format(task_name)
+record_path = server_path+"output/lung_demo/{}".format(task_name)
 os.makedirs(record_path,exist_ok=True)
 solver_opt["record_path"] = record_path
 model_name = "gradient_flow_opt"
 model_opt =ParameterDict()
-model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)"
+model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.01, exp_order=2)"
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "points"
 blur = 0.005
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, reach=0.1,debias=False)".format(blur)
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.4,debias=False)".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)
@@ -139,7 +77,7 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # """ Experiment 2: lddmm flow  too slow !!! """
 # task_name = "lddmm"
 # solver_opt = ParameterDict()
-# record_path = server_path+"output/toy_demo/{}".format(task_name)
+# record_path = server_path+"output/lung_demo/{}".format(task_name)
 # os.makedirs(record_path,exist_ok=True)
 # solver_opt["record_path"] = record_path
 # solver_opt["point_grid_scales"] =  [0.08, -1]
@@ -178,7 +116,7 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # """ Experiment 3: lddmm guide by gradient flow """
 # task_name = "gradient_flow_guided_by_lddmm"
 # solver_opt = ParameterDict()
-# record_path = server_path+"output/toy_demo/{}".format(task_name)
+# record_path = server_path+"output/lung_demo/{}".format(task_name)
 # os.makedirs(record_path,exist_ok=True)
 # solver_opt["record_path"] = record_path
 # solver_opt["point_grid_scales"] =  [ -1]

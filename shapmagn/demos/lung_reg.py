@@ -74,7 +74,7 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 
 
 #
-# """ Experiment 2: lddmm flow  too slow !!! """
+# """ Experiment 2: lddmm flow  too slow !!!, and likely to experience numerically underflow, see expri 3 for a workaround"""
 # task_name = "lddmm"
 # solver_opt = ParameterDict()
 # record_path = server_path+"output/lung_demo/{}".format(task_name)

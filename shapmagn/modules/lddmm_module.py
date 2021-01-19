@@ -29,7 +29,7 @@ class LDDMMHamilton(nn.Module):
         return -grad_control, grad_mom
 
     def flow(self, mom, control_points, flow_points):
-        return (self.kernel(flow_points,control_points,mom),) + self.hamiltonian_evolve(mom, control_points)
+        return self.hamiltonian_evolve(mom, control_points)+(self.kernel(flow_points,control_points,mom),)
 
     def set_mode(self, mode):
         assert mode in ['shooting','flow']
@@ -59,7 +59,7 @@ class LDDMMVariational(nn.Module):
         return -self.grad_kernel(mom, control_points), self.kernel(control_points, control_points, mom)
 
     def variational_flow(self, mom, control_points, flow_points):
-        return (self.kernel(flow_points,control_points,mom),) + self.variational_evolve(mom, control_points)
+        return self.variational_evolve(mom, control_points)+(self.kernel(flow_points,control_points,mom),)
 
 
     def set_mode(self, mode):

@@ -107,9 +107,9 @@ def lung_normalizer(**args):
     """
 
     def normalize(data_dict):
-        if 'scale' in args and 'shift' in args:
+        if 'scale' in args:
             scale = np.array(args['scale'])[None]
-            shift = np.array(args['shift'])[None]
+            _, shift = get_scale_and_center(data_dict["points"],percentile=95)
         else:
             scale, shift = get_scale_and_center(data_dict["points"],percentile=95)
         points = data_dict["points"]

@@ -12,7 +12,7 @@ from shapmagn.models.multiscale_optimization import build_single_scale_model_emb
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_multi_point
-from shapmagn.demos.demo_utils import  *
+from shapmagn.demos.demo_utils import *
 # import pykeops
 # pykeops.clean_pykeops()
 

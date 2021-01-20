@@ -13,8 +13,8 @@ def get_obj(reader_obj,normalizer_obj,sampler_obj, device):
         sampler = obj_factory(sampler_obj)
         raw_data_dict  = reader(file_info)
         normalized_data_dict = normalizer(raw_data_dict)
+        min_interval = compute_interval(normalized_data_dict["points"])
         sampled_data_dict = sampler(normalized_data_dict)
-        min_interval = compute_interval(sampled_data_dict["points"])
         obj_dict = sampled_data_dict
         obj = {key: torch.from_numpy(fea)[None].to(device) for key, fea in obj_dict.items()}
         return obj, min_interval

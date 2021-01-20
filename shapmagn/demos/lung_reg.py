@@ -54,8 +54,8 @@ model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "points"
-blur = 0.005
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.4,debias=False)".format(blur)
+blur = 0.0001
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False)".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)

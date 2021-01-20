@@ -15,6 +15,8 @@ class DiscreteFlowOPT(nn.Module):
         gauss_kernel_obj = opt[("gauss_kernel_obj","keops_kernels.KeopsKernel('gauss',sigma=0.1)","kernel object")]
         self.gauss_kernel = obj_factory(gauss_kernel_obj)
         self.interp_kernel = obj_factory(interpolator_obj)
+        feature_extractor_obj = opt[("feature_extractor_obj", "", "feature extraction function")]
+        self.feature_extractor = obj_factory(feature_extractor_obj) if feature_extractor_obj else None
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.regularization
@@ -53,6 +55,20 @@ class DiscreteFlowOPT(nn.Module):
         return dist
 
 
+    def get_factor(self):
+        """
+        get the regularizer factor according to training strategy
+
+        :return:
+        """
+        sim_factor = 100
+        reg_factor_init =1 #self.initial_reg_factor
+        static_epoch = 100
+        min_threshold = reg_factor_init/10
+        decay_factor = 8
+        reg_factor = float(
+            max(sigmoid_decay(self.iter.item(), static=static_epoch, k=decay_factor) * reg_factor_init, min_threshold))
+        return sim_factor, reg_factor
 
 
     def update_reg_param_from_low_scale_to_high_scale(self, shape_pair_low, shape_pair_high):
@@ -90,7 +106,7 @@ class DiscreteFlowOPT(nn.Module):
         if not self.feature_extractor:
             return self.extract_point_fea(flowed, target)
         else:
-            raise ValueError("the feature extraction approach {} hasn't implemented".format(self.feature_extractor))
+            return self.feature_extractor(flowed,target)
 
     def forward(self, shape_pair):
         """

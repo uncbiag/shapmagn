@@ -28,8 +28,9 @@ target_path = server_path + "data/lung_vessel_demo_data/10005Q_INSP_STD_NJC_COPD
 ####################  prepare data ###########################
 pair_name = generate_pair_name([source_path,target_path])
 reader_obj = "lung_dataset_utils.lung_reader()"
-sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.01)"
-normalizer_obj = "lung_dataset_utils.lung_normalizer()"
+scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
+normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
+sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
@@ -54,8 +55,8 @@ model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "points"
-blur = 0.0001
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False)".format(blur)
+blur = 0.005
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=1,debias=False)".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)

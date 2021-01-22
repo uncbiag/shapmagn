@@ -115,7 +115,7 @@ def lung_normalizer(**args):
         points = data_dict["points"]
         weights = data_dict["weights"]
         data_dict["points"] = (points-shift)/scale
-        data_dict["weights"] = weights/weights.sum()
+        data_dict["weights"] = weights/weights.sum() #/50000
         # data_dict["physical_info"] ={}
         # data_dict["physical_info"] ={'scale':scale,'shift':shift}
         return data_dict

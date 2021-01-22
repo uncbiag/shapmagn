@@ -7,7 +7,7 @@ import torch
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import compute_interval
-from shapmagn.datasets.data_utils import get_file_name, generate_pair_name
+from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.models.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
@@ -23,23 +23,6 @@ server_path = "/home/zyshen/remote/llr11_mount/" #"/home/zyshen/remote/llr11_mou
 source_path =  server_path+"Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
 target_path = server_path + "Data/UNC_vesselParticles/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
 
-
-
-def get_obj(reader_obj,normalizer_obj,sampler_obj):
-    def _get_obj(file_path):
-        name = get_file_name(file_path)
-        file_info = {"name":name,"data_path":file_path}
-        reader = obj_factory(reader_obj)
-        normalizer = obj_factory(normalizer_obj)
-        sampler = obj_factory(sampler_obj)
-        raw_data_dict  = reader(file_info)
-        normalized_data_dict = normalizer(raw_data_dict)
-        min_interval = compute_interval(normalized_data_dict["points"])
-        sampled_data_dict = sampler(normalized_data_dict)
-        obj_dict = sampled_data_dict
-        obj = {key: torch.from_numpy(fea)[None].to(device) for key, fea in obj_dict.items()}
-        return obj, min_interval
-    return _get_obj
 
 
 
@@ -93,7 +76,7 @@ def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,
 ####################  prepare data ###########################
 pair_name = generate_pair_name([source_path,target_path])
 reader_obj = "lung_dataset_utils.lung_reader()"
-scale = 80. #array([[99.90687, 65.66011, 78.61013]]
+scale = -1 #array([[99.90687, 65.66011, 78.61013]]
 normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
 sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj)
@@ -105,6 +88,24 @@ input_data = {"source":source_obj,"target":target_obj}
 source_target_generator = obj_factory("shape_pair_utils.create_source_and_target_shape()")
 source, target = source_target_generator(input_data)
 shape_pair = create_shape_pair(source, target)
+
+#############  visualize data ##########################3
+def get_half_main_branch(poincloud, weight_scale=1.):
+    featomap = poincloud.weights*weight_scale
+    points = poincloud.points
+    featomap[featomap < 3e-05] = 1e-7
+    pos_filter = points[:, :, 0] < 0
+    points = points[pos_filter]
+    featomap = featomap[pos_filter]
+    return points, featomap
+
+source_half_points, source_filtered_weights = get_half_main_branch(source, weight_scale=1)
+target_half_points, target_filtered_weights = get_half_main_branch(target)
+visualize_point_pair(source_half_points, target_half_points,
+                     source_filtered_weights, target_filtered_weights,title1="source",title2="target", rgb=False)
+
+###################################3
+
 
 #################  do registration #######################################
 
@@ -257,32 +258,32 @@ shape_pair = create_shape_pair(source, target)
 # print("the registration complete")
 
 
+#
+# # experiment 5: feature mapping
+# blur = 0.0005
+# feature_extractor_obj = "lung_fea_extract.feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[1], radius=0.01,include_pos=True)"
+# feature_extractor = obj_factory(feature_extractor_obj)
+# geomloss_opt = ParameterDict()
+# geomloss_opt["attr"] = "pointfea"
+# geomloss_opt["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
+# source, target = feature_extractor(shape_pair.source,shape_pair.target)
+# fea_to_map = shape_pair.source.points[0]
+# mapped_pos, mapped_fea = get_omt_mapping(geomloss_opt, source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
+# visualize_point_pair(shape_pair.source.points[0],shape_pair.target.points[0],
+#                      fea_to_map,mapped_fea,
+#                      "source","target",
+#                       saving_path=None)
 
-# experiment 5: feature mapping
-blur = 0.0005
-feature_extractor_obj = "lung_fea_extract.feature_extractor(fea_type_list=['eignvalue_cat'], radius=0.01)"
-feature_extractor = obj_factory(feature_extractor_obj)
-geomloss_opt = ParameterDict()
-geomloss_opt["attr"] = "pointfea"
-geomloss_opt["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
-source, target = feature_extractor(shape_pair.source,shape_pair.target)
-fea_to_map = shape_pair.source.points[0]
-mapped_pos, mapped_fea = get_omt_mapping(geomloss_opt, source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
-visualize_point_pair(shape_pair.source.points[0],shape_pair.target.points[0],
-                     fea_to_map,mapped_fea,
-                     "source","target",
-                      saving_path=None)
 
 
-
-######################### folding detections ##########################################
-source_grid_spacing = np.array([0.05]*3).astype(np.float32) #max(source_interval*20, 0.01)
-source_wrap_grid, grid_size = get_grid_wrap_points(source_obj["points"][0], source_grid_spacing)
-source_wrap_grid = source_wrap_grid[None]
-toflow = Shape()
-toflow.set_data(points=source_wrap_grid)
-shape_pair.set_toflow(toflow)
-shape_pair.control_weights = torch.ones_like(shape_pair.control_weights)/shape_pair.control_weights.shape[1]
-model.flow(shape_pair)
-detect_folding(shape_pair.flowed.points,grid_size,source_grid_spacing,record_path,pair_name)
+# ######################### folding detections ##########################################
+# source_grid_spacing = np.array([0.05]*3).astype(np.float32) #max(source_interval*20, 0.01)
+# source_wrap_grid, grid_size = get_grid_wrap_points(source_obj["points"][0], source_grid_spacing)
+# source_wrap_grid = source_wrap_grid[None]
+# toflow = Shape()
+# toflow.set_data(points=source_wrap_grid)
+# shape_pair.set_toflow(toflow)
+# shape_pair.control_weights = torch.ones_like(shape_pair.control_weights)/shape_pair.control_weights.shape[1]
+# model.flow(shape_pair)
+# detect_folding(shape_pair.flowed.points,grid_size,source_grid_spacing,record_path,pair_name)
 

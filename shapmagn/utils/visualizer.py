@@ -24,7 +24,7 @@ def visualize_point_fea(points, fea, rgb=True, saving_path=None):
         data.save(saving_path)
 
 
-def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, saving_path=None):
+def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb=True, saving_path=None):
     if isinstance(points1, torch.Tensor):
         points1 = points1.detach().cpu().numpy()
     if isinstance(points2, torch.Tensor):
@@ -34,6 +34,9 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, saving_
     if isinstance(feas2, torch.Tensor):
         feas2 = feas2.detach().cpu().numpy()
 
+    if isinstance(rgb,bool):
+        rgb = [rgb]* 2
+
     p = pv.Plotter(notebook=0, shape=(1, 2), border=False)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
@@ -41,7 +44,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, saving_
                      scalars=feas1,
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
-                     rgb=True,
+                     rgb=rgb[0],
                      opacity="linear",
                      lighting=True,
                      style="points", show_scalar_bar=True)
@@ -51,7 +54,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, saving_
                      scalars=feas2,
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
-                     rgb=True,
+                     rgb=rgb[1],
                      opacity="linear",
                      lighting=True,
                      style="points", show_scalar_bar=True)

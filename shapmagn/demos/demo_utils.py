@@ -1,24 +1,4 @@
-import torch
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.datasets.data_utils import compute_interval
-from shapmagn.datasets.data_utils import get_file_name
-
-
-def get_obj(reader_obj,normalizer_obj,sampler_obj, device):
-    def _get_obj(file_path):
-        name = get_file_name(file_path)
-        file_info = {"name":name,"data_path":file_path}
-        reader = obj_factory(reader_obj)
-        normalizer = obj_factory(normalizer_obj)
-        sampler = obj_factory(sampler_obj)
-        raw_data_dict  = reader(file_info)
-        normalized_data_dict = normalizer(raw_data_dict)
-        min_interval = compute_interval(normalized_data_dict["points"])
-        sampled_data_dict = sampler(normalized_data_dict)
-        obj_dict = sampled_data_dict
-        obj = {key: torch.from_numpy(fea)[None].to(device) for key, fea in obj_dict.items()}
-        return obj, min_interval
-    return _get_obj
 
 
 

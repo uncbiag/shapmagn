@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import torch
 from pykeops.torch import LazyTensor
@@ -38,7 +39,9 @@ def compute_local_moments(points, radius=1.):
     return mass_i, dev_i, cov_i
 
 
-def compute_local_fea(fea_type_list, raidus=1.):
+
+
+def compute_local_fea(fea_type_list, weight_list=None, raidus=1.):
     def _compute_local_fea(fea_type, mass,dev,cov):
         if fea_type=="mass":
             fea = mass
@@ -66,17 +69,28 @@ def compute_local_fea(fea_type_list, raidus=1.):
         return fea
 
 
-    def _compute(points, return_stats=False, mean=None, std=None):
+    def _compute(points, return_stats=False, mean=None, std=None, include_pos=False):
         if isinstance(points, np.ndarray):
             points =torch.from_numpy(points)
+        nonlocal weight_list
+        if weight_list is None:
+            weight_list = [1.]* len(fea_type_list)
         mass, dev, cov = compute_local_moments(points, radius=raidus)  # (N,), (N, D), (N, D, D)
-        fea_combined = [_compute_local_fea(fea_type, mass, dev, cov) for fea_type in fea_type_list]
-        fea_combined = torch.cat(fea_combined,-1)
+        fea_list = [_compute_local_fea(fea_type, mass, dev, cov) for fea_type in fea_type_list]
+        fea_dim_list = [fea.shape[-1] for fea in fea_list]
+        weights = []
+        for i, dim in enumerate(fea_dim_list):
+            weights += [weight_list[i]/math.sqrt(dim)]*dim
+        weights = torch.tensor(weights).view(1, 1, sum(fea_dim_list)).to(points.device)
+        fea_combined = torch.cat(fea_list,-1)
         if mean is None and std is None:
             mean = fea_combined.mean(1,keepdim=True)
             std = fea_combined.std(1,keepdim=True)
         fea_combined = (fea_combined-mean)/std
         fea_combined = fea_combined.clamp(-2,2)
+        fea_combined  = fea_combined*weights
+        if include_pos:
+            fea_combined = torch.cat([points,fea_combined],-1)
         if return_stats:
             return fea_combined, mean, std, mass
         else:
@@ -89,11 +103,11 @@ def compute_local_fea(fea_type_list, raidus=1.):
 
 
 
-def feature_extractor(fea_type_list, radius=0.01):
-    lung_feature_extractor = compute_local_fea(fea_type_list,radius)
+def feature_extractor(fea_type_list,weight_list=None, radius=0.01, include_pos=False):
+    lung_feature_extractor = compute_local_fea(fea_type_list,weight_list, radius)
     def extract(flowed, target):
-        flowed.pointfea, mean, std, _ = lung_feature_extractor(flowed.points, return_stats=True)
-        target.pointfea, _ = lung_feature_extractor(target.points, mean=mean, std= std)
+        flowed.pointfea, mean, std, _ = lung_feature_extractor(flowed.points, return_stats=True, include_pos=include_pos)
+        target.pointfea, _ = lung_feature_extractor(target.points, mean=mean, std= std, include_pos=include_pos)
         return flowed, target
     return extract
 

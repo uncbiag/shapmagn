@@ -4,7 +4,8 @@ import json
 import os
 import numpy as np
 import random
-from pykeops.torch import LazyTensor
+import torch
+from shapmagn.utils.obj_factory import obj_factory
 
 def list_dic(path):
     return [ dic for dic in listdir(path) if not isfile(join(path,dic))]
@@ -239,6 +240,22 @@ def compute_interval(vertices):
 
 
 
+def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand_bch_dim=True):
+    def _get_obj(file_path):
+        name = get_file_name(file_path)
+        file_info = {"name":name,"data_path":file_path}
+        reader = obj_factory(reader_obj)
+        normalizer = obj_factory(normalizer_obj) if normalizer_obj else None
+        sampler = obj_factory(sampler_obj) if sampler_obj else None
+        raw_data_dict  = reader(file_info)
+        data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
+        min_interval = compute_interval(data_dict["points"])
+        data_dict = sampler(data_dict) if sampler_obj else data_dict
+        obj = {key: torch.from_numpy(fea).to(device) for key, fea in data_dict.items()}
+        if expand_bch_dim:
+            obj= {key: fea[None] for key, fea in obj.items()}
+        return obj, min_interval
+    return _get_obj
 
 
 

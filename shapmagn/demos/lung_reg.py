@@ -7,13 +7,14 @@ import torch
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import compute_interval
-from shapmagn.datasets.data_utils import get_file_name, generate_pair_name
+from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.models.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_multi_point
 from shapmagn.demos.demo_utils import *
+from shapmagn.experiments.datasets.lung.lung_data_analysis import analysis_half
 # import pykeops
 # pykeops.clean_pykeops()
 
@@ -40,7 +41,7 @@ source_target_generator = obj_factory("shape_pair_utils.create_source_and_target
 source, target = source_target_generator(input_data)
 shape_pair = create_shape_pair(source, target)
 
-#################  do registration ###########################s############
+################  do registration ###########################s############
 
 """ Experiment 1:  gradient flow """
 task_name = "gradient_flow"
@@ -56,7 +57,7 @@ model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "points"
 blur = 0.005
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=1,debias=False)".format(blur)
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=True)".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)
@@ -72,6 +73,8 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
                      ["source", "gradient_flow","target"],
                         [True, True, True],
                       saving_path=None)
+analysis_half(source, target)
+analysis_half(source, shape_pair.flowed)
 
 
 #
@@ -111,8 +114,8 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # solver(shape_pair)
 # print("the registration complete")
 
-
-
+#
+#
 #
 # """ Experiment 3: lddmm guide by gradient flow """
 # task_name = "gradient_flow_guided_by_lddmm"
@@ -121,9 +124,9 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # os.makedirs(record_path,exist_ok=True)
 # solver_opt["record_path"] = record_path
 # solver_opt["point_grid_scales"] =  [ -1]
-# solver_opt["iter_per_scale"] = [50]
+# solver_opt["iter_per_scale"] = [60]
 # solver_opt["rel_ftol_per_scale"] = [ 1e-9,]
-# solver_opt["init_lr_per_scale"] = [5e-1]
+# solver_opt["init_lr_per_scale"] = [1e-1]
 # solver_opt["save_every_n_iter"] = 10
 # solver_opt["shape_sampler_type"] = "point_grid"
 # solver_opt["stragtegy"] = "use_optimizer_defined_here"
@@ -133,23 +136,23 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # solver_opt["scheduler"]["type"] = "step_lr"
 # solver_opt["scheduler"][("step_lr",{},"settings for step_lr")]
 # solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
-# solver_opt["scheduler"]["step_lr"]["step_size"] = 80
+# solver_opt["scheduler"]["step_lr"]["step_size"] = 30
 #
 # model_name = "lddmm_opt"
 # model_opt =ParameterDict()
 # model_opt["module"] ="hamiltonian"
 # model_opt[("hamiltonian", {}, "settings for hamiltonian")]
-# model_opt['hamiltonian']['kernel'] =  "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.03, 0.05],weight_list=[0.2,0.3, 0.5])"
+# model_opt['hamiltonian']['kernel'] =  "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.005,0.01, 0.02],weight_list=[0.2,0.3, 0.5])"
 # model_opt["use_gradflow_guided"] = True
 # model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
-# model_opt["gradflow_guided"] ['gradflow_guided_every_step']= 10
+# model_opt["gradflow_guided"] ['gradflow_guided_every_step']= 20
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] =  ["l2"]
 # model_opt['sim_loss']['l2']["attr"] = "points"
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 # model_opt['sim_loss']['geomloss']["attr"] = "points"
-# blur = 0.005
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
+# blur = 0.0005
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,debias=False)".format(blur)
 #
 #
 # model = MODEL_POOL[model_name](model_opt)
@@ -157,9 +160,19 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # solver = build_multi_scale_solver(solver_opt,model)
 # solver(shape_pair)
 # print("the registration complete")
-
-
-
+# gif_folder = os.path.join(record_path,"gif")
+# os.makedirs(gif_folder,exist_ok=True)
+# saving_gif_path = os.path.join(gif_folder,task_name+".gif")
+# fea_to_map =  shape_pair.source.points[0]
+# mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.1)
+# visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
+#                      [fea_to_map,fea_to_map, mapped_fea],
+#                      ["source", "gradient_flow","target"],
+#                         [True, True, True],
+#                       saving_path=None)
+# analysis_half(source, target)
+# analysis_half(source, shape_pair.flowed)
+#
 
 
 ######################### folding detections ##########################################

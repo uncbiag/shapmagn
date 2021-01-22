@@ -102,7 +102,7 @@ def get_half_main_branch(poincloud, weight_scale=1.):
 source_half_points, source_filtered_weights = get_half_main_branch(source, weight_scale=1)
 target_half_points, target_filtered_weights = get_half_main_branch(target)
 visualize_point_pair(source_half_points, target_half_points,
-                     source_filtered_weights, target_filtered_weights,title1="source",title2="target", rgb=False)
+                     source_filtered_weights, target_filtered_weights,title1="source",title2="target", rgb_on=False)
 
 ###################################3
 

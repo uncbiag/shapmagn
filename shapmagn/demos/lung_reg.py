@@ -6,15 +6,14 @@ import numpy as np
 import torch
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.datasets.data_utils import compute_interval
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.models.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
-from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_multi_point
+from shapmagn.utils.visualizer import *
 from shapmagn.demos.demo_utils import *
-from shapmagn.experiments.datasets.lung.lung_data_analysis import analysis_half
+from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 # import pykeops
 # pykeops.clean_pykeops()
 
@@ -56,8 +55,8 @@ model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "points"
-blur = 0.005
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=True)".format(blur)
+blur = 0.05
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=2,debias=False)".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)
@@ -67,15 +66,33 @@ gif_folder = os.path.join(record_path,"gif")
 os.makedirs(gif_folder,exist_ok=True)
 saving_gif_path = os.path.join(gif_folder,task_name+".gif")
 fea_to_map =  shape_pair.source.points[0]
-mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.1)
-visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
-                     [fea_to_map,fea_to_map, mapped_fea],
-                     ["source", "gradient_flow","target"],
-                        [True, True, True],
-                      saving_path=None)
-analysis_half(source, target)
-analysis_half(source, shape_pair.flowed)
+mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
+# visualize_multi_point(points_list=[shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
+#                      feas_list=[fea_to_map,fea_to_map, mapped_fea],
+#                      titles_list=["source", "gradient_flow","target"],
+#                      rgb_on=[True, True, True],
+#                      saving_path=None)
 
+
+source_half = get_half_lung(source)
+target_half = get_half_lung(target)
+flowed_half = get_half_lung(shape_pair.flowed)
+visualize_multi_point(points_list=[source_half.points, flowed_half.points, target_half.points],
+                      feas_list=[source_weight_transform(source_half.weights),
+                                 flowed_weight_transform(flowed_half.weights),
+                                 target_weight_transform(target_half.weights)],
+                      titles_list=["source", "gradient_flow", "target"],
+                      rgb_on=[False, False, False],
+                      saving_path=None)
+
+visualize_point_pair_overlap(source_half.points, target_half.points,
+                         source_weight_transform(source_half.weights),
+                         target_weight_transform(target_half.weights),
+                         title1="source",title2="target", rgb_on=False)
+visualize_point_pair_overlap(flowed_half.points, target_half.points,
+                         flowed_weight_transform(flowed_half.weights),
+                         target_weight_transform(target_half.weights),
+                         title1="flowed",title2="target", rgb_on=False)
 
 #
 # """ Experiment 2: lddmm flow  too slow !!!, and likely to experience numerically underflow, see expri 3 for a workaround"""

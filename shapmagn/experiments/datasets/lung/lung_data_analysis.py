@@ -30,13 +30,15 @@ def plot_pair_weight_distribution(source_weight, target_weight, use_log=False):
     plt.show()
     plt.clf()
 
-def get_half_lung(poincloud):
-    weights = poincloud.weights.detach().cpu()
-    points = poincloud.points.detach().cpu()
+def get_half_lung(lung):
+    weights = lung.weights.detach().cpu()
+    points = lung.points.detach().cpu()
     pos_filter = points[:, :, 0] < 0
-    points = points[pos_filter]
-    weights = weights[pos_filter]
-    return points, weights
+    points = points[pos_filter][None]
+    weights = weights[pos_filter][None]
+    half_lung = Shape()
+    half_lung.set_data(points=points, weights=weights)
+    return half_lung
 
 
 
@@ -49,27 +51,32 @@ def source_weight_transform(weights):
     return weights
 
 
+def flowed_weight_transform(weights):
+    weights = weights * 1
+    weights_cp = deepcopy(weights)
+    weights[weights_cp < 2e-05] = 1e-7
+    return weights
+
 def target_weight_transform(weights):
     weights = weights * 1
     weights_cp = deepcopy(weights)
-    weights[weights_cp <2e-05] = 1e-7
+    weights[weights_cp <1.4e-05] = 1e-7
     # weights[weights_cp > 1.1e-05] = 1e-7
     return weights
 
 
 
 
-def analysis_half(source, target, source_weight_transform=source_weight_transform, target_weight_transform=target_weight_transform):
-    source_half_points, source_half_weights = get_half_lung(source)
-    target_half_points, target_half_weights = get_half_lung(target)
-
-    plot_pair_weight_distribution(source_weight_transform(source_half_weights).squeeze().numpy(),
-                                  target_weight_transform(target_half_weights).squeeze().numpy(),
+def analysis_large_vessel(source, target, source_weight_transform=source_weight_transform, target_weight_transform=target_weight_transform, title1="source", title2="target"):
+    source_points, source_weights,  = source.points.detach().cpu(), source.weights.detach().cpu()
+    target_points, target_weights,  = target.points.detach().cpu(), target.weights.detach().cpu()
+    plot_pair_weight_distribution(source_weight_transform(source_weights).squeeze().numpy(),
+                                  target_weight_transform(target_weights).squeeze().numpy(),
                                   use_log=True)
-    visualize_point_pair(source_half_points, target_half_points,
-                         source_weight_transform(source_half_weights),
-                         target_weight_transform(target_half_weights),
-                         title1="source", title2="target", rgb=False)
+    visualize_point_pair(source_points, target_points,
+                         source_weight_transform(source_weights),
+                         target_weight_transform(target_weights),
+                         title1=title1, title2=title2, rgb_on=False)
 
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
@@ -98,14 +105,14 @@ if __name__ == "__main__":
     source_target_generator = obj_factory("shape_pair_utils.create_source_and_target_shape()")
     source, target = source_target_generator(input_data)
     shape_pair = create_shape_pair(source, target)
-    source_half_points, source_half_weights = get_half_lung(source)
-    target_half_points, target_half_weights = get_half_lung(target)
+    source_half = get_half_lung(source)
+    target_half = get_half_lung(target)
 
-    plot_pair_weight_distribution(source_weight_transform(source_half_weights).squeeze().numpy(),
-                                  target_weight_transform(target_half_weights).squeeze().numpy(),
+    plot_pair_weight_distribution(source_weight_transform(source_half.weights).squeeze().numpy(),
+                                  target_weight_transform(target_half.weights).squeeze().numpy(),
                                   use_log=True)
 
-    visualize_point_pair(source_half_points, target_half_points,
-                         source_weight_transform(source_half_weights),
-                         target_weight_transform(target_half_weights),
-                         title1="source", title2="target", rgb=False)
+    visualize_point_pair(source_half.points, target_half.points,
+                         source_weight_transform(source_half.weights),
+                         target_weight_transform(target_half.weights),
+                         title1="source", title2="target", rgb_on=False)

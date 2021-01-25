@@ -2,6 +2,8 @@ from math import pi
 
 import torch
 
+from torchvectorized.utils import EPSILON
+
 
 def _compute_eigenvalues(input: torch.Tensor):
     b, c, d, h, w = input.size()
@@ -52,11 +54,10 @@ def _compute_eigenvectors(input: torch.Tensor, eigenvalues: torch.Tensor):
     u0 = a12 * a23 - a13 * (a22 - eigenvalues)
     u1 = a12 * a13 - a23 * (a11 - eigenvalues)
     u2 = (a11 - eigenvalues) * (a22 - eigenvalues) - a12 * a12
-    norm = torch.sqrt(torch.pow(u0, 2) + torch.pow(u1, 2) + torch.pow(u2, 2))
-    norm[torch.where(norm == 0)] = 1
-    u0 = u0 / (norm + 1e-10)
-    u1 = u1 / (norm + 1e-10)
-    u2 = u2 / (norm + 1e-10)
+    norm = torch.sqrt(torch.pow(u0, 2) + torch.pow(u1, 2) + torch.pow(u2, 2) + EPSILON)
+    u0 = u0 / norm
+    u1 = u1 / norm
+    u2 = u2 / norm
 
     if torch.any(nd == 0):
         index = torch.where(nd == 0)

@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torchdiffeq
 
-
 class ODEBlock(nn.Module):
     """
     A interface class for torchdiffeq, https://github.com/rtqichen/torchdiffeq

@@ -10,7 +10,7 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_path=None):
     plotter = pv.Plotter()
     plotter.add_mesh(pv.PolyData(points),
                      scalars=fea,
-                     cmap="magma", point_size=10,
+                     cmap="magma", point_size=15,
                      render_points_as_spheres=True,
                      rgb=rgb_on,
                      opacity="linear",
@@ -61,7 +61,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
 
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(5, 5, 0), (0, 0, 0), (0, 1, 0)]
+    p.camera_position = [(-5, 5, -5), (0, 0, 0), (0, 1, 0)]
 
     p.show(auto_close=False)
 

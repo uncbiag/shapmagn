@@ -202,7 +202,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # model_opt['hamiltonian']['kernel'] =  "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.03, 0.05],weight_list=[0.2,0.3, 0.5])"
 # model_opt["use_gradflow_guided"] = True
 # model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
-# model_opt["gradflow_guided"] ['gradflow_guided_every_step']= 10
+# model_opt["gradflow_guided"] ['update_gradflow_every_n_step']= 10
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] =  ["l2"]
 # model_opt['sim_loss']['l2']["attr"] = "points"

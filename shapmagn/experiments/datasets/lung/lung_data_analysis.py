@@ -30,39 +30,58 @@ def plot_pair_weight_distribution(source_weight, target_weight, use_log=False):
     plt.show()
     plt.clf()
 
-def get_half_lung(lung):
-    weights = lung.weights.detach().cpu()
-    points = lung.points.detach().cpu()
-    pos_filter = points[:, :, 0] < 0
+def get_half_lung(lung, normalize_weight=False):
+    weights = lung.weights.detach()
+    points = lung.points.detach()
+    pos_filter = points[...,0] < 0
     points = points[pos_filter][None]
     weights = weights[pos_filter][None]
+    weights = weights/weights.sum() if normalize_weight else weights
     half_lung = Shape()
     half_lung.set_data(points=points, weights=weights)
     return half_lung
 
 
+def get_key_vessel(lung,thre=2e-05):
+    weights = lung.weights.detach()
+    points = lung.points.detach()
+    mask = (lung.weights>thre)[...,0]
+    weights = weights[mask][None]
+    points = points[mask][None]
+    key_lung = Shape()
+    key_lung.set_data(points=points,weights=weights)
+    return key_lung
 
 
 
-def source_weight_transform(weights):
+
+def source_weight_transform(weights,compute_on_half_lung=False):
     weights = weights * 1
     weights_cp = deepcopy(weights)
-    weights[weights_cp < 2e-05] = 1e-7
+    thre = 2e-05
+    thre = thre if not compute_on_half_lung else thre*2
+    weights[weights_cp < thre] = 1e-7
     return weights
 
 
-def flowed_weight_transform(weights):
+def flowed_weight_transform(weights,compute_on_half_lung=False):
     weights = weights * 1
     weights_cp = deepcopy(weights)
-    weights[weights_cp < 2e-05] = 1e-7
+    thre = 2e-05
+    thre = thre if not compute_on_half_lung else thre * 2
+    weights[weights_cp < thre] = 1e-7
     return weights
 
-def target_weight_transform(weights):
+def target_weight_transform(weights,compute_on_half_lung=False):
     weights = weights * 1
     weights_cp = deepcopy(weights)
-    weights[weights_cp <1.4e-05] = 1e-7
+    thre = 1.4e-05
+    thre = thre if not compute_on_half_lung else thre * 2
+    weights[weights_cp < thre] = 1e-7
     # weights[weights_cp > 1.1e-05] = 1e-7
     return weights
+
+
 
 
 

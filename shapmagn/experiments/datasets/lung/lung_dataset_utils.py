@@ -33,7 +33,7 @@ def lung_reader():
     :return:
     """
     reader = read_vtk
-    fea_to_merge = ['points', 'scale']
+    fea_to_merge = ['points']
     exp_dim_fn = lambda x: x[:,None] if len(x.shape) == 1 else x
     def norm_fea(fea):
         fea = (fea-fea.mean())/(fea.std())

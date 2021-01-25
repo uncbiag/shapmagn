@@ -8,7 +8,7 @@ class GradientFlowOPT(nn.Module):
     def __init__(self, opt):
         super(GradientFlowOPT, self).__init__()
         self.opt = opt
-        interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator")]
+        interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator in multi-scale solver")]
         self.interp_kernel = obj_factory(interpolator_obj)
         assert self.opt["sim_loss"]['loss_list'] == ["geomloss"], "gradient flow only supports geomloss"
         self.sim_loss_fn = GeomDistance(self.opt["sim_loss"]["geomloss"])
@@ -16,6 +16,9 @@ class GradientFlowOPT(nn.Module):
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
 
+        # the feature extractor needs to be diabled in the official release, since it doesn't make sense to use feature other than points position
+        feature_extractor_obj = self.opt[("feature_extractor_obj", "", "feature extraction function")]
+        self.feature_extractor = obj_factory(feature_extractor_obj) if feature_extractor_obj else None
 
 
     def set_loss_fn(self, loss_fn):
@@ -59,9 +62,22 @@ class GradientFlowOPT(nn.Module):
         shape_pair.set_reg_param(reg_param)
         return shape_pair
 
-    def extract_fea(self, flowed, target):
-        """Gradient Flow doesn't support feature extraction"""
+    # def extract_fea(self, flowed, target):
+    #     """Gradient Flow doesn't support feature extraction"""
+    #     return flowed, target
+
+
+    def extract_point_fea(self, flowed, target):
+        flowed.pointfea = flowed.points
+        target.pointfea = target.points
         return flowed, target
+
+    def extract_fea(self, flowed, target):
+        """LDDMMM support feature extraction"""
+        if not self.feature_extractor:
+            return self.extract_point_fea(flowed, target)
+        elif self.feature_extractor:
+            return self.feature_extractor(flowed, target)
 
     def forward(self, shape_pair):
         """
@@ -77,7 +93,8 @@ class GradientFlowOPT(nn.Module):
         shape_pair.set_flowed_control_points(flowed_control_points)
         flowed_has_inferred = shape_pair.infer_flowed()
         shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
-        sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
+        shape_pair.flowed, shape_pair.target = self.extract_fea(shape_pair.flowed, shape_pair.target)
+        sim_loss = self.sim_loss_fn( shape_pair.flowed, shape_pair.target)
         loss = sim_loss
         print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.item(),))
         grad_reg_param = grad(loss,shape_pair.reg_param)[0]

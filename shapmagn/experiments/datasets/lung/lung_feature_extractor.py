@@ -1,3 +1,7 @@
+import os, sys
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../../../..'))
 import math
 import numpy as np
 import torch
@@ -53,10 +57,10 @@ def compute_local_fea(fea_type_list, weight_list=None, raidus=1.):
             compute_eign_vector = fea_type in ["eignvector"]
             B, N = cov.shape[0], cov.shape[1]
             cov = cov.view(B, N, -1, 1, 1).permute(0, 2, 1, 3, 4)
-            vals, vectors = vSymEig(cov, eigenvectors=compute_eign_vector, flatten_output=True)
+            vals, vectors = vSymEig(cov, eigenvectors=compute_eign_vector, flatten_output=True,descending_eigenvals=True)
             vals = vals.view(B, N, -1)
             if fea_type == "eignvalue_prod":
-                fea = mass* vals[..., 1:2]* vals[..., 2:3]
+                fea =  mass*vals[..., 1:2]* vals[..., 2:3]
             elif fea_type == "eignvalue_cat":
                 #fea = torch.cat([vals[..., 1:2], vals[..., 2:3]],-1)
                 fea = mass* vals
@@ -87,7 +91,7 @@ def compute_local_fea(fea_type_list, weight_list=None, raidus=1.):
             mean = fea_combined.mean(1,keepdim=True)
             std = fea_combined.std(1,keepdim=True)
         fea_combined = (fea_combined-mean)/std
-        fea_combined = fea_combined.clamp(-2,2)
+        fea_combined = fea_combined.clamp(-1,1)
         fea_combined  = fea_combined*weights
         if include_pos:
             fea_combined = torch.cat([points,fea_combined],-1)
@@ -119,27 +123,37 @@ def feature_extractor(fea_type_list,weight_list=None, radius=0.01, include_pos=F
 
 
 if __name__ == "__main__":
-    cloud_1 = pv.read(
-        "/home/zyshen/remote/llr11_mount/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
-    cloud_2 = pv.read(
-        "/home/zyshen/remote/llr11_mount/Data/UNC_vesselParticles/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
-    saving_path = "/playpen-raid1//home/zyshen/remote/llr11_mount/zyshen/debug/debugg_point_visual2.vtk"
-    points_1 = cloud_1.points[:10000][None]
-    points_2 = cloud_2.points[None]
+    from shapmagn.datasets.data_utils import get_obj
+    path_1 = "/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+    path_2 = "/playpen-raid1/Data/UNC_vesselParticles/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+    saving_path = "/playpen-raid1/zyshen/debug/debugg_point_visual2.vtk"
+    reader_obj = "lung_dataset_utils.lung_reader()"
+    scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
+    normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
+    sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device=torch.device("cpu"))
+    source_obj, source_interval = get_obj_func(path_1)
+    target_obj, target_interval = get_obj_func(path_2)
+
+
+
+    points_1 = source_obj['points'][:,:1000]
+    points_2 = target_obj['points'][:,:1000]
     # fea_type_list = ["mass","dev","eignvalue_cat","eignvalue_prod","eignvector]
-    fea_type_list = ["eignvector"]
-    compute_fea = compute_local_fea(fea_type_list,raidus=1)
+    fea_type_list = ["eignvalue_prod"]
+    compute_fea = compute_local_fea(fea_type_list,raidus=0.02)
     combined_fea1, mass1= compute_fea(points_1)
-    combined_fea2, mass2= compute_fea(points_2)
-    filter1 = mass1[...,0]>2.5
-    points_1 = points_1[filter1]
-    combined_fea1 = combined_fea1[filter1]
+
+    filter1 = mass1[..., 0] > 2.5
+    points_1 = points_1[filter1][None]
+    compute_fea = compute_local_fea(fea_type_list, raidus=0.02)
+    combined_fea1, mass1 = compute_fea(points_1)
 
     #visual_scalars1 = (visual_scalars1 - visual_scalars1.min(0)) / (visual_scalars1.max(0) - visual_scalars1.min(0))
     fea_index = 0
     # visual_scalars1 = combined_fea1[:,fea_index]
     # visual_scalars2 = combined_fea2[:,fea_index]
     #visual_scalars1 = (points_1-points_1.min(0))/(points_1.max(0)-points_1.min(0))
-    visualize_point_fea(points_1, combined_fea1,rgb=True)
+    visualize_point_fea(points_1, combined_fea1,rgb_on=False)
     #visualize_point_fea(points_2,visual_scalars2)
 

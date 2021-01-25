@@ -17,7 +17,7 @@ class LDDMMOPT(nn.Module):
         self.lddmm_kernel = self.lddmm_module.kernel
         self.interp_kernel = self.lddmm_kernel
         feature_extractor_obj = opt[("feature_extractor_obj","","feature extraction function")]
-        self.feature_extractor = obj_factory(feature_extractor_obj)() if feature_extractor_obj else None
+        self.feature_extractor = obj_factory(feature_extractor_obj) if feature_extractor_obj else None
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -25,7 +25,8 @@ class LDDMMOPT(nn.Module):
         self.integrator = ODEBlock(self.integrator_opt)
         self.integrator.set_func(self.lddmm_module)
         self.call_thirdparty_package = False
-        self.register_buffer("iter", torch.Tensor([0]))
+        self.register_buffer("local_iter", torch.Tensor([0])) # iteration record in single scale
+        self.register_buffer("global_iter", torch.Tensor([0])) # iteration record in multi-scale
         self.print_step = self.opt[('print_step',10,"print every n iteration")]
         self.use_gradflow_guided = self.opt[
             ("use_gradflow_guided", False, "optimization guided by gradient flow, to accererate the convergence")]
@@ -33,7 +34,7 @@ class LDDMMOPT(nn.Module):
         if self.use_gradflow_guided:
             print("the gradient flow approach is use to guide the optimization of lddmm")
             print("the feature extraction mode should be disabled")
-            assert self.feature_extractor is  None
+            assert self.feature_extractor is None
 
 
 
@@ -52,7 +53,7 @@ class LDDMMOPT(nn.Module):
         self.sim_loss_fn = loss_fn
 
     def reset(self):
-        self.iter = self.iter*0
+        self.local_iter = self.local_iter*0
         self.gradflow_guided_buffer = {}
 
 
@@ -96,7 +97,7 @@ class LDDMMOPT(nn.Module):
         min_threshold = reg_factor_init/10
         decay_factor = 8
         reg_factor = float(
-            max(sigmoid_decay(self.iter.item(), static=static_epoch, k=decay_factor) * reg_factor_init, min_threshold))
+            max(sigmoid_decay(self.local_iter.item(), static=static_epoch, k=decay_factor) * reg_factor_init, min_threshold))
         return sim_factor, reg_factor
 
 
@@ -146,29 +147,36 @@ class LDDMMOPT(nn.Module):
         """
         wassersten gradient flow only works when self.feature_extractor = None
         """
-        def update():
+        def update(cur_blur):
             from shapmagn.metrics.losses import GeomDistance
             from torch.autograd import grad
-            gemloss_setting = self.opt["sim_loss"]["geomloss"]
+            from copy import deepcopy
+            gemloss_setting = deepcopy(self.opt["sim_loss"]["geomloss"])
+            gemloss_setting["geom_obj"] = gemloss_setting["geom_obj"].replace("placeholder",str(cur_blur))
             geomloss = GeomDistance(gemloss_setting)
             flowed_points_clone = flowed.points.detach().clone()
             flowed_points_clone.requires_grad_()
             flowed_clone = Shape()
             flowed_clone.set_data_with_refer_to(flowed_points_clone, flowed)   # shallow copy, only points are cloned, other attr are not
             loss = geomloss(flowed_clone, target)
-            print("{} th step, before gradient flow, the ot distance between the flowed and the target is {}".format(self.iter.item(), loss.item()))
+            print("{} th step, before gradient flow, the ot distance between the flowed and the target is {}".format(self.local_iter.item(), loss.item()))
             grad_flowed_points = grad(loss, flowed_points_clone)[0]
             flowed_points_clone = flowed_points_clone - grad_flowed_points / flowed_clone.weights
             flowed_clone.points = flowed_points_clone.detach()
             loss = geomloss(flowed_clone, target)
-            print("{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(self.iter.item(), loss.item()))
+            print("{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(self.local_iter.item(), loss.item()))
             self.gradflow_guided_buffer["gradflowed"] = flowed_clone
 
         gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
-        self.gradflow_guided_every_step = gradflow_guided_opt[
-            ("gradflow_guided_every_step", 10, "update the gradflow every # step")]
-        if self.iter % self.gradflow_guided_every_step==0 or len(self.gradflow_guided_buffer)==0:
-            update()
+        self.update_gradflow_every_n_step = gradflow_guided_opt[
+            ("update_gradflow_every_n_step", 10, "update the gradflow every # step")]
+        gradflow_blur_init = gradflow_guided_opt[("gradflow_blur_init",0.5,"the inital 'blur' parameter in geomloss setting")]
+        update_gradflow_blur_by_raito = gradflow_guided_opt[("update_gradflow_blur_by_raito",0.5,"the raito that updates the 'blur' parameter in geomloss setting")]
+        gradflow_blur_min = gradflow_guided_opt[("gradflow_blur_min",0.5,"the minium value of the 'blur' parameter in geomloss setting")]
+        if self.global_iter % self.update_gradflow_every_n_step==0 or len(self.gradflow_guided_buffer)==0:
+            n_update = self.global_iter.item() / self.update_gradflow_every_n_step
+            cur_blur = max(gradflow_blur_init*(update_gradflow_blur_by_raito**n_update), gradflow_blur_min)
+            update(cur_blur)
         return flowed, self.gradflow_guided_buffer["gradflowed"]
 
     def extract_point_fea(self, flowed, target):
@@ -197,15 +205,23 @@ class LDDMMOPT(nn.Module):
         sim_factor, reg_factor = self.get_factor()
         sim_loss = sim_loss*sim_factor
         reg_loss = reg_loss*reg_factor
-        if self.iter%10==0:
+        if self.local_iter%2==0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
-                  .format(self.iter.item(), sim_loss.item(), reg_loss.item(),sim_factor, reg_factor))
+                  .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(),sim_factor, reg_factor))
+            #self.debug(flowed, shape_pair.target)
         loss = sim_loss + reg_loss
-        self.iter +=1
+        self.local_iter +=1
+        self.global_iter +=1
         return loss
 
 
-
+    def debug(self,flowed, target):
+        from shapmagn.utils.visualizer import visualize_point_pair_overlap
+        from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform,target_weight_transform
+        visualize_point_pair_overlap(flowed.points, target.points,
+                                 flowed_weight_transform(flowed.weights,True),
+                                 target_weight_transform(target.weights,True),
+                                 title1="flowed",title2="target", rgb_on=False)
 
 
 

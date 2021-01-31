@@ -1,4 +1,5 @@
 from copy import deepcopy
+import os
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -80,6 +81,28 @@ def target_weight_transform(weights,compute_on_half_lung=False):
     weights[weights_cp < thre] = 1e-7
     # weights[weights_cp > 1.1e-05] = 1e-7
     return weights
+
+
+def capture_plotter():
+    from shapmagn.utils.visualizer import visualize_point_pair_overlap
+    inner_count = 0
+    def save(record_path,name_suffix, shape_pair):
+        nonlocal  inner_count
+        source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
+        if inner_count==0:
+            path = os.path.join(record_path,"source_target"+"_"+name_suffix+".png")
+            visualize_point_pair_overlap(source.points, target.points,
+                                         flowed_weight_transform(flowed.weights, True),
+                                         target_weight_transform(target.weights, True),
+                                         title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
+        path = os.path.join(record_path, "flowed_target" + "_" + name_suffix + ".png")
+        visualize_point_pair_overlap(flowed.points, target.points,
+                                 flowed_weight_transform(flowed.weights,True),
+                                 target_weight_transform(target.weights,True),
+                                 title1="flowed",title2="target", rgb_on=False,saving_capture_path=path, show=False)
+        inner_count +=1
+    return save
+
 
 
 

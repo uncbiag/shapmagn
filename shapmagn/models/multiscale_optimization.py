@@ -5,6 +5,7 @@ from shapmagn.modules.scheduler import scheduler_builder
 from shapmagn.global_variable import SHAPE_SAMPLER_POOL
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.utils.shape_visual_utils import save_shape_pair_into_files
+from shapmagn.utils.obj_factory import obj_factory
 
 
 def build_multi_scale_solver(opt, model):
@@ -72,10 +73,17 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
     :param patient:
     :return:
     """
-    save_every_n_iter = opt[("save_every_n_iter", 20, "save output every n iteration")]
+    save_3d_shape_every_n_iter = opt[("save_3d_shape_every_n_iter", 20, "save output every n iteration")]
+    save_2d_capture_every_n_iter = opt[("save_2d_capture_every_n_iter", -1, "save 2d screen capture of the plot every n iteration")]
+    capture_plotter_obj = opt[("capture_plot_obj", "", "factory object for 2d capture plot")]
+    capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
     os.makedirs(record_path, exist_ok=True)
+    shape_folder_3d = os.path.join(record_path, "3d")
+    os.makedirs(shape_folder_3d, exist_ok=True)
+    shape_folder_2d = os.path.join(record_path, "2d")
+    os.makedirs(shape_folder_2d, exist_ok=True)
     opt_optim = opt[('optim',{},"setting for the optimizer")]
     opt_optim = deepcopy(opt_optim)
     """settings for the optimizer"""
@@ -105,8 +113,10 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
             cur_energy = cur_energy.item()
             rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
-            if iter%save_every_n_iter==0:
-                save_shape_pair_into_files(record_path, "iter_{}".format(iter), shape_pair)
+            if save_3d_shape_every_n_iter>0 and iter%save_3d_shape_every_n_iter==0:
+                save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter), shape_pair)
+            if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
+                capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
                 print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count+1 if (iter-previous_converged_iter)==1 else 0
@@ -135,10 +145,18 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
     :param patient:
     :return:
     """
-    save_every_n_iter = opt[("save_every_n_iter", 1, "save output every n iteration")]
+    save_3d_shape_every_n_iter = opt[("save_3d_shape_every_n_iter", 1, "save output every n iteration")]
+    save_2d_capture_every_n_iter = opt[
+        ("save_2d_capture_every_n_iter", -1, "save 2d screen capture of the plot every n iteration")]
+    capture_plotter_obj = opt[("capture_plot_obj", "", "factory object for 2d capture plot")]
+    capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
     os.makedirs(record_path, exist_ok=True)
+    shape_folder_3d = os.path.join(record_path, "3D")
+    os.makedirs(shape_folder_3d, exist_ok=True)
+    shape_folder_2d = os.path.join(record_path, "2d")
+    os.makedirs(shape_folder_2d, exist_ok=True)
     def solve(shape_pair):
         model.init_reg_param(shape_pair)
         last_energy = 0.0
@@ -149,8 +167,10 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
             cur_energy = cur_energy.item()
             rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
-            if iter % save_every_n_iter == 0:
-                save_shape_pair_into_files(record_path, "iter_{}".format(iter), shape_pair)
+            if save_3d_shape_every_n_iter>0 and iter % save_3d_shape_every_n_iter == 0:
+                save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter), shape_pair)
+            if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
+                capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
                 print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count + 1 if (iter - previous_converged_iter) == 1 else 0

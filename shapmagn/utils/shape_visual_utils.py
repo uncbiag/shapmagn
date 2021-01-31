@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import torch
 import pyvista as pv
 from shapmagn.datasets.vtk_utils import convert_faces_into_file_format
@@ -59,3 +60,27 @@ def save_shape_pair_into_files(folder_path, name, shape_pair):
         reg_param_norm = shape_pair.reg_param.norm(p=2,dim=2,keepdim=True)
         save_shape_into_file(folder_path,"reg_param",**{"points":shape_pair.control_points,"reg_param_norm":reg_param_norm, "reg_param_vector":shape_pair.reg_param})
 
+def make_sphere(npoints=6000, ndim=3,radius=None,center=None):
+    if radius is None:
+        radius = np.array([1.]*ndim)
+    if center is None:
+        center = np.array([0.]*ndim)
+    if not isinstance(radius, np.ndarray):
+        radius = np.array(radius)
+    if not isinstance(center, np.ndarray):
+        center = np.array(center)
+    radius = radius.reshape(ndim,1)
+    center = center.reshape(ndim,1)
+    points = np.random.randn(ndim, npoints)
+    points /= np.linalg.norm(points, axis=0)
+    points *= radius
+    points += center
+    return points.transpose([1,0])
+
+
+def make_ellipsoid(npoints=6000, ndim=3,radius=None,center=None,rotation=None):
+    points = make_sphere(npoints, ndim,radius)
+    if rotation is not None:
+        points = np.matmul(points,rotation.transpose())
+    points += center
+    return points

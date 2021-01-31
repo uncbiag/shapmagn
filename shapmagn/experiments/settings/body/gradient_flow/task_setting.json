@@ -66,7 +66,7 @@
             "iter_per_scale": [1],
             "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
             "init_lr_list": [1e-3,1e-4],
-            "save_every_n_iter": 20,
+            "save_3d_shape_every_n_iter": 20,
             "shape_sampler_type": "point_grid",
             "point_grid_scales": [ 0.01],
             "stragtegy" : "use_optimizer_defined_from_model"
@@ -76,7 +76,7 @@
             "iter_per_scale": [3],
             "rel_ftol_per_scale": [1e-4,1e-4, 1e-4],
             "init_lr_list": [1e-3,1e-4],
-            "save_every_n_iter": 20,
+            "save_3d_shape_every_n_iter": 20,
             "shape_sampler_type": "point_grid",
             "stragtegy" : "use_optimizer_defined_here"
         },

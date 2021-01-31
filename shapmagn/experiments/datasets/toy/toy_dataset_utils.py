@@ -35,7 +35,6 @@ def toy_normalizer():
     """
     :return:
     """
-
     def do_nothing(data_dict):
         return data_dict
 

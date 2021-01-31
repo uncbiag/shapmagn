@@ -5,20 +5,27 @@ from shapmagn.metrics.losses import GeomDistance
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad
 class GradientFlowOPT(nn.Module):
+    """
+    this class implement a gradient flow solver for point cloud registration
+    it is based on the Wasserstein gradient flow
+
+    disp = - \frac{1}{\alpha_{i}} \nabla_{x_{i}} {Loss}\left(\frac{1}{N} \sum_{i=1}^{N} \delta_{x_{i}(t)}, \frac{1}{M} \sum_{j=1}^{M} \delta_{y_{j}}\right)
+
+    """
     def __init__(self, opt):
         super(GradientFlowOPT, self).__init__()
         self.opt = opt
         interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator in multi-scale solver")]
         self.interp_kernel = obj_factory(interpolator_obj)
-        assert self.opt["sim_loss"]['loss_list'] == ["geomloss"], "gradient flow only supports geomloss"
+        assert self.opt["sim_loss"]['loss_list'] == ["geomloss"]
         self.sim_loss_fn = GeomDistance(self.opt["sim_loss"]["geomloss"])
         self.call_thirdparty_package = False
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
 
-        # the feature extractor needs to be diabled in the official release, since it doesn't make sense to use feature other than points position
-        feature_extractor_obj = self.opt[("feature_extractor_obj", "", "feature extraction function")]
-        self.feature_extractor = obj_factory(feature_extractor_obj) if feature_extractor_obj else None
+        # the feature extractor needs to be disabled in future release, since it doesn't make sense to use feature other than points position
+        pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
+        self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
 
 
     def set_loss_fn(self, loss_fn):
@@ -74,10 +81,10 @@ class GradientFlowOPT(nn.Module):
 
     def extract_fea(self, flowed, target):
         """LDDMMM support feature extraction"""
-        if not self.feature_extractor:
+        if not self.pair_feature_extractor:
             return self.extract_point_fea(flowed, target)
-        elif self.feature_extractor:
-            return self.feature_extractor(flowed, target)
+        elif self.pair_feature_extractor:
+            return self.pair_feature_extractor(flowed, target)
 
     def forward(self, shape_pair):
         """

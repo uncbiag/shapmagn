@@ -7,6 +7,20 @@ from shapmagn.modules.ode_int import ODEBlock
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.utils.obj_factory import obj_factory
 class LDDMMOPT(nn.Module):
+    """
+    the class implements the LDDMM approach
+    (compared with discrete flow, the source shape is fixed here, shooting path starts from the source)
+    1. standard LDDMM
+
+    2. gradient flow guided LDDMM
+        M(0) = Source,
+        for t = 0...T:
+            I.  compute gradient flow between M(t) and target T,  get the gradflow result G(t)
+            II.  for n iteration, use the G(t) with MSE loss to guide lddmm, updating its initial momentum,
+            III . The shooting result is set as M(t+1)
+
+
+    """
     def __init__(self, opt):
         super(LDDMMOPT, self).__init__()
         self.opt = opt
@@ -16,8 +30,8 @@ class LDDMMOPT(nn.Module):
             if self.module_type=='hamiltonian' else LDDMMVariational(self.opt[("variational",{},"settings for variational")])
         self.lddmm_kernel = self.lddmm_module.kernel
         self.interp_kernel = self.lddmm_kernel
-        feature_extractor_obj = opt[("feature_extractor_obj","","feature extraction function")]
-        self.feature_extractor = obj_factory(feature_extractor_obj) if feature_extractor_obj else None
+        pair_feature_extractor_obj = opt[("pair_feature_extractor_obj","","feature extraction function")]
+        self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.geodesic_distance
@@ -34,7 +48,7 @@ class LDDMMOPT(nn.Module):
         if self.use_gradflow_guided:
             print("the gradient flow approach is use to guide the optimization of lddmm")
             print("the feature extraction mode should be disabled")
-            assert self.feature_extractor is None
+            assert self.pair_feature_extractor is None
 
 
 
@@ -145,7 +159,7 @@ class LDDMMOPT(nn.Module):
 
     def wasserstein_gradient_flow_guidence(self, flowed, target):
         """
-        wassersten gradient flow only works when self.feature_extractor = None
+        wassersten gradient flow has a reasonable behavior only when set self.pair_feature_extractor = None
         """
         def update(cur_blur):
             from shapmagn.metrics.losses import GeomDistance
@@ -186,10 +200,10 @@ class LDDMMOPT(nn.Module):
 
     def extract_fea(self, flowed, target):
         """LDDMMM support feature extraction"""
-        if not self.feature_extractor:
+        if not self.pair_feature_extractor:
             return self.extract_point_fea(flowed, target)
-        elif self.feature_extractor:
-            return self.feature_extractor(flowed, target)
+        elif self.pair_feature_extractor:
+            return self.pair_feature_extractor(flowed, target)
 
 
 

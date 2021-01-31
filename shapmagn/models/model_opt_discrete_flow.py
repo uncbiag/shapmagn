@@ -4,21 +4,42 @@ from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.utils import sigmoid_decay
-from shapmagn.modules.optimizer import optimizer_builder
-from shapmagn.modules.scheduler import scheduler_builder
 from torch.autograd import grad
 class DiscreteFlowOPT(nn.Module):
+    """
+    flow the source via n step, in each step with the #current# source X get updated, the target Y is fixed
+    In this class, we provide two approaches to solve this task:
+
+    1. standard spline registration
+    for each step a spline registration problem can be defined as
+    p^* = argmin_p <p,Kp> + Sim(X+Kp,Y)
+
+    where p is the momentum or registration parameter,
+    K is the kernel metric
+    an #user-defined# the optimizer is used to solve this problem
+    with new  X = X+Kp
+
+
+    2. gradient flow guided spline registration
+    for each step, a rigid kernel regression problem is to be solved:
+     p^* = argmin_p <p,Kp> + \lambda \|Kp-v\|^2
+    where p is the momentum or registration parameter,  v is the velocity guidence solved from gradient flow
+    this problem can be either solved via standard conjunction gradient solver or a fast approximate \tilde{v}=Kv
+
+
+
+    """
     def __init__(self, opt):
         super(DiscreteFlowOPT, self).__init__()
         self.opt = opt
         self.drift_every_n_iter = self.opt[("drift_every_n_iter",10, "if n is set bigger than -1, then after every n iteration, the current flowed shape is set as the source shape")]
-        self.smooth_displacement = self.opt[("smooth_displacement",True,"smooth the displacement before flow the shape")]
+        self.apply_spline_kernel = self.opt[("apply_spline_kernel",True,"smooth the displacement before flow the shape")]
         interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator in multi-scale solver")]
         gauss_smoother_sigma = opt[("gauss_smoother_sigma",0.1, "gauss sigma of the gauss smoother")]
-        self.gauss_kernel = self.create_gauss_smoother(gauss_smoother_sigma)
+        self.spline_kernel = self.create_spline_kernel(gauss_smoother_sigma)
         self.interp_kernel = obj_factory(interpolator_obj)
-        feature_extractor_obj = opt[("feature_extractor_obj", "", "feature extraction function")]
-        self.feature_extractor = obj_factory(feature_extractor_obj) if feature_extractor_obj else None
+        pair_feature_extractor_obj = opt[("pair_feature_extractor_obj", "", "feature extraction function")]
+        self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.regularization
@@ -98,7 +119,7 @@ class DiscreteFlowOPT(nn.Module):
 
     def drift(self, shape_pair):
         """
-        Under drift strategy, the source update during the optimization,  we introduce a "moving" to record the #current# source
+        Under drift strategy, the source updates during the optimization,  we introduce a "moving" to record the #current# source
         """
         if self.local_iter % self.drift_every_n_iter==0 and self.local_iter!=0:
             print("drift at the {} th step, the moving (current source) is updated".format(self.local_iter.item()))
@@ -128,24 +149,30 @@ class DiscreteFlowOPT(nn.Module):
 
     def extract_fea(self, flowed, target):
         """DiscreteFlowOPT supports feature extraction"""
-        if not self.feature_extractor:
+        if not self.pair_feature_extractor:
             return self.extract_point_fea(flowed, target)
         else:
-            return self.feature_extractor(flowed,target)
+            return self.pair_feature_extractor(flowed,target)
 
 
-    def create_gauss_smoother(self,gauss_smoother_sigma):
+    def create_spline_kernel(self,gauss_smoother_sigma):
         smoother = obj_factory("point_interpolator.kernel_interpolator(scale={}, exp_order=2)".format(gauss_smoother_sigma))
         return smoother
 
+
+
+
+
+
     def smooth_reg_param(self,reg_param, control_points, control_weights):
-        if self.smooth_displacement:
-            return self.gauss_kernel(control_points,control_points,reg_param,control_weights)
+        if self.apply_spline_kernel:
+            return self.spline_kernel(control_points,control_points,reg_param,control_weights)
         else:
             return reg_param
 
-    def forward(self, shape_pair):
+    def standard_spline_forward(self, shape_pair):
         """
+        In this forward, a user defined solver should be set
         reg_param here is the displacement
         :param shape_pair:
         :return:
@@ -174,6 +201,65 @@ class DiscreteFlowOPT(nn.Module):
         self.local_iter += 1
         self.global_iter +=1
         return loss
+
+    def wasserstein_gradient_flow_guidence(self, flowed, target):
+        """
+        wassersten gradient flow has a reasonable behavior only when set self.pair_feature_extractor = None
+        """
+
+        def update(cur_blur):
+            from shapmagn.metrics.losses import GeomDistance
+            from torch.autograd import grad
+            from copy import deepcopy
+            gemloss_setting = deepcopy(self.opt["sim_loss"]["geomloss"])
+            gemloss_setting["geom_obj"] = gemloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
+            geomloss = GeomDistance(gemloss_setting)
+            flowed_points_clone = flowed.points.detach().clone()
+            flowed_points_clone.requires_grad_()
+            flowed_clone = Shape()
+            flowed_clone.set_data_with_refer_to(flowed_points_clone,
+                                                flowed)  # shallow copy, only points are cloned, other attr are not
+            loss = geomloss(flowed_clone, target)
+            print("{} th step, before gradient flow, the ot distance between the flowed and the target is {}".format(
+                self.local_iter.item(), loss.item()))
+            grad_flowed_points = grad(loss, flowed_points_clone)[0]
+            flowed_points_clone = flowed_points_clone - grad_flowed_points / flowed_clone.weights
+            flowed_clone.points = flowed_points_clone.detach()
+            loss = geomloss(flowed_clone, target)
+            print(
+                "{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(
+                    self.local_iter.item(), loss.item()))
+            self.gradflow_guided_buffer["gradflowed"] = flowed_clone
+
+        gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
+        self.update_gradflow_every_n_step = gradflow_guided_opt[
+            ("update_gradflow_every_n_step", 10, "update the gradflow every # step")]
+        gradflow_blur_init = gradflow_guided_opt[
+            ("gradflow_blur_init", 0.5, "the inital 'blur' parameter in geomloss setting")]
+        update_gradflow_blur_by_raito = gradflow_guided_opt[
+            ("update_gradflow_blur_by_raito", 0.5, "the raito that updates the 'blur' parameter in geomloss setting")]
+        gradflow_blur_min = gradflow_guided_opt[
+            ("gradflow_blur_min", 0.5, "the minium value of the 'blur' parameter in geomloss setting")]
+        if self.global_iter % self.update_gradflow_every_n_step == 0 or len(self.gradflow_guided_buffer) == 0:
+            n_update = self.global_iter.item() / self.update_gradflow_every_n_step
+            cur_blur = max(gradflow_blur_init * (update_gradflow_blur_by_raito ** n_update), gradflow_blur_min)
+            update(cur_blur)
+        return flowed, self.gradflow_guided_buffer["gradflowed"]
+
+    def gradflow_spline_foward(self, shape_pair):
+        self.drift(shape_pair)
+        if self.drift_every_n_iter == -1 or len(self.drift_buffer) == 0:
+            control_points = shape_pair.get_control_points()
+        else:
+            control_points = self.drift_buffer["moving_control_points"]
+        smoothed_reg_param = self.smooth_reg_param(shape_pair.reg_param, control_points, shape_pair.control_weights)
+        flowed_control_points = control_points + smoothed_reg_param
+        shape_pair.set_flowed_control_points(flowed_control_points)
+        flowed_has_inferred = shape_pair.infer_flowed()
+        shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
+        flowed, target = self.extract_fea(shape_pair.flowed, shape_pair.target)
+        flowed, target = self.wasserstein_gradient_flow_guidence(shape_pair.flowed, shape_pair.target)
+
 
 
 

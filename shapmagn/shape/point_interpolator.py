@@ -54,28 +54,34 @@ def kernel_interpolator(scale=0.1, exp_order=2):
     """
     Nadaraya-Watson kernel interpolation
 
-    :param scale: kernel width
+    :param scale: kernel width of isotropic kernel, disabled if the gamma is given
     :param exp_order: float, 1,2,0.5
     """
     #todo write plot-test on this function
 
     assert exp_order in [1,2,0.5]
-    def interp(points,control_points,control_value,control_weights):
+    def interp(points,control_points,control_value,control_weights, gamma=None):
         """
 
-        :param points: NxD Tensor
-        :param control_points: MxD Tensor
-        :param control_value: Mxd Tensor
-        :param control_weights: Mx1 Tensor
-        :return: Nxd Tensor
+        :param points: BxNxD Tensor
+        :param control_points: BxMxD Tensor
+        :param control_value: BxMxd Tensor
+        :param control_weights: BxMx1 Tensor
+        :param gamma: optional BxMxDxD Tensor
+        :return: BxNxd Tensor
         """
 
-        points, control_points = points / scale, control_points / scale
 
-        points_i = LazyTensor(points[:,:, None, :])  # (B,N, 1, D)  "column"
-        control_points_j = LazyTensor(control_points[:, None, :, :])  # (B,1, M, D)  "line"
-
-        dist2 = ((points_i - control_points_j) ** 2).sum(-1)  # (N, M) squared distances (B,N,M,1)
+        if gamma is None:
+            points, control_points = points / scale, control_points / scale
+            points_i = LazyTensor(points[:, :, None, :])  # (B,N, 1, D)  "column"
+            control_points_j = LazyTensor(control_points[:, None, :, :])  # (B,1, M, D)  "line"
+            dist2 = ((points_i - control_points_j) ** 2).sum(-1)  # (N, M) squared distances (B,N,M,1)
+        else:
+            points_i = LazyTensor(points[:, :, None, :])  # (B,N, 1, D)  "column"
+            control_points_j = LazyTensor(control_points[:, None, :, :])  # (B,1, M, D)  "line"
+            gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xNxD*D
+            dist2 = (points_i - control_points_j) | gamma.matvecmult(points_i - control_points_j)
 
         if exp_order == 1:
             C_ij = dist2.sqrt()  # + D_ij
@@ -101,7 +107,7 @@ def kernel_interpolator(scale=0.1, exp_order=2):
 
 def _spline_intepolator(scale=5, kernel="gauss"):
     """
-    Performs a ridge kernel regression, while factoring out affine transforms.
+    Performs a ridge kernel regression.
 
     :param scale: kernel width
     :param kernel: kernel_type, "TPS", "cauchy", "gauss"
@@ -156,7 +162,7 @@ def _spline_intepolator(scale=5, kernel="gauss"):
 
 def spline_intepolator(scale=5, kernel="gauss"):
     """
-    Performs a ridge kernel regression, while factoring out affine transforms.
+    Performs a ridge kernel regression,
 
     :param scale: kernel width
     :param kernel: kernel_type, "TPS", "cauchy", "gauss"

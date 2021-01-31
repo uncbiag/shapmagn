@@ -146,7 +146,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # solver_opt["iter_per_scale"] = [50, 200]
 # solver_opt["rel_ftol_per_scale"] = [ 1e-9,1e-9,1e-9]
 # solver_opt["init_lr_per_scale"] = [5e-1,5e-2,1e-4]
-# solver_opt["save_every_n_iter"] = 20
+# solver_opt["save_3d_shape_every_n_iter"] = 20
 # solver_opt["shape_sampler_type"] = "point_grid"
 # solver_opt["stragtegy"] = "use_optimizer_defined_here"
 # solver_opt[("optim", {}, "setting for the optimizer")]
@@ -183,7 +183,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # solver_opt["iter_per_scale"] = [50]
 # solver_opt["rel_ftol_per_scale"] = [ 1e-9,1e-9,1e-9]
 # solver_opt["init_lr_per_scale"] = [5e-1,1e-4]
-# solver_opt["save_every_n_iter"] = 10
+# solver_opt["save_3d_shape_every_n_iter"] = 10
 # solver_opt["shape_sampler_type"] = "point_grid"
 # solver_opt["stragtegy"] = "use_optimizer_defined_here"
 # solver_opt[("optim", {}, "setting for the optimizer")]
@@ -230,7 +230,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # solver_opt["iter_per_scale"] = [50]
 # solver_opt["rel_ftol_per_scale"] = [ 1e-9,1e-9,1e-9]
 # solver_opt["init_lr_per_scale"] = [5e-1,5e-2,1e-4]
-# solver_opt["save_every_n_iter"] = 20
+# solver_opt["save_3d_shape_every_n_iter"] = 20
 # solver_opt["shape_sampler_type"] = "point_grid"
 # solver_opt["stragtegy"] = "use_optimizer_defined_here"
 # solver_opt[("optim", {}, "setting for the optimizer")]
@@ -244,7 +244,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # model_opt =ParameterDict()
 # model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)"
 # model_opt["gauss_kernel_obj"] ="keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)"
-# model_opt["feature_extractor_obj"] ="lung_fea_extract.feature_extractor(fea_type_list=['eignvalue_cat'], radius=0.01)"
+# model_opt["pair_feature_extractor_obj"] ="lung_fea_extract.pair_feature_extractor(fea_type_list=['eignvalue_cat'], radius=0.01)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] = ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
@@ -261,12 +261,12 @@ visualize_point_pair(source_half_points, target_half_points,
 #
 # # experiment 5: feature mapping
 # blur = 0.0005
-# feature_extractor_obj = "lung_fea_extract.feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[1], radius=0.01,include_pos=True)"
-# feature_extractor = obj_factory(feature_extractor_obj)
+# pair_feature_extractor_obj = "lung_fea_extract.pair_feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[1], radius=0.01,include_pos=True)"
+# pair_feature_extractor = obj_factory(pair_feature_extractor_obj)
 # geomloss_opt = ParameterDict()
 # geomloss_opt["attr"] = "pointfea"
 # geomloss_opt["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
-# source, target = feature_extractor(shape_pair.source,shape_pair.target)
+# source, target = pair_feature_extractor(shape_pair.source,shape_pair.target)
 # fea_to_map = shape_pair.source.points[0]
 # mapped_pos, mapped_fea = get_omt_mapping(geomloss_opt, source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
 # visualize_point_pair(shape_pair.source.points[0],shape_pair.target.points[0],

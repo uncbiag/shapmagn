@@ -83,7 +83,7 @@ shape_pair = create_shape_pair(source, target)
 # solver_opt["iter_per_scale"] = [50]
 # solver_opt["rel_ftol_per_scale"] = [ 1e-9]
 # solver_opt["init_lr_per_scale"] = [5e-1]
-# solver_opt["save_every_n_iter"] = 20
+# solver_opt["save_3d_shape_every_n_iter"] = 20
 # solver_opt["shape_sampler_type"] = "point_grid"
 # solver_opt["stragtegy"] = "use_optimizer_defined_here"
 # solver_opt[("optim", {}, "setting for the optimizer")]
@@ -123,7 +123,7 @@ solver_opt["point_grid_scales"] =  [ -1]
 solver_opt["iter_per_scale"] = [50]
 solver_opt["rel_ftol_per_scale"] = [ 1e-9,]
 solver_opt["init_lr_per_scale"] = [1e-1]
-solver_opt["save_every_n_iter"] = 10
+solver_opt["save_3d_shape_every_n_iter"] = 10
 solver_opt["shape_sampler_type"] = "point_grid"
 solver_opt["stragtegy"] = "use_optimizer_defined_here"
 solver_opt[("optim", {}, "setting for the optimizer")]

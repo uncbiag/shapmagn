@@ -21,6 +21,7 @@ sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device=torch.device("cpu"))
 source_obj, source_interval = get_obj_func(path_1)
 target_obj, target_interval = get_obj_func(path_2)
+
 points_1 = source_obj['points'][:,:5000]
 points_2 = target_obj['points'][:,:5000]
 # fea_type_list = ["mass","dev","eigenvalue_cat","eigenvalue_prod","eigenvector_main","eigenvector"]
@@ -30,8 +31,8 @@ fea_type_list = ["mass"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.02, std_normalize=False, include_pos=False)
 _, mass1= fea_extractor(points_1)
 
-# filter1 = mass1[..., 0] > 2.5
-# points_1 = points_1[filter1][None]
+filter1 = mass1[..., 0] > 2.5
+points_1 = points_1[filter1][None]
 fea_type_list = ["eigenvalue_cat","eigenvector"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.025,std_normalize=False, include_pos=False)
 combined_fea1, mass1 = fea_extractor(points_1)

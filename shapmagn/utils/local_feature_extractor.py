@@ -55,13 +55,11 @@ def compute_aniso_local_moments(points, gamma=None):
     K_ij = (-dist2).exp()  # BxNxN
 
     x = torch.cat((torch.ones_like(x[...,:1]), x), dim = -1)  # (B, N, D+1)
-
-    x_i = LazyTensor(x[...,:,None,:])  # (B, N, 1, D+1)
     x_j = LazyTensor(x[...,None,:,:])  # (B, 1, N, D+1)
 
     C_ij = (K_ij * x_j).tensorprod(x_j)  # (B, N, N, (D+1)*(D+1))
-    # here the dim should be 1,  self-centered mode  if set dim=2, then is the interpolate mode
-    C_i  = C_ij.sum(dim =1).view(shape_head + (D+1, D+1))  # (B, N, D+1, D+1)
+    # if  dim= 1,  self-centered mode  if set dim=2, then is the interpolate mode
+    C_i  = C_ij.sum(dim =2).view(shape_head + (D+1, D+1))  # (B, N, D+1, D+1)
 
     w_i = C_i[...,:1,:1]               # (B, N, 1, 1), weights
     m_i = C_i[...,:1,1:]        # (B, N, 1, D), sum
@@ -87,6 +85,7 @@ def compute_local_fea_from_moments(fea_type, mass,dev,cov):
         vals, vectors = vSymEig(cov, eigenvectors=compute_eigen_vector, flatten_output=True,descending_eigenvals=True)
         vals = vals.view(B, N, -1)
         if vectors is not None:
+            vectors = vectors+1e-9 # avoid divide by 0
             vectors = vectors/torch.norm(vectors,p=2,dim=1,keepdim=True)  # BxNx1
             assert not torch.any(torch.isnan(vectors)) and not torch.any(torch.isinf(vectors))
         if fea_type == "eigenvalue_prod":

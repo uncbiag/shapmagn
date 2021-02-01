@@ -335,3 +335,5 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
 
         # Close movie and delete object
         p.close()
+
+

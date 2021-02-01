@@ -6,7 +6,6 @@ from shapmagn.metrics.losses import Loss
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.gradient_flow_module import gradient_flow_guide
-from torch.autograd import grad
 class DiscreteFlowOPT(nn.Module):
     """
     flow the source via n step, in each step with the #current# source X get updated, the target Y is fixed

@@ -8,7 +8,7 @@ from shapmagn.datasets.data_utils import read_json_into_list, get_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_multi_point
-
+from shapmagn.utils.local_feature_extractor import *
 
 
 
@@ -105,8 +105,43 @@ def capture_plotter():
 
 
 
+def lung_isolated_leaf_clean_up(lung, radius=0.032, principle_weight=None):
+    points = lung.points.detach()
+    mass, dev, cov = compute_local_moments(points, radius=radius)
+    eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
+    filter = mass[..., 0].squeeze() > 2
+    to_remove = ~filter
+    print("In the first step, num of points are removed {}, {}".format(torch.sum(to_remove),torch.sum(to_remove)/len(filter) ))
+    mass = mass[:, filter]
+    points = points[:, filter]
+    eigenvector_main = eigenvector_main[:, filter]
+    visualize_point_fea_with_arrow(points, mass, eigenvector_main * 0.01, rgb_on=False)
 
 
+    Gamma, _ = compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
+    mass, dev, cov = compute_aniso_local_moments(points, Gamma)
+    eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
+    filter = mass[..., 0].squeeze() > 2.5
+    to_remove = ~filter
+    print("In the second step, num of points are removed {}, {}".format(torch.sum(to_remove),
+                                                                       torch.sum(to_remove) / len(filter)))
+    mass = mass[:, filter]
+    points = points[:, filter]
+    eigenvector_main = eigenvector_main[:, filter]
+    visualize_point_fea_with_arrow(points, mass, eigenvector_main * 0.01, rgb_on=False)
+
+
+    Gamma, _ = compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
+    mass, dev, cov = compute_aniso_local_moments(points, Gamma)
+    eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
+    filter = mass[..., 0].squeeze() > 3
+    to_remove = ~filter
+    print("In the third step, num of points are removed {}, {}".format(torch.sum(to_remove),
+                                                                       torch.sum(to_remove) / len(filter)))
+    mass = mass[:,filter]
+    points = points[:, filter]
+    eigenvector_main = eigenvector_main[:,filter]
+    visualize_point_fea_with_arrow(points, mass,eigenvector_main*0.01,rgb_on=False)
 
 
 def analysis_large_vessel(source, target, source_weight_transform=source_weight_transform, target_weight_transform=target_weight_transform, title1="source", title2="target"):
@@ -122,7 +157,7 @@ def analysis_large_vessel(source, target, source_weight_transform=source_weight_
 
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
-    device = torch.device("cpu")
+    device = torch.device("cpu") # cuda:0  cpu
     reader_obj = "lung_dataset_utils.lung_reader()"
     scale = 80  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
     normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
@@ -140,8 +175,9 @@ if __name__ == "__main__":
     pair_path = pair_path_list[pair_id]
     pair_path = [path_transfer(path) for path in pair_path]
     source, target = get_pair(*pair_path)
+
     source_weight, target_weight = source["weights"].squeeze().numpy(), target["weights"].squeeze().numpy()
-    plot_pair_weight_distribution(source_weight, target_weight, use_log=True)
+    #plot_pair_weight_distribution(source_weight, target_weight, use_log=True)
 
     input_data = {"source": source, "target": target}
     source_target_generator = obj_factory("shape_pair_utils.create_source_and_target_shape()")
@@ -149,6 +185,8 @@ if __name__ == "__main__":
     shape_pair = create_shape_pair(source, target)
     source_half = get_half_lung(source)
     target_half = get_half_lung(target)
+    lung_isolated_leaf_clean_up(source_half,radius=0.032, principle_weight=[2,1,1])
+
 
     plot_pair_weight_distribution(source_weight_transform(source_half.weights).squeeze().numpy(),
                                   target_weight_transform(target_half.weights).squeeze().numpy(),

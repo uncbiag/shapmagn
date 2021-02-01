@@ -50,12 +50,13 @@ from pykeops.torch import LazyTensor
 
 
 
-def kernel_interpolator(scale=0.1, exp_order=2):
+def kernel_interpolator(scale=0.1, exp_order=2,iso=True):
     """
     Nadaraya-Watson kernel interpolation
 
     :param scale: kernel width of isotropic kernel, disabled if the gamma is given
     :param exp_order: float, 1,2,0.5
+    :param iso: bool, use isotropic kernel, sigma equals to scale
     """
     #todo write plot-test on this function
 
@@ -72,7 +73,7 @@ def kernel_interpolator(scale=0.1, exp_order=2):
         """
 
 
-        if gamma is None:
+        if iso:
             points, control_points = points / scale, control_points / scale
             points_i = LazyTensor(points[:, :, None, :])  # (B,N, 1, D)  "column"
             control_points_j = LazyTensor(control_points[:, None, :, :])  # (B,1, M, D)  "line"
@@ -149,10 +150,9 @@ def _spline_intepolator(scale=5, kernel="gauss"):
         wK_xx = LazyTensor(control_weights[:, :, None]) * K_xx
         Sinv = lambda y: wK_xx.solve(y, alpha=1)
         momentum = Sinv(control_value * control_weights)
-
         # Apply the spline deformation on the full point cloud:
         K_px = kernel_matrix(points, control_points)
-        return  K_px @ momentum
+        return K_px @ momentum
     return interp
 
 

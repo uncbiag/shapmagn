@@ -2,10 +2,10 @@
 import pyvista as pv
 import numpy as np
 import torch
-from shapmagn.experiments.datasets.lung.lung_feature_extractor import feature_extractor,compute_aniso_local_moments
 from shapmagn.utils.visualizer import visualize_point_fea,visualize_point_fea_with_arrow, visualize_point_overlap
 from shapmagn.datasets.data_utils import compute_interval
 from shapmagn.utils.shape_visual_utils import make_sphere, make_ellipsoid
+from shapmagn.utils.local_feature_extractor import *
 
 ###############################################################################
 # Create a dataset to plot
@@ -42,23 +42,31 @@ def generate_aniso_gamma_on_sphere(points, foregroud_bool_index,foreground_sigma
 
 
 
-def get_Gamma(sigma_scale, principle_vector=[1,1,1], eignvector=None):
+def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=None,):
     """
 
     :param sigma_scale: scale the sigma
-    :param principle_vector: a list of sigma of D size
-    :param eignvector: 1XNxDxD
+    :param principle_weight: a list of sigma of D size, e.g.[1,1,1]
+    :param eigenvalue: 1XNxD, optional if the eigenvalue is not None, then the principle vector = normalized(eigenvale)*sigma_scale
+    :param eigenvector: 1XNxDxD
     :return:
     """
-    device = eignvector.device
-    nbatch, npoints = eignvector.shape[0], eignvector.shape[1]
+    device = eigenvector.device
+    nbatch, npoints = eigenvector.shape[0], eigenvector.shape[1]
     assert nbatch == 1
-    principle_vector = np.array(principle_vector)/np.linalg.norm(principle_vector)*sigma_scale
-    principle_vector = principle_vector.astype(np.float32)
-    principle_vector_inv_sq = 1/(principle_vector**2)
-    principle_diag = torch.diag(torch.tensor(principle_vector_inv_sq).to(device)).repeat(1,npoints,1,1) # 1xNxDxD
-    Gamma = eignvector @ principle_diag @ (eignvector.permute(0,1,3,2))
-    return Gamma.view(nbatch,npoints,-1),principle_vector
+    if eigenvalue is not None:
+        principle_weight = eigenvalue/torch.norm(eigenvalue,p=2,dim=2,keepdim=True)*sigma_scale
+        principle_weight_inv_sq = 1/(principle_weight**2).squeeze()
+        principle_diag = torch.diag_embed(principle_weight_inv_sq)[None]  # 1xNxDxD
+    else:
+
+        principle_weight = np.array(principle_weight)/np.linalg.norm(principle_weight)*sigma_scale
+        principle_weight = principle_weight.astype(np.float32)
+        principle_weight_inv_sq = 1/(principle_weight**2)
+        principle_diag = torch.diag(torch.tensor(principle_weight_inv_sq).to(device)).repeat(1,npoints,1,1) # 1xNxDxD
+        principle_weight =torch.tensor(principle_weight).repeat(1,npoints,1)
+    Gamma = eigenvector @ principle_diag @ (eigenvector.permute(0,1,3,2))
+    return Gamma,principle_weight
 
 
 
@@ -72,7 +80,7 @@ def generate_eigen_vector_from_main_direction(main_direction):
 # points = points.astype(np.float32)
 # compute_interval(points)
 # points = torch.Tensor(points)[None]
-# fea_type_list= ["eignvalue_prod","eignvector_main"]
+# fea_type_list= ["eigenvalue_prod","eigenvector_main"]
 # fea_extractor = feature_extractor(fea_type_list, radius=0.1,std_normalize=False)
 # combined_fea, mass = fea_extractor(points)
 # pointfea, main_direction = combined_fea[..., :1], combined_fea[..., 1:]
@@ -115,33 +123,40 @@ def generate_eigen_vector_from_main_direction(main_direction):
 
 points = make_spirial_points()
 points = points.astype(np.float32)
+npoints = points.shape[0]
 points = torch.tensor(points)[None]
-fea_type_list = ["eignvalue_cat","eignvector"]
+eigenvalue_min = 0.05
+fea_type_list = ["eigenvalue_cat","eigenvector"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.1,std_normalize=False, include_pos=False)
 combined_fea1, mass1 = fea_extractor(points)
-eignvalue, eignvector = combined_fea1[:,:,:3], combined_fea1[:,:,3:]
-eignvector = eignvector.view(eignvector.shape[0], eignvector.shape[1], 3, 3)
-eignvector_main = eignvector[...,0]
-# eignvalue is not used, but compute to check abnormal
-print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eignvalue<=0)))
-eignvalue[eignvalue<=0.]=1e-7
+eigenvalue, eigenvector = combined_fea1[:,:,:3], combined_fea1[:,:,3:]
+eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], 3, 3)
+eigenvector_main = eigenvector[...,0]
+# eigenvalue is not used, but compute to check abnormal
+print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eigenvalue<=0)))
+eigenvalue[eigenvalue<=0.]=1e-7
+
 
 points_np = points.detach().cpu().numpy().squeeze()
-eignvector_np = eignvector.detach().cpu().numpy().squeeze()
+eigenvector_np = eigenvector.detach().cpu().numpy().squeeze()
 npoints = points.shape[1]
 device = points.device
 sigma_scale = 0.2
-principle_vector = [3,1,1]
-Gamma, principle_vector = get_Gamma(sigma_scale,principle_vector,eignvector)
+principle_weight = [3,1,1]
+eigenvalue = eigenvalue / torch.norm(eigenvalue, p=2, dim=2, keepdim=True)
+eigenvalue[eigenvalue<=0.3]=0.3
+#Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=principle_weight,eigenvalue=None,eigenvector=eigenvector)
+Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=None,eigenvalue=eigenvalue,eigenvector=eigenvector)
+principle_weight_np = principle_weight.squeeze().numpy()
 mass,_,_ = compute_aniso_local_moments(points, Gamma)
 nsample = 30
 full_index = np.arange(npoints)
 index = np.random.choice(full_index, nsample, replace=False)
-spheres_list = [make_ellipsoid(200,radius=principle_vector, center=points_np[ind],rotation=eignvector_np[ind]) for ind in index]
+spheres_list = [make_ellipsoid(200,radius=principle_weight_np[ind], center=points_np[ind],rotation=eigenvector_np[ind]) for ind in index]
 spheres = np.concatenate(spheres_list,0)
 fg_spheres_color = np.array([[0.8,.5,.2]]*len(spheres))
 #visualize_point_fea(points, mass , rgb_on=False)
-visualize_point_fea_with_arrow(points, mass1,eignvector_main*0.05,rgb_on=False)
+visualize_point_fea_with_arrow(points, mass1,eigenvector_main*0.05,rgb_on=False)
 visualize_point_overlap(points, spheres,mass,fg_spheres_color,"aniso_filter_with_kernel_radius",point_size=[10,5],rgb_on=[False,True])
 
 

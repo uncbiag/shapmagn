@@ -1,6 +1,8 @@
+from copy import deepcopy
 import torch
 import torch.nn as nn
 from shapmagn.modules.lddmm_module import LDDMMHamilton, LDDMMVariational
+from shapmagn.modules.gradient_flow_module import gradient_flow_guide
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
 from shapmagn.modules.ode_int import ODEBlock
@@ -161,26 +163,6 @@ class LDDMMOPT(nn.Module):
         """
         wassersten gradient flow has a reasonable behavior only when set self.pair_feature_extractor = None
         """
-        def update(cur_blur):
-            from shapmagn.metrics.losses import GeomDistance
-            from torch.autograd import grad
-            from copy import deepcopy
-            gemloss_setting = deepcopy(self.opt["sim_loss"]["geomloss"])
-            gemloss_setting["geom_obj"] = gemloss_setting["geom_obj"].replace("placeholder",str(cur_blur))
-            geomloss = GeomDistance(gemloss_setting)
-            flowed_points_clone = flowed.points.detach().clone()
-            flowed_points_clone.requires_grad_()
-            flowed_clone = Shape()
-            flowed_clone.set_data_with_refer_to(flowed_points_clone, flowed)   # shallow copy, only points are cloned, other attr are not
-            loss = geomloss(flowed_clone, target)
-            print("{} th step, before gradient flow, the ot distance between the flowed and the target is {}".format(self.local_iter.item(), loss.item()))
-            grad_flowed_points = grad(loss, flowed_points_clone)[0]
-            flowed_points_clone = flowed_points_clone - grad_flowed_points / flowed_clone.weights
-            flowed_clone.points = flowed_points_clone.detach()
-            loss = geomloss(flowed_clone, target)
-            print("{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(self.local_iter.item(), loss.item()))
-            self.gradflow_guided_buffer["gradflowed"] = flowed_clone
-
         gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
         self.update_gradflow_every_n_step = gradflow_guided_opt[
             ("update_gradflow_every_n_step", 10, "update the gradflow every # step")]
@@ -190,8 +172,13 @@ class LDDMMOPT(nn.Module):
         if self.global_iter % self.update_gradflow_every_n_step==0 or len(self.gradflow_guided_buffer)==0:
             n_update = self.global_iter.item() / self.update_gradflow_every_n_step
             cur_blur = max(gradflow_blur_init*(update_gradflow_blur_by_raito**n_update), gradflow_blur_min)
-            update(cur_blur)
+            geomloss_setting = deepcopy(self.opt["sim_loss"]["geomloss"])
+            geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
+            gradflowed = gradient_flow_guide(flowed,target,geomloss_setting,self.local_iter)
+            self.gradflow_guided_buffer["gradflowed"] = gradflowed
         return flowed, self.gradflow_guided_buffer["gradflowed"]
+
+
 
     def extract_point_fea(self, flowed, target):
         flowed.pointfea = flowed.points

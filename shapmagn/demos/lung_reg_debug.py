@@ -244,7 +244,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # model_opt =ParameterDict()
 # model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)"
 # model_opt["gauss_kernel_obj"] ="keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)"
-# model_opt["pair_feature_extractor_obj"] ="lung_fea_extract.pair_feature_extractor(fea_type_list=['eignvalue_cat'], radius=0.01)"
+# model_opt["pair_feature_extractor_obj"] ="lung_fea_extract.pair_feature_extractor(fea_type_list=['eigenvalue_cat'], radius=0.01)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] = ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
@@ -261,7 +261,7 @@ visualize_point_pair(source_half_points, target_half_points,
 #
 # # experiment 5: feature mapping
 # blur = 0.0005
-# pair_feature_extractor_obj = "lung_fea_extract.pair_feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[1], radius=0.01,include_pos=True)"
+# pair_feature_extractor_obj = "lung_fea_extract.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], radius=0.01,include_pos=True)"
 # pair_feature_extractor = obj_factory(pair_feature_extractor_obj)
 # geomloss_opt = ParameterDict()
 # geomloss_opt["attr"] = "pointfea"

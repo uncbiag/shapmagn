@@ -197,6 +197,7 @@ class LazyKeopsKernel(object):
 
         """
         reduce_dim = 2
+        assert False,"not check yet"
         def conv(x,y, gamma_x,gamma_y, b):
             """
 

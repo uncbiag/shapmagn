@@ -108,7 +108,7 @@ model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
 
 # the feature extractor should be disabled in gradient flow.  we leave it here to show to observe the feature behavior.
 # if not explicitly set, the points position would be taken as the pointfea
-# model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.pair_feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)"
+# model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)"
 
 blur = 0.005
 model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=1,debias=False)".format(blur)
@@ -280,7 +280,7 @@ analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 # model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.01, exp_order=2)"
 # model_opt["apply_spline_kernel"]= True
 # model_opt["gauss_smoother_sigma"] = 0.02
-# #model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.pair_feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)"
+# #model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] = ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
@@ -297,7 +297,7 @@ analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 #
 # # experiment 5: feature mapping
 # blur = 0.0005
-# pair_feature_extractor_obj = "lung_feature_extractor.pair_feature_extractor(fea_type_list=['eignvalue_prod'],weight_list=[0.1], radius=0.01,include_pos=True)"
+# pair_feature_extractor_obj = "lung_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[0.1], radius=0.01,include_pos=True)"
 # pair_feature_extractor = obj_factory(pair_feature_extractor_obj)
 # geomloss_opt = ParameterDict()
 # geomloss_opt["attr"] = "pointfea"

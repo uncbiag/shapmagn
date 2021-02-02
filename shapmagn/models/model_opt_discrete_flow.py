@@ -139,7 +139,7 @@ class DiscreteFlowOPT(nn.Module):
         if self.local_iter % self.drift_every_n_iter==0:
             print("drift at the {} th step, the moving (current source) is updated".format(self.local_iter.item()))
             moving = Shape()
-            moving.set_data(points=flowed.points.detach().clone(), weights=flowed.weights.detach().clone)
+            moving.set_data(points=flowed.points.detach().clone(), weights=flowed.weights.detach().clone())
             self.drift_buffer["moving"] = moving
             self.drift_buffer["moving_control_points"] = flowed_control_points.detach().clone()
             self.reset_reg_param(shape_pair)
@@ -210,12 +210,12 @@ class DiscreteFlowOPT(nn.Module):
         """
         gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
         gradflow_blur_init = gradflow_guided_opt[
-            ("gradflow_blur_init", 0.5, "the inital 'blur' parameter in geomloss setting")]
+            ("gradflow_blur_init", 0.05, "the inital 'blur' parameter in geomloss setting")]
         update_gradflow_blur_by_raito = gradflow_guided_opt[
-            ("update_gradflow_blur_by_raito", 0.5, "the raito that updates the 'blur' parameter in geomloss setting")]
+            ("update_gradflow_blur_by_raito", 0.05, "the raito that updates the 'blur' parameter in geomloss setting")]
         gradflow_blur_min = gradflow_guided_opt[
-            ("gradflow_blur_min", 0.5, "the minium value of the 'blur' parameter in geomloss setting")]
-        n_update = self.global_iter.item() / self.update_gradflow_every_n_step
+            ("gradflow_blur_min", 0.05, "the minium value of the 'blur' parameter in geomloss setting")]
+        n_update = self.global_iter.item()
         cur_blur = max(gradflow_blur_init * (update_gradflow_blur_by_raito ** n_update), gradflow_blur_min)
         geomloss_setting = deepcopy(self.opt["sim_loss"]["geomloss"])
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))

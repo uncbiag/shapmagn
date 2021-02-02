@@ -182,7 +182,7 @@ shape_pair = create_shape_pair(source, target)
 
 #  optimization based discrete flow
 task_name = "discrete_flow"
-gradient_flow_mode = False
+gradient_flow_mode = True
 solver_opt = ParameterDict()
 record_path = server_path+"output/toy_demo/{}".format(task_name)
 solver_opt["record_path"] = record_path
@@ -203,17 +203,24 @@ solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
 solver_opt["scheduler"]["step_lr"]["step_size"] = 30
 model_name = "discrete_flow_opt"
 model_opt =ParameterDict()
-model_opt["gradient_flow_mode"] = gradient_flow_mode
 model_opt["drift_every_n_iter"] = 10
-model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
+model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)"
 model_opt["interp_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"  # only used for multi-scale registration
 #model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)"
+model_opt["gradient_flow_mode"] = gradient_flow_mode
+model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
+model_opt["gradflow_guided"] ['gradflow_blur_init']= 0.05
+model_opt["gradflow_guided"] ['update_gradflow_blur_by_raito']= 0.5
+model_opt["gradflow_guided"] ['gradflow_blur_min']= 0.001
+
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] = ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
+model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
 blur = 0.001
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=False)".format(blur) if gradient_flow_mode \
+    else  "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8,debias=False)"
+
 model = MODEL_POOL[model_name](model_opt)
 solver = build_multi_scale_solver(solver_opt,model)
 model.init_reg_param(shape_pair)

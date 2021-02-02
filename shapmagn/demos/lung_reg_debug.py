@@ -115,7 +115,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # solver_opt["record_path"] = record_path
 # model_name = "gradient_flow_opt"
 # model_opt =ParameterDict()
-# model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.01, exp_order=2)"
+# model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
@@ -242,7 +242,7 @@ visualize_point_pair(source_half_points, target_half_points,
 # solver_opt["scheduler"]["step_lr"]["step_size"] = 80
 # model_name = "discrete_flow_opt"
 # model_opt =ParameterDict()
-# model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)"
+# model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)"
 # model_opt["gauss_kernel_obj"] ="keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)"
 # model_opt["pair_feature_extractor_obj"] ="lung_fea_extract.pair_feature_extractor(fea_type_list=['eigenvalue_cat'], radius=0.01)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]

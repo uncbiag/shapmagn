@@ -100,7 +100,7 @@ solver_opt["save_2d_capture_every_n_iter"] = 1
 solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
 model_name = "gradient_flow_opt"
 model_opt =ParameterDict()
-model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.01, exp_order=2)"
+model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
@@ -237,7 +237,7 @@ analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 # solver_opt["record_path"] = record_path
 # model_name = "gradient_flow_opt"
 # model_opt =ParameterDict()
-# model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.01, exp_order=2)"
+# model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
@@ -277,9 +277,7 @@ analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 # model_name = "discrete_flow_opt"
 # model_opt =ParameterDict()
 # model_opt["drift_every_n_iter"] = 20
-# model_opt["interpolator_obj"] ="point_interpolator.kernel_interpolator(scale=0.01, exp_order=2)"
-# model_opt["apply_spline_kernel"]= True
-# model_opt["gauss_smoother_sigma"] = 0.02
+# model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
 # #model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] = ["geomloss"]

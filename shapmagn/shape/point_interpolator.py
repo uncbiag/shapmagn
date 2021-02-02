@@ -1,7 +1,7 @@
 import torch
 from pykeops.torch import LazyTensor
 
-# def kernel_interpolator(scale=0.1, exp_order=2):
+# def nadwat_kernel_interpolator(scale=0.1, exp_order=2):
 #     """
 #     Nadaraya-Watson kernel interpolation
 #
@@ -50,7 +50,7 @@ from pykeops.torch import LazyTensor
 
 
 
-def kernel_interpolator(scale=0.1, exp_order=2,iso=True):
+def nadwat_kernel_interpolator(scale=0.1, exp_order=2,iso=True):
     """
     Nadaraya-Watson kernel interpolation
 

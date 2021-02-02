@@ -15,7 +15,7 @@ class GradientFlowOPT(nn.Module):
     def __init__(self, opt):
         super(GradientFlowOPT, self).__init__()
         self.opt = opt
-        interpolator_obj = self.opt[("interpolator_obj","point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator in multi-scale solver")]
+        interpolator_obj = self.opt[("interpolator_obj","point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator in multi-scale solver")]
         self.interp_kernel = obj_factory(interpolator_obj)
         assert self.opt["sim_loss"]['loss_list'] == ["geomloss"]
         self.sim_loss_fn = GeomDistance(self.opt["sim_loss"]["geomloss"])

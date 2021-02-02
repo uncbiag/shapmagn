@@ -24,7 +24,7 @@
         "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
         "gradient_flow_opt": {
             "print_step":10,
-            "interpolator_obj": "point_interpolator.kernel_interpolator(scale=0.1, exp_order=2)",
+            "interpolator_obj": "point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)",
             "sim_loss": {
                 "loss_list": ["geomloss"],
                 "loss_weight_strategy_dict":{},

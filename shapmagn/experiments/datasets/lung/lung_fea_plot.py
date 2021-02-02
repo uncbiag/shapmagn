@@ -1,6 +1,4 @@
 import os, sys
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../../../..'))
 from shapmagn.datasets.data_utils import get_obj
 from shapmagn.utils.shape_visual_utils import make_ellipsoid

@@ -25,4 +25,4 @@ MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prea
 
 from shapmagn.shape.point_sampler import point_grid_sampler, point_uniform_sampler
 SHAPE_SAMPLER_POOL = {"point_grid": point_grid_sampler, "point_uniform": point_uniform_sampler}
-# INTERPOLATOR_POOL = {"point_kernel":kernel_interpolator, "point_spline": spline_intepolator}
+# INTERPOLATOR_POOL = {"point_kernel":nadwat_kernel_interpolator, "point_spline": spline_intepolator}

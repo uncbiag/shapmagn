@@ -75,7 +75,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
     """
     save_3d_shape_every_n_iter = opt[("save_3d_shape_every_n_iter", 20, "save output every n iteration")]
     save_2d_capture_every_n_iter = opt[("save_2d_capture_every_n_iter", -1, "save 2d screen capture of the plot every n iteration")]
-    capture_plotter_obj = opt[("capture_plot_obj", "", "factory object for 2d capture plot")]
+    capture_plotter_obj = opt[("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
     capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
@@ -148,7 +148,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel
     save_3d_shape_every_n_iter = opt[("save_3d_shape_every_n_iter", 1, "save output every n iteration")]
     save_2d_capture_every_n_iter = opt[
         ("save_2d_capture_every_n_iter", -1, "save 2d screen capture of the plot every n iteration")]
-    capture_plotter_obj = opt[("capture_plot_obj", "", "factory object for 2d capture plot")]
+    capture_plotter_obj = opt[("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
     capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))

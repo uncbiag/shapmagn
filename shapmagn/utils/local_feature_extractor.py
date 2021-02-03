@@ -5,6 +5,7 @@ import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.visualizer import visualize_point_fea,visualize_point_fea_with_arrow, visualize_point_overlap
 from torchvectorized.vlinalg import vSymEig
+from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator,ridge_kernel_intepolator
 # import pykeops
 # pykeops.clean_pykeops()
 
@@ -181,14 +182,14 @@ def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=
     return Gamma,principle_weight
 
 
-def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.05):
+def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1):
     """
     compute inverse covariance matrix for anisotropic kernel
     this function doesn't support auto-grad
     :param input_shape: torch.Tensor, BxNxD
     :param cov_sigma_scale: float, the sigma used for computing the local covariance matrix for eigenvalue, eigenvector extraction
     :param aniso_kernel_scale: float,  anisotropic kernel scale
-    :param principle_weight: list of size D, weight of directions in anistropic kernel, don't have to be norm to 1, will normalized later
+    :param principle_weight: list of size D, weight of directions in anistropic kernel, don't have to be norm to 1, will normalized later, if not given, use the eigenvalue instead
     :param eigenvalue_min: float, if the principal vector is not given, then the norm2 normalized eigenvalue will be used for compute the weight of each principle direction,
      this value is to control the weight of the eigenvector, to avoid extreme narraw direction (typically happens when eigenvalue close to zero)
     :return: Gamma, torch.Tensor, BxNxDxD  U{\Lambda}^{-2}U^T,  where U is the eigenvector of the local covariance matrix
@@ -210,3 +211,28 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
     Gamma, principle_weight = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
                                         eigenvector=eigenvector)
     return Gamma.view(Gamma.shape[0],Gamma.shape[1],D,D), principle_weight
+
+
+
+def nadwat_interpolator_with_aniso_kernel_extractor_embedded(interpolator_setting):
+    exp_order=interpolator_setting[("exp_order", 2,"exp order when computing distance")]
+    cov_sigma_scale = interpolator_setting[("cov_sigma_scale", 0.05,"the sigma used for computing the local covariance matrix for eigenvalue, eigenvector extraction")]
+    aniso_kernel_scale = interpolator_setting[("aniso_kernel_scale", 0.05,"anisotropic kernel size")]
+    principle_weight = interpolator_setting[("principle_weight", [2.,1.,1.],"list of size D, weight of directions in anistropic kernel, don't have to be norm to 1, will normalized later")]
+    eigenvalue_min = interpolator_setting[("eigenvalue_min", 0.1,"the min value of the eigenvalue")]
+    interp = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
+
+    def compute(points,control_points,control_value,control_weights, gamma=None):
+        Gamma_control_points = gamma
+        if Gamma_control_points is None:
+            Gamma_control_points, principle_weight_control_points = compute_anisotropic_gamma_from_points(points,
+                                                                                          cov_sigma_scale=cov_sigma_scale,
+                                                                                          aniso_kernel_scale=aniso_kernel_scale,
+                                                                                          principle_weight=principle_weight,
+                                                                                          eigenvalue_min=eigenvalue_min)
+
+        interp_value = interp(points, control_points,control_value,control_weights,Gamma_control_points)
+        return interp_value
+    return compute
+
+

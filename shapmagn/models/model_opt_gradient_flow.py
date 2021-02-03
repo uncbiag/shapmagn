@@ -67,7 +67,6 @@ class GradientFlowOPT(nn.Module):
         reg_param = shape_pair.get_control_points().clone().detach()
         reg_param.requires_grad_()
         shape_pair.set_reg_param(reg_param)
-        return shape_pair
 
     # def extract_fea(self, flowed, target):
     #     """Gradient Flow doesn't support feature extraction"""
@@ -80,7 +79,7 @@ class GradientFlowOPT(nn.Module):
         return flowed, target
 
     def extract_fea(self, flowed, target):
-        """LDDMMM support feature extraction"""
+        """todo disabled, Gradient Flow doesn't support feature extraction"""
         if not self.pair_feature_extractor:
             return self.extract_point_fea(flowed, target)
         elif self.pair_feature_extractor:

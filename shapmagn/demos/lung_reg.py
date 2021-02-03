@@ -198,6 +198,10 @@ analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 # model_opt["gradflow_guided"] ['gradflow_blur_init']= 0.05
 # model_opt["gradflow_guided"] ['update_gradflow_blur_by_raito']= 0.5
 # model_opt["gradflow_guided"] ['gradflow_blur_min']= 0.05
+# model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
+# model_opt["gradflow_guided"]["geomloss"]["attr"] = "points" #todo  the pointfea will be  more generalized choice
+# model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8,debias=False)"
+
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] =  ["l2"]
 # model_opt['sim_loss']['l2']["attr"] = "points"

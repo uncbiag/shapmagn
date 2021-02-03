@@ -21,7 +21,7 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
                      style="points", show_scalar_bar=True)
     p.show_grid()
     if show:
-        p.show()
+        p.show(auto_close=False)
     elif saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -69,7 +69,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
                      style="points", show_scalar_bar=True)
     p.show_grid()
     if show:
-        p.show()
+        p.show(auto_close=False)
     elif saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -133,7 +133,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
     p.camera_position = [(-5, 5, -5), (0, 0, 0), (0, 1, 0)]
 
     if show:
-        p.show()
+        p.show(auto_close=False)
     if saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -190,7 +190,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
                style="points", show_scalar_bar=True)
     p.show_grid()
     if show:
-        p.show()
+        p.show(auto_close=False)
     elif saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -271,7 +271,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     p.camera_position = [(5, 5, 0), (0, 0, 0), (0, 1, 0)]
 
     if show:
-        p.show()
+        p.show(auto_close=False)
     if saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -324,7 +324,7 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
     p.camera_position = [(7, 7, 0), (0, 0, 0), (0, 1, 0)]
 
     if show:
-        p.show()
+        p.show(auto_close=False)
     if saving_capture_path:
         p.show(screenshot=saving_capture_path)
 

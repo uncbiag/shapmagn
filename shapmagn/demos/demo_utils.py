@@ -23,8 +23,8 @@ def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,
     F_i, G_j  = geomloss(weight1, attr1, weight2, attr2) # todo batch sz of input and output in geomloss is not consistent
 
     N,M,D = source.points.shape[1], target.points.shape[1],  source.points.shape[2]
-    a_i, x_i = LazyTensor(source.weights.view(N,1,1)), LazyTensor(source.points.view(N, 1, D))
-    b_j, y_j = LazyTensor(target.weights.view(1, M,1)), LazyTensor(target.points.view(1, M, D))
+    a_i, x_i = LazyTensor(source.weights.view(N,1,1)), LazyTensor(attr1.view(N, 1, D))
+    b_j, y_j = LazyTensor(target.weights.view(1, M,1)), LazyTensor(attr2.view(1, M, D))
     F_i, G_j = LazyTensor(F_i.view(N, 1,1)), LazyTensor(G_j.view(1, M,1))
     C_ij = (1 / p) * ((x_i - y_j) ** p).sum(-1)  # (N,M,1) cost matrix
     eps = blur ** p  # temperature epsilon

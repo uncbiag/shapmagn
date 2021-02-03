@@ -59,11 +59,6 @@ class LDDMMOPT(nn.Module):
             reg_param = torch.zeros_like(shape_pair.get_control_points()).normal_(0, 1e-7)
             reg_param.requires_grad_()
             shape_pair.set_reg_param(reg_param)
-            return shape_pair
-
-
-
-
 
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
@@ -169,12 +164,14 @@ class LDDMMOPT(nn.Module):
         gradflow_blur_init = gradflow_guided_opt[("gradflow_blur_init",0.5,"the inital 'blur' parameter in geomloss setting")]
         update_gradflow_blur_by_raito = gradflow_guided_opt[("update_gradflow_blur_by_raito",0.5,"the raito that updates the 'blur' parameter in geomloss setting")]
         gradflow_blur_min = gradflow_guided_opt[("gradflow_blur_min",0.5,"the minium value of the 'blur' parameter in geomloss setting")]
+        gradflow_mode = gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
         if self.global_iter % self.update_gradflow_every_n_step==0 or len(self.gradflow_guided_buffer)==0:
             n_update = self.global_iter.item() / self.update_gradflow_every_n_step
             cur_blur = max(gradflow_blur_init*(update_gradflow_blur_by_raito**n_update), gradflow_blur_min)
-            geomloss_setting = deepcopy(self.opt["sim_loss"]["geomloss"])
+            geomloss_setting = deepcopy(self.opt["gradflow_guided"]["geomloss"])
             geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
-            gradflowed = gradient_flow_guide(flowed,target,geomloss_setting,self.local_iter)
+            guide_fn = gradient_flow_guide(gradflow_mode)
+            gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
             self.gradflow_guided_buffer["gradflowed"] = gradflowed
         return flowed, self.gradflow_guided_buffer["gradflowed"]
 

@@ -31,6 +31,7 @@ class PrealignOPT(nn.Module):
         reg_param.requires_grad_()
         shape_pair.set_reg_param(reg_param)
 
+
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
 

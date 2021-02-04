@@ -10,6 +10,7 @@ KNOWN_MODULES = {
     "lung_shape_pair": "shapmagn.experiments.datasets.lung.lung_shape_pair",
     "lung_feature_extractor": "shapmagn.experiments.datasets.lung.lung_feature_extractor",
     "lung_data_analysis": "shapmagn.experiments.datasets.lung.lung_data_analysis",
+    "local_feature_extractor": "shapmagn.utils.local_feature_extractor",
     "visualizer": "shapmagn.utils.visualizer",
     "probreg_module": "shapmagn.modules.probreg_module",
     "shape_pair_utils":"shapmagn.shape.shape_pair_utils",

@@ -1,6 +1,6 @@
 import torch
 from pykeops.torch import LazyTensor
-
+from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
 # def nadwat_kernel_interpolator(scale=0.1, exp_order=2):
 #     """
 #     Nadaraya-Watson kernel interpolation
@@ -188,5 +188,24 @@ def ridge_kernel_intepolator(scale=0.1, kernel="gauss"):
 
 
 
+
+
+
+
+def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=(2.,1.,1.),eigenvalue_min=0.1):
+    interp = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
+
+    def compute(points,control_points,control_value,control_weights, gamma=None):
+        Gamma_control_points = gamma
+        if Gamma_control_points is None:
+            Gamma_control_points = compute_anisotropic_gamma_from_points(points,
+                                                  cov_sigma_scale=cov_sigma_scale,
+                                                  aniso_kernel_scale=aniso_kernel_scale,
+                                                  principle_weight=principle_weight,
+                                                  eigenvalue_min=eigenvalue_min)
+
+        interp_value = interp(points, control_points,control_value,control_weights,Gamma_control_points)
+        return interp_value
+    return compute
 
 

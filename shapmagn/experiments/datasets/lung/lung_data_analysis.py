@@ -38,6 +38,7 @@ def get_half_lung(lung, normalize_weight=False):
     pos_filter = points[...,0] < 0
     points = points[pos_filter][None]
     weights = weights[pos_filter][None]
+    weights = weights
     weights = weights/weights.sum() if normalize_weight else weights
     half_lung = Shape()
     half_lung.set_data(points=points, weights=weights)
@@ -125,7 +126,7 @@ def lung_isolated_leaf_clean_up(lung, radius=0.032, principle_weight=None, norma
     visualize_point_overlap(points,points_toremove,mass,mass_toremove,title="cleaned points",point_size=(10,20),rgb_on=False,opacity=('linear',1.0))
 
 
-    Gamma, _ = compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
+    Gamma= compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
     mass, dev, cov = compute_aniso_local_moments(points, Gamma)
     eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
     filter = mass[..., 0].squeeze() > 2.5
@@ -141,7 +142,7 @@ def lung_isolated_leaf_clean_up(lung, radius=0.032, principle_weight=None, norma
     visualize_point_overlap(points,points_toremove,mass,mass_toremove,title="cleaned points",point_size=(10,20),rgb_on=False,opacity=('linear',1.0))
 
 
-    Gamma, _ = compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
+    Gamma = compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
     mass, dev, cov = compute_aniso_local_moments(points, Gamma)
     eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
     filter = mass[..., 0].squeeze() > 3
@@ -200,15 +201,15 @@ if __name__ == "__main__":
     shape_pair = create_shape_pair(source, target)
     source_half = get_half_lung(source)
     target_half = get_half_lung(target)
-    cleaned_source_half = lung_isolated_leaf_clean_up(source_half,radius=0.032, principle_weight=[2,1,1], normalize_weights=False)
-    visualize_point_pair(source_half.points, cleaned_source_half.points,
-                         source_weight_transform(source_half.weights),
-                         source_weight_transform(cleaned_source_half.weights),
-                         title1="source", title2="cleaned_source", rgb_on=False)
-
-    plot_pair_weight_distribution(source_weight_transform(source_half.weights).cpu().squeeze().numpy(),
-                                  target_weight_transform(target_half.weights).cpu().squeeze().numpy(),
-                                  use_log=True)
+    # cleaned_source_half = lung_isolated_leaf_clean_up(source_half,radius=0.032, principle_weight=[2,1,1], normalize_weights=False)
+    # visualize_point_pair(source_half.points, cleaned_source_half.points,
+    #                      source_weight_transform(source_half.weights),
+    #                      source_weight_transform(cleaned_source_half.weights),
+    #                      title1="source", title2="cleaned_source", rgb_on=False)
+    #
+    # plot_pair_weight_distribution(source_weight_transform(source_half.weights).cpu().squeeze().numpy(),
+    #                               target_weight_transform(target_half.weights).cpu().squeeze().numpy(),
+    #                               use_log=True)
 
     visualize_point_pair(source_half.points, target_half.points,
                          source_weight_transform(source_half.weights),

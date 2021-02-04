@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
-from shapmagn.utils.obj_factory import obj_factory
+from shapmagn.utils.obj_factory import obj_factory,partial_obj_factory
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.gradient_flow_module import gradient_flow_guide
 class DiscreteFlowOPT(nn.Module):
@@ -179,9 +179,10 @@ class DiscreteFlowOPT(nn.Module):
         if fix_anistropic_kernel_using_initial_shape:
             if self.local_iter == 0:
                 print("fix the anisotropic spline kernel")
-                compute_anisotropic_gamma_from_points = self.opt[("get_anistropic_gamma", "compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1)",
+                get_anistropic_gamma_obj = self.opt[("get_anistropic_gamma", "compute_anisotropic_gamma_from_points(cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1)",
                                                                       "settings for compute anisotropic gamma")]
-                self.spline_kernel_buffer["Gamma"] = compute_anisotropic_gamma_from_points(control_points)
+                get_anistropic_gamma = partial_obj_factory(get_anistropic_gamma_obj)
+                self.spline_kernel_buffer["Gamma"] = get_anistropic_gamma(control_points)
 
 
 
@@ -227,20 +228,24 @@ class DiscreteFlowOPT(nn.Module):
         wassersten gradient flow has a reasonable behavior only when set self.pair_feature_extractor = None
         """
         gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
-        gradflow_blur_init = gradflow_guided_opt[
+        gradflow_blur_init =\
+            gradflow_guided_opt[
             ("gradflow_blur_init", 0.05, "the inital 'blur' parameter in geomloss setting")]
         update_gradflow_blur_by_raito = gradflow_guided_opt[
             ("update_gradflow_blur_by_raito", 0.05, "the raito that updates the 'blur' parameter in geomloss setting")]
         gradflow_blur_min = gradflow_guided_opt[
             ("gradflow_blur_min", 0.05, "the minium value of the 'blur' parameter in geomloss setting")]
-        gradflow_mode = gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
+        gradflow_mode = "ot_mapping" if self.pair_feature_extractor else "grad_forward" #gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
         n_update = self.global_iter.item()
         cur_blur = max(gradflow_blur_init * (update_gradflow_blur_by_raito ** n_update), gradflow_blur_min)
         geomloss_setting = deepcopy(self.opt["gradflow_guided"]["geomloss"])
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
+        geomloss_setting["blur"] = cur_blur
+        geomloss_setting["mode"] = 'hard'
         guide_fn = gradient_flow_guide(gradflow_mode)
         gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
         gradflowed_disp = (gradflowed.points-flowed.points).detach()
+        #self.debug_gf(flowed, target,geomloss_setting,cur_blur)
         return gradflowed_disp
 
     def gradflow_spline_foward(self, shape_pair):
@@ -290,15 +295,33 @@ class DiscreteFlowOPT(nn.Module):
 
 
 
-    def debug(self,shape_pair):
+    # def debug(self,shape_pair):
+    #     from shapmagn.utils.visualizer import visualize_point_pair_overlap
+    #     source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
+    #     # visualize_point_pair_overlap(flowed.points, target.points,
+    #     #                          flowed.weights,target.weights,
+    #     #                          title1="flowed",title2="target", rgb_on=False)
+    #     visualize_point_pair_overlap(flowed.points, target.points,
+    #                                  source.points.squeeze(), target.points.squeeze(),
+    #                                  title1="flowed", title2="target", rgb_on=True)
+
+    def debug(self, shape_pair):
         from shapmagn.utils.visualizer import visualize_point_pair_overlap
+        from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
+            target_weight_transform
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-        # visualize_point_pair_overlap(flowed.points, target.points,
-        #                          flowed.weights,target.weights,
-        #                          title1="flowed",title2="target", rgb_on=False)
         visualize_point_pair_overlap(flowed.points, target.points,
-                                     source.points.squeeze(), target.points.squeeze(),
-                                     title1="flowed", title2="target", rgb_on=True)
+                                     flowed_weight_transform(flowed.weights, True),
+                                     target_weight_transform(target.weights, True),
+                                     title1="flowed", title2="target", rgb_on=False)
 
 
 
+    def debug_gf(self,flowed,target,geomloss_setting,cur_blur):
+        from shapmagn.utils.visualizer import visualize_multi_point
+        from shapmagn.demos.demo_utils import get_omt_mapping
+        mapped_fea = get_omt_mapping(geomloss_setting,flowed, target,
+                                     flowed.points[0], blur=cur_blur, p=2, mode="hard", confid=0.1)
+        visualize_multi_point([flowed.points, target.points],
+                                     [flowed.points,mapped_fea],
+                                     ["flowed","target"], rgb_on=True)

@@ -5,7 +5,6 @@ import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.visualizer import visualize_point_fea,visualize_point_fea_with_arrow, visualize_point_overlap
 from torchvectorized.vlinalg import vSymEig
-from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator,ridge_kernel_intepolator
 # import pykeops
 # pykeops.clean_pykeops()
 
@@ -107,13 +106,15 @@ def compute_local_fea_from_moments(fea_type, mass,dev,cov):
     return fea
 
 
+def extract_point_fea(flowed, target):
+    flowed.pointfea = flowed.points
+    target.pointfea = target.points
+    return flowed, target
 
-
-def feature_extractor(fea_type_list, weight_list=None, radius=1.,std_normalize=True, include_pos=False):
-    def _compute_fea(points, return_stats=False, mean=None, std=None):
+def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=False):
+    def _compute_fea(points, weight_list=None,return_stats=False, mean=None, std=None):
         if isinstance(points, np.ndarray):
             points =torch.from_numpy(points)
-        nonlocal weight_list
         if weight_list is None:
             weight_list = [1.]* len(fea_type_list)
         mass, dev, cov = compute_local_moments(points, radius=radius)  # (N,), (N, D), (N, D, D)
@@ -148,10 +149,10 @@ def feature_extractor(fea_type_list, weight_list=None, radius=1.,std_normalize=T
 
 
 def pair_feature_extractor(fea_type_list,weight_list=None, radius=0.01, std_normalize=True, include_pos=False):
-    fea_extractor = feature_extractor(fea_type_list,weight_list, radius, std_normalize, include_pos)
+    fea_extractor = feature_extractor(fea_type_list, radius, std_normalize, include_pos)
     def extract(flowed, target):
-        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points, return_stats=True)
-        target.pointfea, _ = fea_extractor(target.points, mean=mean, std=std)
+        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points,weight_list=weight_list, return_stats=True)
+        target.pointfea, _ = fea_extractor(target.points,weight_list=weight_list, mean=mean, std=std)
         return flowed, target
     return extract
 
@@ -210,29 +211,5 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
         eigenvalue = None
     Gamma, principle_weight = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
                                         eigenvector=eigenvector)
-    return Gamma.view(Gamma.shape[0],Gamma.shape[1],D,D), principle_weight
-
-
-
-def nadwat_interpolator_with_aniso_kernel_extractor_embedded(interpolator_setting):
-    exp_order=interpolator_setting[("exp_order", 2,"exp order when computing distance")]
-    cov_sigma_scale = interpolator_setting[("cov_sigma_scale", 0.05,"the sigma used for computing the local covariance matrix for eigenvalue, eigenvector extraction")]
-    aniso_kernel_scale = interpolator_setting[("aniso_kernel_scale", 0.05,"anisotropic kernel size")]
-    principle_weight = interpolator_setting[("principle_weight", [2.,1.,1.],"list of size D, weight of directions in anistropic kernel, don't have to be norm to 1, will normalized later")]
-    eigenvalue_min = interpolator_setting[("eigenvalue_min", 0.1,"the min value of the eigenvalue")]
-    interp = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
-
-    def compute(points,control_points,control_value,control_weights, gamma=None):
-        Gamma_control_points = gamma
-        if Gamma_control_points is None:
-            Gamma_control_points, principle_weight_control_points = compute_anisotropic_gamma_from_points(points,
-                                                                                          cov_sigma_scale=cov_sigma_scale,
-                                                                                          aniso_kernel_scale=aniso_kernel_scale,
-                                                                                          principle_weight=principle_weight,
-                                                                                          eigenvalue_min=eigenvalue_min)
-
-        interp_value = interp(points, control_points,control_value,control_weights,Gamma_control_points)
-        return interp_value
-    return compute
-
+    return Gamma.view(Gamma.shape[0],Gamma.shape[1],D,D)  #, principle_weight
 

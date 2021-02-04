@@ -206,21 +206,22 @@ class LDDMMOPT(nn.Module):
         if self.local_iter%2==0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(),sim_factor, reg_factor))
-            #self.debug(flowed, shape_pair.target)
+            self.debug(shape_pair)
         loss = sim_loss + reg_loss
         self.local_iter +=1
         self.global_iter +=1
         return loss
 
 
-    def debug(self,flowed, target):
+    def debug(self,shape_pair):
         from shapmagn.utils.visualizer import visualize_point_pair_overlap
-        from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform,target_weight_transform
+        source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
+        # visualize_point_pair_overlap(flowed.points, target.points,
+        #                          flowed.weights,target.weights,
+        #                          title1="flowed",title2="target", rgb_on=False)
         visualize_point_pair_overlap(flowed.points, target.points,
-                                 flowed_weight_transform(flowed.weights,True),
-                                 target_weight_transform(target.weights,True),
-                                 title1="flowed",title2="target", rgb_on=False)
-
+                                     source.points.squeeze(), target.points.squeeze(),
+                                     title1="flowed", title2="target", rgb_on=True)
 
 
 

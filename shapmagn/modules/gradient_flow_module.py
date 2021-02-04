@@ -1,9 +1,13 @@
+from copy import deepcopy
+import torch
 from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.metrics.losses import GeomDistance
 from torch.autograd import grad
 def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter):
     # todo check if the feature extractor.e.g. affine like transform, should be disabled
+    geomloss_setting = deepcopy(geomloss_setting)
+    geomloss_setting['attr'] = "points"
     geomloss = GeomDistance(geomloss_setting)
     cur_source_points_clone = cur_source.points.detach().clone()
     cur_source_points_clone.requires_grad_()
@@ -36,8 +40,8 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=No
     confid = gemloss_setting[("confid", 0.1,"cost order")]
     geomloss = obj_factory(geom_obj)
     attr = gemloss_setting['attr']
-    attr1 = getattr(cur_source, attr)
-    attr2 = getattr(target, attr)
+    attr1 = getattr(cur_source, attr).detach()
+    attr2 = getattr(target, attr).detach()
     points1 = cur_source.points
     points2 = target.points
     weight1 = cur_source.weights[:, :, 0]  # remove the last dim
@@ -45,25 +49,28 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=No
     F_i, G_j = geomloss(weight1, attr1, weight2,
                         attr2)  # todo batch sz of input and output in geomloss is not consistent
 
-    B, N, M, D = cur_source.shape[0], cur_source.points.shape[1], target.points.shape[1], cur_source.points.shape[2]
-    a_i, x_i = LazyTensor(cur_source.weights.view(B,N, 1, 1)), LazyTensor(attr1.view(B,N, 1, D))
-    b_j, y_j = LazyTensor(target.weights.view(B,1, M, 1)), LazyTensor(attr2.view(B,1, M, D))
+    B, N, M, D = points1.shape[0], points1.shape[1], points2.shape[1], points2.shape[2]
+    a_i, x_i = LazyTensor(cur_source.weights.view(B,N, 1, 1)), LazyTensor(attr1.view(B,N, 1, -1))
+    b_j, y_j = LazyTensor(target.weights.view(B,1, M, 1)), LazyTensor(attr2.view(B,1, M, -1))
     F_i, G_j = LazyTensor(F_i.view(B,N, 1, 1)), LazyTensor(G_j.view(B,1, M, 1))
     C_ij = (1 / p) * ((x_i - y_j) ** p).sum(-1)  # (B,N,M,1) cost matrix
     eps = blur ** p  # temperature epsilon
     P_i = ((F_i + G_j - C_ij) / eps).exp() * (b_j)  # (B, N,M,1) transport plan
     if mode=="soft":
         position_to_map = LazyTensor(points1.view(B,N, 1, -1))  # B,Nx1xD
-        mapped_position = (P_i*position_to_map).sum_reduction(1) #(B,N,M,D)-> (B,N,D)
+        mapped_position = (P_i*position_to_map).sum_reduction(2) #(B,N,M,D)-> (B,N,D)
     elif mode == "hard":
-        P_i_max, P_i_index = P_i.max_argmax(1) #  over M,  return (B,N)
-        mapped_position = points2[P_i_index][:, 0]
-        below_thre_index = (P_i_max < confid)[:, 0]
-        mapped_position[below_thre_index] = 0
+        P_i_max, P_i_index = P_i.max_argmax(2) #  over M,  return (B,N)
+        pos_batch_list = []
+        for b in range(B):
+            pos_batch_list.append(points2[b,P_i_index[b,:,0]])
+        mapped_position = torch.stack(pos_batch_list,0)
     else:
         raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
     print("OT based forward mapping complete")
-    return mapped_position
+    mapped_shape = Shape()
+    mapped_shape.set_data_with_refer_to(mapped_position,cur_source)
+    return mapped_shape
 
 
 def gradient_flow_guide(mode="grad_forward"):

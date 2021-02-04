@@ -10,12 +10,13 @@ def detect_folding(warped_grid_points, grid_size,spacing, saving_path=None,file_
 
 
 def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,mode="hard", confid=0.1):
+    """"""
     # here we assume batch_sz = 1
     from shapmagn.metrics.losses import GeomDistance
     from pykeops.torch import LazyTensor
     geom_obj = gemloss_setting["geom_obj"].replace(")",",potentials=True)")
     geomloss = obj_factory(geom_obj)
-    attr = gemloss_setting['attr']
+    attr = gemloss_setting[('attr',"points","attribute used to compute the loss")]
     attr1 = getattr(source, attr)
     attr2 = getattr(target, attr)
     weight1 = source.weights[:, :, 0]  # remove the last dim
@@ -23,8 +24,8 @@ def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,
     F_i, G_j  = geomloss(weight1, attr1, weight2, attr2) # todo batch sz of input and output in geomloss is not consistent
 
     N,M,D = source.points.shape[1], target.points.shape[1],  source.points.shape[2]
-    a_i, x_i = LazyTensor(source.weights.view(N,1,1)), LazyTensor(attr1.view(N, 1, D))
-    b_j, y_j = LazyTensor(target.weights.view(1, M,1)), LazyTensor(attr2.view(1, M, D))
+    a_i, x_i = LazyTensor(source.weights.view(N,1,1)), LazyTensor(attr1.view(N, 1, -1))
+    b_j, y_j = LazyTensor(target.weights.view(1, M,1)), LazyTensor(attr2.view(1, M, -1))
     F_i, G_j = LazyTensor(F_i.view(N, 1,1)), LazyTensor(G_j.view(1, M,1))
     C_ij = (1 / p) * ((x_i - y_j) ** p).sum(-1)  # (N,M,1) cost matrix
     eps = blur ** p  # temperature epsilon
@@ -37,10 +38,10 @@ def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,
         mapped_fea = fea_to_map[P_j_index][:,0]
         below_thre_index = (P_j_max<confid)[:,0]
         mapped_fea[below_thre_index] = 0
-    elif mode == "confid":
+    elif mode == "prob":
         # P_j_max, P_j_index = P_j.max_argmax(0)
         # mapped_fea = P_j_max
         mapped_fea = P_j.sum_reduction(0)
     else:
-        raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
+        raise ValueError("mode {} not defined, support: soft/ hard/ prob".format(mode))
     return mapped_fea

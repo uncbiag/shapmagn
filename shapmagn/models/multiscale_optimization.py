@@ -131,7 +131,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
     return solve
 
 
-def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1, rel_ftol=1e-4, patient=2):
+def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr=1e-4, rel_ftol=1e-4, patient=2):
     """
     the optimizer and scheduler are not defined
     the model take responsibility to solve the optimal solution

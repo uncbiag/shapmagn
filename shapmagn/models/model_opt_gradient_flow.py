@@ -23,10 +23,6 @@ class GradientFlowOPT(nn.Module):
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
 
-        # the feature extractor needs to be disabled in future release, since it doesn't make sense to use feature other than points position
-        pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
-        self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
-
 
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
@@ -68,9 +64,6 @@ class GradientFlowOPT(nn.Module):
         reg_param.requires_grad_()
         shape_pair.set_reg_param(reg_param)
 
-    # def extract_fea(self, flowed, target):
-    #     """Gradient Flow doesn't support feature extraction"""
-    #     return flowed, target
 
 
     def extract_point_fea(self, flowed, target):
@@ -80,10 +73,8 @@ class GradientFlowOPT(nn.Module):
 
     def extract_fea(self, flowed, target):
         """todo disabled, Gradient Flow doesn't support feature extraction"""
-        if not self.pair_feature_extractor:
-            return self.extract_point_fea(flowed, target)
-        elif self.pair_feature_extractor:
-            return self.pair_feature_extractor(flowed, target)
+        return self.extract_point_fea(flowed, target)
+
 
     def forward(self, shape_pair):
         """

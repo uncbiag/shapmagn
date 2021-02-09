@@ -100,5 +100,5 @@ def analysis(source,flowed, target, fea_to_map, mapped_fea, compute_on_half_lung
 
 # color maps from the source to the target, here we use position vector as rbg value
 fea_to_map = source.points[0]
-mapped_fea = get_omt_mapping(geomloss_setting, source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
+mapped_fea = get_omt_mapping(geomloss_setting, source, target,fea_to_map,p=2,mode="hard",confid=0.0)
 analysis(source, flowed, target, fea_to_map, mapped_fea, compute_on_half_lung=True)

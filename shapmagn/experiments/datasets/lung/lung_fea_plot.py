@@ -20,9 +20,9 @@ get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device=torch.dev
 source_obj, source_interval = get_obj_func(path_1)
 target_obj, target_interval = get_obj_func(path_2)
 
-points_1 = source_obj['points'][:,:5000]
-points_2 = target_obj['points'][:,:5000]
-# fea_type_list = ["mass","dev","eigenvalue_cat","eigenvalue_prod","eigenvector_main","eigenvector"]
+points_1 = source_obj['points'][:,:10000]
+points_2 = target_obj['points'][:,:10000]
+# fea_type_list = ["mass","dev","eigenvalue","eigenvalue_prod","eigenvector_main","eigenvector"]
 
 
 fea_type_list = ["mass"]
@@ -31,7 +31,7 @@ _, mass1= fea_extractor(points_1)
 
 filter1 = mass1[..., 0] > 2.5
 points_1 = points_1[filter1][None]
-fea_type_list = ["eigenvalue_cat","eigenvector"]
+fea_type_list = ["eigenvalue","eigenvector"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.025,std_normalize=False, include_pos=False)
 combined_fea1, mass1 = fea_extractor(points_1)
 eigenvalue, eigenvector = combined_fea1[:,:,:3], combined_fea1[:,:,3:]
@@ -50,8 +50,8 @@ device = points.device
 sigma_scale = 0.02
 principle_weight = [3,1,1]
 eigenvalue[eigenvalue<0.3] = 0.3
-#Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=principle_weight,eigenvalue=None,eigenvector=eigenvector)
-Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=None,eigenvalue=eigenvalue,eigenvector=eigenvector)
+Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=principle_weight,eigenvalue=None,eigenvector=eigenvector)
+#Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=None,eigenvalue=eigenvalue,eigenvector=eigenvector)
 principle_weight_np = principle_weight.squeeze().numpy()
 mass,_,_ = compute_aniso_local_moments(points, Gamma)
 nsample = 200

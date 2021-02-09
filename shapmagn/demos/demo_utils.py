@@ -9,12 +9,14 @@ def detect_folding(warped_grid_points, grid_size,spacing, saving_path=None,file_
     compute_jacobi_map(warped_grid[None],spacing,saving_path,[file_name])
 
 
-def get_omt_mapping(gemloss_setting, source, target, fea_to_map, blur=0.01, p=2,mode="hard", confid=0.1):
+def get_omt_mapping(gemloss_setting, source, target, fea_to_map, p=2,mode="hard", confid=0.1):
     """"""
     # here we assume batch_sz = 1
     from shapmagn.metrics.losses import GeomDistance
     from pykeops.torch import LazyTensor
     geom_obj = gemloss_setting["geom_obj"].replace(")",",potentials=True)")
+    blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
+    blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
     geomloss = obj_factory(geom_obj)
     attr = gemloss_setting[('attr',"points","attribute used to compute the loss")]
     attr1 = getattr(source, attr)

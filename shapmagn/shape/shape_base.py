@@ -73,6 +73,7 @@ class ShapeBase(object):
         self.scale = scale
         self.update_info()
         self.points_mode_on = False
+        return self
 
 
     def set_weights(self, weights):

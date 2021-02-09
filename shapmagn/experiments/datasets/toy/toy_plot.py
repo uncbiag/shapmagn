@@ -127,7 +127,7 @@ points = points.astype(np.float32)
 npoints = points.shape[0]
 points = torch.tensor(points)[None]
 eigenvalue_min = 0.05
-fea_type_list = ["eigenvalue_cat","eigenvector"]
+fea_type_list = ["eigenvalue","eigenvector"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.1,std_normalize=False, include_pos=False)
 combined_fea1, mass1 = fea_extractor(points)
 eigenvalue, eigenvector = combined_fea1[:,:,:3], combined_fea1[:,:,3:]

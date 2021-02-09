@@ -161,12 +161,13 @@ class ProbReg(object):
         bcpd_sovler = partial_obj_factory(bcpd_obj)
         return bcpd_sovler
 
-    def __call__(self,source_batch, target_batch):
+    def __call__(self,source, target):
         """
-           :param source_batch: BxNxD
-           :param target_batch: BxNxD
-           :return: BxDx(D+1) transform matrix
+           :param source: Shape with points BxNxD
+           :param target_batch: Shape with points BxMxD
+           :return: Bx(D+1)xD transform matrix
            """
+        source_batch, target_batch = source.points, target.points
         device = source_batch.device
         source_list, target_list = self._get_input(source_batch, target_batch)
         solution_list = []

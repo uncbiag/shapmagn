@@ -192,7 +192,7 @@ def ridge_kernel_intepolator(scale=0.1, kernel="gauss"):
 
 
 
-def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=(2.,1.,1.),eigenvalue_min=0.1):
+def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=(2.,1.,1.),eigenvalue_min=0.1,iter_twice=False):
     interp = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
 
     def compute(points,control_points,control_value,control_weights, gamma=None):
@@ -202,7 +202,8 @@ def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sig
                                                   cov_sigma_scale=cov_sigma_scale,
                                                   aniso_kernel_scale=aniso_kernel_scale,
                                                   principle_weight=principle_weight,
-                                                  eigenvalue_min=eigenvalue_min)
+                                                  eigenvalue_min=eigenvalue_min,
+                                                    iter_twice=iter_twice)
 
         interp_value = interp(points, control_points,control_value,control_weights,Gamma_control_points)
         return interp_value

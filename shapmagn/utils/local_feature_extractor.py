@@ -25,7 +25,7 @@ def compute_local_moments(points, radius=1.):
     x_j = LazyTensor(x[...,None,:,:])  # (B, 1, N, D+1)
 
     D_ij = ((x_i - x_j) ** 2).sum(-1)  # (B, N, N), squared distances
-    K_ij = (- D_ij).exp()  # (B, N, N), Gaussian kernel
+    K_ij = (- D_ij/2).exp()  # (B, N, N), Gaussian kernel
 
     C_ij = (K_ij * x_j).tensorprod(x_j)  # (B, N, N, (D+1)*(D+1))
     C_i  = C_ij.sum(dim = len(shape_head)).view(shape_head + (D+1, D+1))  # (B, N, D+1, D+1) : descriptors of order 0, 1 and 2
@@ -93,7 +93,7 @@ def compute_local_fea_from_moments(fea_type, mass,dev,cov):
                 fea = mass*vals[..., 1:2]
             elif D==3:
                 fea =  mass*vals[..., 1:2]* vals[..., 2:3]
-        elif fea_type == "eigenvalue_cat":
+        elif fea_type == "eigenvalue":
             fea = vals
         elif fea_type=="eigenvector_main":
             vectors = vectors.view(B, N, D, D)
@@ -112,12 +112,15 @@ def extract_point_fea(flowed, target):
     return flowed, target
 
 def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=False):
-    def _compute_fea(points, weight_list=None,return_stats=False, mean=None, std=None):
+    def _compute_fea(points, weight_list=None,gamma=None,  return_stats=False, mean=None, std=None):
         if isinstance(points, np.ndarray):
             points =torch.from_numpy(points)
         if weight_list is None:
             weight_list = [1.]* len(fea_type_list)
-        mass, dev, cov = compute_local_moments(points, radius=radius)  # (N,), (N, D), (N, D, D)
+        if gamma is None:
+            mass, dev, cov = compute_local_moments(points, radius=radius)  # (N,), (N, D), (N, D, D)
+        else:
+            mass, dev, cov = compute_aniso_local_moments(points,gamma=gamma)  # (N,), (N, D), (N, D, D)
         fea_list = [compute_local_fea_from_moments(fea_type, mass, dev, cov) for fea_type in fea_type_list]
         fea_dim_list = [fea.shape[-1] for fea in fea_list]
         weights = []
@@ -150,9 +153,10 @@ def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=F
 
 def pair_feature_extractor(fea_type_list,weight_list=None, radius=0.01, std_normalize=True, include_pos=False):
     fea_extractor = feature_extractor(fea_type_list, radius, std_normalize, include_pos)
-    def extract(flowed, target):
-        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points,weight_list=weight_list, return_stats=True)
-        target.pointfea, _ = fea_extractor(target.points,weight_list=weight_list, mean=mean, std=std)
+    def extract(flowed, target,iter=None,flowed_gamma=None, target_gamma=None):
+        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points, weight_list=weight_list,gamma=flowed_gamma,
+                                                      return_stats=True)
+        target.pointfea, _ = fea_extractor(target.points, weight_list=weight_list,gamma=target_gamma, mean=mean, std=std)
         return flowed, target
     return extract
 
@@ -183,7 +187,7 @@ def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=
     return Gamma,principle_weight
 
 
-def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1):
+def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False):
     """
     compute inverse covariance matrix for anisotropic kernel
     this function doesn't support auto-grad
@@ -197,7 +201,7 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
     """
     aniso_kernel_scale = aniso_kernel_scale if aniso_kernel_scale is not None else cov_sigma_scale
     B, D = points.shape[0], points.shape[-1]
-    fea_type_list = ["eigenvalue_cat", "eigenvector"]
+    fea_type_list = ["eigenvalue", "eigenvector"]
     fea_extractor = feature_extractor(fea_type_list, radius=cov_sigma_scale, std_normalize=False, include_pos=False)
     combined_fea, mass = fea_extractor(points)
     eigenvalue, eigenvector = combined_fea[:, :, :D], combined_fea[:, :, D:]
@@ -209,7 +213,21 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
         eigenvalue[eigenvalue < eigenvalue_min] = eigenvalue_min
     else:
         eigenvalue = None
-    Gamma, principle_weight = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
+    Gamma, _ = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
                                         eigenvector=eigenvector)
+    if iter_twice:
+        mass, dev, cov = compute_aniso_local_moments(points, Gamma)
+        eigenvector = compute_local_fea_from_moments("eigenvector", mass, dev, cov)
+        eigenvalue = compute_local_fea_from_moments("eigenvalue", mass, dev, cov)
+        eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], D, D)
+        if principle_weight is None:
+            eigenvalue[eigenvalue <= 0.] = 1e-7
+            eigenvalue = eigenvalue / torch.norm(eigenvalue, p=2, dim=2, keepdim=True)
+            eigenvalue[eigenvalue < eigenvalue_min] = eigenvalue_min
+        else:
+            eigenvalue = None
+        Gamma, principle_weight = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight,
+                                            eigenvalue=eigenvalue,
+                                            eigenvector=eigenvector)
     return Gamma.view(Gamma.shape[0],Gamma.shape[1],D,D)  #, principle_weight
 

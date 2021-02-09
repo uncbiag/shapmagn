@@ -70,7 +70,7 @@ class L2Distance(object):
 class GeomDistance(object):
     def __init__(self, opt):
         self.attr = opt[('attr','points',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
-        geom_obj = opt[('geom_obj',"geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8, debias=False)","blur argument in ot")]
+        geom_obj = opt[('geom_obj',"geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, scaling=0.8, debias=False)","blur argument in ot")]
 
         self.gemoloss = obj_factory(geom_obj)
 

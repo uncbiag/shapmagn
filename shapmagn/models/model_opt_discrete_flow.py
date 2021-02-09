@@ -42,6 +42,7 @@ class DiscreteFlowOPT(nn.Module):
         self.interp_kernel= obj_factory(interp_kernel_obj)
         pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
         self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
+        self.use_aniso_kernel = self.opt[("use_aniso_kernel",False,"use anisotropic kernel")]
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.regularization
@@ -49,12 +50,15 @@ class DiscreteFlowOPT(nn.Module):
         self.register_buffer("local_iter", torch.Tensor([0]))
         self.register_buffer("global_iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
-        self.spline_kernel_buffer = {"Gamma":None}
+        self.spline_kernel_buffer = {"Gamma_moving_control":None,"Gamma_moving":None,"Gamma_target":None}
         """kernel buffer records the anisotropic gamma that predefined, """
         """set to None if non predefined gamma is used. the buffer is design to allow a prior knowledge for anistropic kernel"""
         self.drift_buffer = {}
+        if self.use_aniso_kernel:
+            self.initialize_aniso_kernel()
         if self.gradient_flow_mode:
             print("in gradient flow mode, points drift every iteration")
+            self.drift_every_n_iter =1
             assert "nadwat" in spline_kernel_obj, "in gradient flow mode, spline_kernel should be defined as Nadaraya-Watson"
 
 
@@ -78,6 +82,7 @@ class DiscreteFlowOPT(nn.Module):
         :param shape_pair:
         :return:
         """
+
         toflow_points = shape_pair.toflow.points
         control_points = shape_pair.control_points
         control_weights = shape_pair.control_weights
@@ -86,7 +91,7 @@ class DiscreteFlowOPT(nn.Module):
         interped_control_points_high = self.interp_kernel(toflow_points, control_points,
                                                           moving_control_points, control_weights)
         interped_control_points_disp = self.spline_kernel(toflow_points, control_points,
-                                                               shape_pair.reg_param, control_weights, self.spline_kernel_buffer["Gamma"])
+                                                               shape_pair.reg_param, control_weights, self.spline_kernel_buffer["Gamma_moving_control"])
         flowed_points = interped_control_points_high + interped_control_points_disp
         flowed = Shape()
         flowed.set_data_with_refer_to(flowed_points,shape_pair.source)
@@ -125,7 +130,7 @@ class DiscreteFlowOPT(nn.Module):
         interped_control_points_high = self.interp_kernel(control_points_high, control_points_low,
                                                      moving_control_points_low, control_weights_low)
         interped_control_points_disp_high = self.spline_kernel(control_points_high,control_points_low,
-                                                               shape_pair_low.reg_param,control_weights_low, self.spline_kernel_buffer["Gamma"])
+                                                               shape_pair_low.reg_param,control_weights_low, self.spline_kernel_buffer["Gamma_moving_control"])
         flowed_control_points_high = interped_control_points_high+interped_control_points_disp_high
         shape_pair_high.set_control_points(control_points_high)
         self.init_reg_param(shape_pair_high)
@@ -138,7 +143,8 @@ class DiscreteFlowOPT(nn.Module):
         Under drift strategy, the source updates during the optimization,  we introduce a "moving" to record the #current# source
         """
         flowed = shape_pair.flowed if self.local_iter>0 else shape_pair.source
-        flowed_control_points = self.drift_buffer["moving_control_points"] if self.drift_buffer else  shape_pair.control_points
+        # for multi scale solver, we need to load the moving_control_points from the last scale
+        flowed_control_points = self.drift_buffer["moving_control_points"] if self.drift_buffer else shape_pair.control_points
         flowed_control_points = shape_pair.flowed_control_points if self.local_iter>0 else flowed_control_points
         if self.local_iter % self.drift_every_n_iter==0:
             print("drift at the {} th step, the moving (current source) is updated".format(self.local_iter.item()))
@@ -161,7 +167,7 @@ class DiscreteFlowOPT(nn.Module):
         shape_pair.reg_param.data[:] = torch.zeros_like(shape_pair.reg_param).normal_(0, 1e-7)
 
 
-    def extract_point_fea(self, flowed, target):
+    def extract_point_fea(self, flowed, target, iter=-1):
         flowed.pointfea = flowed.points
         target.pointfea = target.points
         return flowed, target
@@ -169,20 +175,29 @@ class DiscreteFlowOPT(nn.Module):
     def extract_fea(self, flowed, target):
         """DiscreteFlowOPT supports feature extraction"""
         if not self.pair_feature_extractor:
-            return self.extract_point_fea(flowed, target)
+            return self.extract_point_fea(flowed, target,self.global_iter)
         else:
-            return self.pair_feature_extractor(flowed,target)
+            return self.pair_feature_extractor(flowed,target,self.global_iter, self.spline_kernel_buffer["Gamma_moving"],self.spline_kernel_buffer["Gamma_target"])
 
 
-    def update_spline_kernel_buffer(self, control_points):
-        fix_anistropic_kernel_using_initial_shape = self.opt[("fix_anistropic_kernel_using_initial_shape",False, "settings for anisotropic kernel, if true, the kernel is determined only by the original source shape")]
-        if fix_anistropic_kernel_using_initial_shape:
-            if self.local_iter == 0:
-                print("fix the anisotropic spline kernel")
-                get_anistropic_gamma_obj = self.opt[("get_anistropic_gamma", "compute_anisotropic_gamma_from_points(cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1)",
-                                                                      "settings for compute anisotropic gamma")]
-                get_anistropic_gamma = partial_obj_factory(get_anistropic_gamma_obj)
-                self.spline_kernel_buffer["Gamma"] = get_anistropic_gamma(control_points)
+    def initialize_aniso_kernel(self):
+
+        self.fix_anistropic_kernel_using_initial_shape = self.opt[("fix_anistropic_kernel_using_initial_shape", False,
+                                                              "settings for anisotropic kernel, if true, the kernel is determined only by the original source shape")]
+        get_anistropic_gamma_obj = self.opt[("get_anistropic_gamma",
+                                             "local_feature_extractor.compute_anisotropic_gamma_from_points(cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1)",
+                                             "settings for compute anisotropic gamma")]
+        self.get_anistropic_gamma = partial_obj_factory(get_anistropic_gamma_obj)
+
+
+    def update_spline_kernel_buffer(self, moving_control_points, moving_points, target_points, dense_mode=True):
+        if self.use_aniso_kernel:
+            if self.fix_anistropic_kernel_using_initial_shape and self.local_iter>0:
+                return
+            else:
+                self.spline_kernel_buffer["Gamma_moving_control"] = self.get_anistropic_gamma(moving_control_points)
+                self.spline_kernel_buffer["Gamma_moving"] = self.get_anistropic_gamma(moving_points) if not dense_mode else self.spline_kernel_buffer["Gamma_moving_control"]
+                self.spline_kernel_buffer["Gamma_target"] = self.get_anistropic_gamma(target_points)
 
 
 
@@ -195,13 +210,14 @@ class DiscreteFlowOPT(nn.Module):
         """
         if self.drift_every_n_iter == -1:
             control_points = shape_pair.get_control_points()
+            moving = shape_pair.source
         else:
             self.drift(shape_pair)
-            control_points= self.drift_buffer["moving_control_points"]
-        self.update_spline_kernel_buffer(control_points)
+            control_points, moving= self.drift_buffer["moving_control_points"], self.drift_buffer["moving"]
+        self.update_spline_kernel_buffer(control_points,moving.points, shape_pair.target.points,shape_pair.dense_mode)
         # todo check the behavior of spline kernel with shape_pair.control points as input
         smoothed_reg_param = self.spline_kernel(control_points,control_points,shape_pair.reg_param,
-                                                shape_pair.control_weights, self.spline_kernel_buffer["Gamma"])
+                                                shape_pair.control_weights, self.spline_kernel_buffer["Gamma_moving_control"])
         flowed_control_points = control_points + smoothed_reg_param
         shape_pair.set_flowed_control_points(flowed_control_points)
         flowed_has_inferred = shape_pair.infer_flowed()
@@ -235,18 +251,17 @@ class DiscreteFlowOPT(nn.Module):
             ("update_gradflow_blur_by_raito", 0.05, "the raito that updates the 'blur' parameter in geomloss setting")]
         gradflow_blur_min = gradflow_guided_opt[
             ("gradflow_blur_min", 0.05, "the minium value of the 'blur' parameter in geomloss setting")]
-        gradflow_mode = "ot_mapping" if self.pair_feature_extractor else "grad_forward" #gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
+        gradflow_mode = "ot_mapping" #if self.pair_feature_extractor else "grad_forward" #gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
         n_update = self.global_iter.item()
         cur_blur = max(gradflow_blur_init * (update_gradflow_blur_by_raito ** n_update), gradflow_blur_min)
         geomloss_setting = deepcopy(self.opt["gradflow_guided"]["geomloss"])
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
-        geomloss_setting["blur"] = cur_blur
         geomloss_setting["mode"] = 'hard'
         guide_fn = gradient_flow_guide(gradflow_mode)
         gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
         gradflowed_disp = (gradflowed.points-flowed.points).detach()
-        #self.debug_gf(flowed, target,geomloss_setting,cur_blur)
-        return gradflowed_disp
+        #self.debug_gf(flowed,gradflowed_disp, target,geomloss_setting,cur_blur)
+        return gradflowed, gradflowed_disp
 
     def gradflow_spline_foward(self, shape_pair):
         """
@@ -257,13 +272,15 @@ class DiscreteFlowOPT(nn.Module):
        :return:
            """
         self.drift(shape_pair)
-        moving, control_points = self.drift_buffer["moving"],self.drift_buffer["moving_control_points"]
+        moving, control_points = self.drift_buffer["moving"], self.drift_buffer["moving_control_points"]
+        self.update_spline_kernel_buffer(control_points, moving.points, shape_pair.target.points,shape_pair.dense_mode)
         moving, shape_pair.target = self.extract_fea(moving, shape_pair.target)
-        gradflowed_disp = self.wasserstein_gradient_flow_guidence(moving, shape_pair.target)
-        self.update_spline_kernel_buffer(control_points)
+        _, gradflowed_disp = self.wasserstein_gradient_flow_guidence(moving, shape_pair.target)
+        gradflowed_disp = gradflowed_disp/2
         # todo check the behavior of spline kernel with shape_pair.control points as input
-        smoothed_reg_param = self.spline_kernel(control_points, control_points,
-                                                 gradflowed_disp, shape_pair.control_weights, self.spline_kernel_buffer["Gamma"])
+        smoothed_reg_param = self.spline_kernel(control_points, moving.points,
+                                                gradflowed_disp, moving.weights,
+                                                self.spline_kernel_buffer["Gamma_moving"])
         flowed_control_points = control_points + smoothed_reg_param
         shape_pair.set_flowed_control_points(flowed_control_points)
         flowed_has_inferred = shape_pair.infer_flowed()
@@ -314,14 +331,25 @@ class DiscreteFlowOPT(nn.Module):
                                      flowed_weight_transform(flowed.weights, True),
                                      target_weight_transform(target.weights, True),
                                      title1="flowed", title2="target", rgb_on=False)
+        # visualize_point_pair_overlap(flowed.points, target.points,
+        #                              flowed.weights,
+        #                              target.weights,
+        #                              title1="flowed", title2="target", rgb_on=False)
 
 
 
-    def debug_gf(self,flowed,target,geomloss_setting,cur_blur):
+    def debug_gf(self,flowed,gradflowed_disp,target,geomloss_setting,cur_blur):
         from shapmagn.utils.visualizer import visualize_multi_point
         from shapmagn.demos.demo_utils import get_omt_mapping
         mapped_fea = get_omt_mapping(geomloss_setting,flowed, target,
-                                     flowed.points[0], blur=cur_blur, p=2, mode="hard", confid=0.1)
-        visualize_multi_point([flowed.points, target.points],
-                                     [flowed.points,mapped_fea],
-                                     ["flowed","target"], rgb_on=True)
+                                     flowed.points[0], p=2, mode="hard", confid=0.1)
+
+        # visualize_multi_point(points_list=[flowed.points, flowed.points+gradflowed_disp, target.points],
+        #                       feas_list=[flowed.points, flowed.points, mapped_fea],
+        #                       titles_list=["cur_flow", "flowed", "target"],
+        #                       rgb_on=[True, True, True])
+
+        visualize_multi_point(points_list=[flowed.points, flowed.points + gradflowed_disp, target.points],
+                              feas_list=[flowed.weights, flowed.weights, target.weights],
+                              titles_list=["cur_flow", "flowed", "target"],
+                              rgb_on=[False, False, False])

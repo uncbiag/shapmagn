@@ -34,6 +34,7 @@ class PointCloud(ShapeBase):
         self.seg = pointcloud.seg
         self.scale = pointcloud.scale
         self.update_info()
+        return self
 
     def get_centers(self):
         """

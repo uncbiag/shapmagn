@@ -176,8 +176,7 @@ class LDDMMOPT(nn.Module):
         return flowed, self.gradflow_guided_buffer["gradflowed"]
 
 
-
-    def extract_point_fea(self, flowed, target):
+    def extract_point_fea(self, flowed, target, iter=-1):
         flowed.pointfea = flowed.points
         target.pointfea = target.points
         return flowed, target
@@ -185,9 +184,9 @@ class LDDMMOPT(nn.Module):
     def extract_fea(self, flowed, target):
         """LDDMMM support feature extraction"""
         if not self.pair_feature_extractor:
-            return self.extract_point_fea(flowed, target)
-        elif self.pair_feature_extractor:
-            return self.pair_feature_extractor(flowed, target)
+            return self.extract_point_fea(flowed, target, self.global_iter)
+        else:
+            return self.pair_feature_extractor(flowed, target, self.global_iter)
 
 
 

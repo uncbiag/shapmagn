@@ -18,14 +18,14 @@ from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 # pykeops.clean_pykeops()
 
 
-def analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True, saving_path=None):
+def analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True, method_name="flowed",saving_path=None):
     source = shape_pair.source
     target = shape_pair.target
     flowed = shape_pair.flowed
 
     visualize_multi_point(points_list=[source.points,flowed.points,target.points],
                          feas_list=[fea_to_map,fea_to_map, mapped_fea],
-                         titles_list=["source", "gradient_flow","target"],
+                         titles_list=["source", method_name,"target"],
                          rgb_on=[True, True, True],
                          saving_gif_path=None if not saving_path else os.path.join(saving_path,"s_f_t_full.gif"),
                           saving_capture_path=None if not saving_path else os.path.join(saving_path,"s_f_t_full.png"))
@@ -39,7 +39,7 @@ def analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True, savi
                           feas_list=[source_weight_transform(source_half.weights, compute_on_half_lung),
                                      flowed_weight_transform(flowed_half.weights, compute_on_half_lung),
                                      target_weight_transform(target_half.weights, compute_on_half_lung)],
-                          titles_list=["source", "gradient_flow", "target"],
+                          titles_list=["source", method_name, "target"],
                           rgb_on=[False, False, False],
                           saving_gif_path=None if not saving_path else os.path.join(saving_path, "s_f_t_main.gif"),
                           saving_capture_path=None if not saving_path else os.path.join(saving_path, "s_f_t_main.png"))
@@ -65,7 +65,7 @@ def analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True, savi
 assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 server_path = "./" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path =  server_path+"data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+source_path =  server_path+"data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"  #10031R 10005Q
 target_path = server_path + "data/lung_vessel_demo_data/10031R_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
 compute_on_half_lung = True
 
@@ -91,38 +91,38 @@ shape_pair = create_shape_pair(source, target)
 
 
 
-################  do registration ###########################s############
-
-""" Experiment 1:  gradient flow """
-task_name = "gradient_flow"
-solver_opt = ParameterDict()
-record_path = server_path+"output/lung_demo/{}".format(task_name)
-os.makedirs(record_path,exist_ok=True)
-solver_opt["record_path"] = record_path
-solver_opt["save_2d_capture_every_n_iter"] = 1
-solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
-model_name = "gradient_flow_opt"
-model_opt =ParameterDict()
-model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
-model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-model_opt['sim_loss']['loss_list'] =  ["geomloss"]
-model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
-
-blur = 0.05
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False)".format(blur)
-model = MODEL_POOL[model_name](model_opt)
-solver = build_single_scale_model_embedded_solver(solver_opt,model)
-model.init_reg_param(shape_pair)
-shape_pair=solver(shape_pair)
-print("the registration complete")
-gif_folder = os.path.join(record_path,"gif")
-os.makedirs(gif_folder,exist_ok=True)
-saving_gif_path = os.path.join(gif_folder,task_name+".gif")
-fea_to_map =  shape_pair.source.points[0]
-shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
-mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
-analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
+# ################  do registration ###########################s############
+#
+# """ Experiment 1:  gradient flow """
+# task_name = "gradient_flow"
+# solver_opt = ParameterDict()
+# record_path = server_path+"output/lung_demo/{}".format(task_name)
+# os.makedirs(record_path,exist_ok=True)
+# solver_opt["record_path"] = record_path
+# solver_opt["save_2d_capture_every_n_iter"] = 1
+# solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
+# model_name = "gradient_flow_opt"
+# model_opt =ParameterDict()
+# model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
+# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+# model_opt['sim_loss']['loss_list'] =  ["geomloss"]
+# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+# model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
+#
+# blur = 0.05
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=1,debias=False)".format(blur)
+# model = MODEL_POOL[model_name](model_opt)
+# solver = build_single_scale_model_embedded_solver(solver_opt,model)
+# model.init_reg_param(shape_pair)
+# shape_pair=solver(shape_pair)
+# print("the registration complete")
+# gif_folder = os.path.join(record_path,"gif")
+# os.makedirs(gif_folder,exist_ok=True)
+# saving_gif_path = os.path.join(gif_folder,task_name+".gif")
+# fea_to_map =  shape_pair.source.points[0]
+# shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
+# mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
+# analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 
 
 # """ Experiment 2: lddmm flow  too slow !!!, and likely to experience numerical underflow, see expri 3 for a workaround"""
@@ -223,66 +223,120 @@ analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 #                      [fea_to_map,fea_to_map, mapped_fea],
 #                      ["source", "gradient_flow","target"],
 #                         [True, True, True],
-#                       saving_path=None)
+#                       saving_gif_path=None)
 #
 # #
 #
+#
+#experiment 4: discrete flow
 
-# experiment 4: discrete flow
-# task_name = "discrete_flow"
-# gradient_flow_mode = True
-# use_aniso_kernel = True
-# solver_opt = ParameterDict()
-# record_path = server_path+"output/lung_demo/{}".format(task_name)
-# solver_opt["record_path"] = record_path
-# solver_opt["save_2d_capture_every_n_iter"] = -1
-# solver_opt["point_grid_scales"] =  [-1]
-# solver_opt["iter_per_scale"] = [50] if not gradient_flow_mode else [10]
-# solver_opt["rel_ftol_per_scale"] = [ 1e-9, 1e-9, 1e-9]
-# solver_opt["init_lr_per_scale"] = [5e-1,1e-1,1e-1]
-# solver_opt["save_3d_shape_every_n_iter"] = 10
-# solver_opt["shape_sampler_type"] = "point_grid"
-# solver_opt["stragtegy"] = "use_optimizer_defined_here" if not gradient_flow_mode else "use_optimizer_defined_from_model"
-# solver_opt[("optim", {}, "setting for the optimizer")]
-# solver_opt[("scheduler", {}, "setting for the scheduler")]
-# solver_opt["optim"]["type"] = "sgd" #lbgfs
-# solver_opt["scheduler"]["type"] = "step_lr"
-# solver_opt["scheduler"][("step_lr",{},"settings for step_lr")]
-# solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
-# solver_opt["scheduler"]["step_lr"]["step_size"] = 30
-# model_name = "discrete_flow_opt"
-# model_opt =ParameterDict()
-# model_opt["drift_every_n_iter"] = 10
-# model_opt["fix_anistropic_kernel_using_initial_shape"] = False and not use_aniso_kernel
-# spline_param="cov_sigma_scale=0.02,aniso_kernel_scale=0.06,principle_weight=(3.,1.,1.),eigenvalue_min=0.1"
-# if not use_aniso_kernel:
-#     model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.03, exp_order=2)"
-# else:
-#     model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,{})".format(spline_param)
-#     model_opt["get_anistropic_gamma"] ="local_feature_extractor.compute_anisotropic_gamma_from_points({})".format(spline_param)
-# model_opt["interp_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"  # only used for multi-scale registration
-# #model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.lung_pair_feature_extractor(fea_type_list=['eigenvector_main'],weight_list=[0.1], radius=0.03,include_pos=True)"
-# model_opt["gradient_flow_mode"] = gradient_flow_mode
-# model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
-# model_opt["gradflow_guided"] ['gradflow_blur_init']= 0.005
-# model_opt["gradflow_guided"] ['update_gradflow_blur_by_raito']= 0.5
-# model_opt["gradflow_guided"] ['gradflow_blur_min']= 0.001
-# model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
-# model_opt["gradflow_guided"]["geomloss"]["attr"] = "pointfea" #todo  the pointfea will be  more generalized choice
-# model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8,debias=False)"
-#
-# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-# model_opt['sim_loss']['loss_list'] = ["geomloss"]
-# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-# model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
-# blur = 0.001
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.8, debias=False)".format(blur)
-#
-# model = MODEL_POOL[model_name](model_opt)
-# solver = build_multi_scale_solver(solver_opt,model)
-# model.init_reg_param(shape_pair)
-# shape_pair = solver(shape_pair)
-# print("the registration complete")
+
+
+task_name = "prealign_opt"
+solver_opt = ParameterDict()
+record_path = "./output/lung_demo/{}".format(task_name)
+os.makedirs(record_path,exist_ok=True)
+solver_opt = ParameterDict()
+record_path = "./output/lung_demo/{}".format(task_name)
+os.makedirs(record_path,exist_ok=True)
+solver_opt["record_path"] = record_path
+solver_opt["save_2d_capture_every_n_iter"] = 1
+solver_opt["capture_plot_obj"] = "visualizer.capture_plotter()"
+model_name = "prealign_opt"
+model_opt =ParameterDict()
+model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+model_opt["module_type"] = "gradflow_prealign"
+model_opt[("gradflow_prealign", {}, "settings for gradflow_prealign")]
+blur = 0.001
+model_opt["gradflow_prealign"]["method_name"]="affine"
+model_opt["gradflow_prealign"]["gradflow_mode"]="grad_forward"
+model_opt["gradflow_prealign"]["niter"] = 10
+model_opt["gradflow_prealign"]["search_init_transform"]=False
+model_opt["gradflow_prealign"][("geomloss", {}, "settings for geomloss")]
+model_opt["gradflow_prealign"]['geomloss']["mode"] = "hard"
+model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.5,debias=False)".format(blur)
+#model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue'],weight_list=[1.0], radius=0.08,include_pos=True)"
+
+model_opt['sim_loss']['loss_list'] =  ["geomloss"]
+model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.5,debias=False)".format(blur)
+model = MODEL_POOL[model_name](model_opt)
+solver = build_single_scale_model_embedded_solver(solver_opt,model)
+model.init_reg_param(shape_pair)
+shape_pair = solver(shape_pair)
+print("the registration complete")
+gif_folder = os.path.join(record_path,"gif")
+os.makedirs(gif_folder,exist_ok=True)
+saving_gif_path = os.path.join(gif_folder,task_name+".gif")
+fea_to_map =  shape_pair.source.points[0]
+shape_pair.source.pointfea, shape_pair.target.pointfea = shape_pair.source.points, shape_pair.target.points
+mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
+#analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True,method_name="prealigned")
+shape_pair.source = shape_pair.flowed
+shape_pair.flowed = None
+
+
+
+task_name = "discrete_flow"
+gradient_flow_mode = True
+use_aniso_kernel = False
+solver_opt = ParameterDict()
+record_path = server_path+"output/lung_demo/{}".format(task_name)
+solver_opt["record_path"] = record_path
+solver_opt["save_2d_capture_every_n_iter"] = 1
+solver_opt["point_grid_scales"] =  [-1]
+solver_opt["iter_per_scale"] = [50] if not gradient_flow_mode else [10]
+solver_opt["rel_ftol_per_scale"] = [ 1e-9, 1e-9, 1e-9]
+solver_opt["init_lr_per_scale"] = [5e-1,1e-1,1e-1]
+solver_opt["save_3d_shape_every_n_iter"] = 10
+solver_opt["shape_sampler_type"] = "point_grid"
+solver_opt["stragtegy"] = "use_optimizer_defined_here" if not gradient_flow_mode else "use_optimizer_defined_from_model"
+solver_opt[("optim", {}, "setting for the optimizer")]
+solver_opt[("scheduler", {}, "setting for the scheduler")]
+solver_opt["optim"]["type"] = "sgd" #lbgfs
+solver_opt["scheduler"]["type"] = "step_lr"
+solver_opt["scheduler"][("step_lr",{},"settings for step_lr")]
+solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
+solver_opt["scheduler"]["step_lr"]["step_size"] = 30
+model_name = "discrete_flow_opt"
+model_opt =ParameterDict()
+model_opt["drift_every_n_iter"] = 10
+model_opt["use_aniso_kernel"] = use_aniso_kernel
+model_opt["fix_anistropic_kernel_using_initial_shape"] = True and use_aniso_kernel
+spline_param="cov_sigma_scale=0.02,aniso_kernel_scale=0.1,principle_weight=(2.,1.,1.),eigenvalue_min=0.1,iter_twice=True"
+if not use_aniso_kernel:
+    model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)"
+else:
+    model_opt["spline_kernel_obj"] ="point_interpolator.nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,{})".format(spline_param)
+    model_opt["get_anistropic_gamma"] ="local_feature_extractor.compute_anisotropic_gamma_from_points({})".format(spline_param)
+model_opt["interp_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"  # only used for multi-scale registration
+model_opt["pair_feature_extractor_obj"] ="lung_feature_extractor.lung_pair_feature_extractor(fea_type_list=['eigenvector_main'],weight_list=[0.2], radius=0.03,include_pos=True)"
+model_opt["gradient_flow_mode"] = gradient_flow_mode
+model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
+model_opt["gradflow_guided"] ['gradflow_blur_init']= 0.005
+model_opt["gradflow_guided"] ['update_gradflow_blur_by_raito']= 0.5
+model_opt["gradflow_guided"] ['gradflow_blur_min']= 0.001
+model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
+model_opt["gradflow_guided"]["geomloss"]["attr"] = "pointfea" #todo  the pointfea will be  more generalized choice
+model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8,debias=False)"
+
+model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+model_opt['sim_loss']['loss_list'] = ["geomloss"]
+model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
+blur = 0.001
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.8, debias=False)".format(blur)
+
+model = MODEL_POOL[model_name](model_opt)
+solver = build_multi_scale_solver(solver_opt,model)
+model.init_reg_param(shape_pair)
+shape_pair = solver(shape_pair)
+print("the registration complete")
+
+
+
+
 
 
 

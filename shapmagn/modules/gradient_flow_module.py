@@ -4,8 +4,8 @@ from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.metrics.losses import GeomDistance
 from torch.autograd import grad
+
 def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter):
-    # todo check if the feature extractor.e.g. affine like transform, should be disabled
     geomloss_setting = deepcopy(geomloss_setting)
     geomloss_setting['attr'] = "points"
     geomloss = GeomDistance(geomloss_setting)
@@ -34,12 +34,13 @@ def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, loc
 def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=None):
     from pykeops.torch import LazyTensor
     geom_obj = gemloss_setting["geom_obj"].replace(")", ",potentials=True)")
-    blur = gemloss_setting[("blur", 0.01,"blur scale")]
+    blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
+    blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
     p = gemloss_setting[("p", 2,"cost order")]
     mode = gemloss_setting[("mode", 'hard',"soft, hard")]
     confid = gemloss_setting[("confid", 0.1,"cost order")]
     geomloss = obj_factory(geom_obj)
-    attr = gemloss_setting['attr']
+    attr = "pointfea"
     attr1 = getattr(cur_source, attr).detach()
     attr2 = getattr(target, attr).detach()
     points1 = cur_source.points
@@ -57,7 +58,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=No
     eps = blur ** p  # temperature epsilon
     P_i = ((F_i + G_j - C_ij) / eps).exp() * (b_j)  # (B, N,M,1) transport plan
     if mode=="soft":
-        position_to_map = LazyTensor(points1.view(B,N, 1, -1))  # B,Nx1xD
+        position_to_map = LazyTensor(points2.view(B,1, M, -1))  # B,1xMxD
         mapped_position = (P_i*position_to_map).sum_reduction(2) #(B,N,M,D)-> (B,N,D)
     elif mode == "hard":
         P_i_max, P_i_index = P_i.max_argmax(2) #  over M,  return (B,N)
@@ -75,11 +76,15 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=No
 
 def gradient_flow_guide(mode="grad_forward"):
     postion_based = mode =="grad_forward"
-    def guide(cur_source,target,geomloss_setting, local_iter):
+    def guide(cur_source,target,geomloss_setting, local_iter=None):
         if postion_based:
             return positional_based_gradient_flow_guide(cur_source, target, geomloss_setting, local_iter)
         else:
             return wasserstein_forward_mapping(cur_source, target, geomloss_setting, local_iter)
     return guide
+
+
+
+
 
 

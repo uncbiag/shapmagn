@@ -15,14 +15,14 @@ def build_multi_scale_solver(opt, model):
     :param optimizer:
     :return:
     """
-    sampler_scale_list = opt[("point_grid_scales", [0.1, -1], "a list of scales that parameterizes the voxel-grid sampling,"
+    sampler_scale_list = opt[("point_grid_scales", [ -1], "a list of scales that parameterizes the voxel-grid sampling,"
                                              " the scale is from rough to fine resolution, -1 refers to the original resolution")]
-    sampler_npoints_list = opt[("point_uniform_npoints", [1000, -1], "a list of scales that parameterizes the uniform sampling,"
+    sampler_npoints_list = opt[("point_uniform_npoints", [ -1], "a list of scales that parameterizes the uniform sampling,"
                                              " the scale is from rough to fine resolution, -1 refers to the original resolution")]
-    scale_iter_list = opt[("iter_per_scale", [100, 100], "number of iterations per scale")]
+    scale_iter_list = opt[("iter_per_scale", [1], "number of iterations per scale")]
     scale_iter_list = scale_iter_list if not model.call_thirdparty_package else [1 for _ in scale_iter_list]
-    scale_rel_ftol_list = opt[("rel_ftol_per_scale", [1e-4, 1e-4], "rel_ftol threshold for each scale")]
-    init_lr_list =  opt[("init_lr_per_scale", [1e-3, 1e-4], "inital learning rate for each scale")]
+    scale_rel_ftol_list = opt[("rel_ftol_per_scale", [1e-4], "rel_ftol threshold for each scale")]
+    init_lr_list =  opt[("init_lr_per_scale", [1e-4], "inital learning rate for each scale")]
     shape_sampler_type = opt[("shape_sampler_type", "point_grid", "shape sampler type: 'point_grid' or 'uniform'")]
     assert shape_sampler_type in ["point_grid","point_uniform"], "currently only point sampling {} is supported".format(["point_grid","point_uniform"])
     scale_args_list = sampler_scale_list if shape_sampler_type=='point_grid' else sampler_npoints_list

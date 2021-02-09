@@ -201,7 +201,7 @@ if __name__ == "__main__":
     shape_pair = create_shape_pair(source, target)
     source_half = get_half_lung(source)
     target_half = get_half_lung(target)
-    # cleaned_source_half = lung_isolated_leaf_clean_up(source_half,radius=0.032, principle_weight=[2,1,1], normalize_weights=False)
+    cleaned_source_half = lung_isolated_leaf_clean_up(source_half,radius=0.02, principle_weight=[2,1,1], normalize_weights=False)
     # visualize_point_pair(source_half.points, cleaned_source_half.points,
     #                      source_weight_transform(source_half.weights),
     #                      source_weight_transform(cleaned_source_half.weights),

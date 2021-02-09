@@ -30,6 +30,7 @@ class Teaser(object):
     def __init__(self, opt):
         super(Teaser,self).__init__()
         self.opt = opt
+        self.get_correspondence_shape = self.solve_correspondence_via_gradflow()
         cbar2 = opt[("cbar2", 1,"teaser params")]
         noise_bound = opt[("noise_bound", 0.01,"teaser params")]
         estimate_scaling = opt[("estimate_scaling", True,"teaser params")]
@@ -50,6 +51,14 @@ class Teaser(object):
         self.solver = teaserpp_python.RobustRegistrationSolver(solver_params)
         self.prealign=True
 
+    def solve_correspondence_via_gradflow(self):
+        from functools import partial
+        from shapmagn.modules.gradient_flow_module import gradient_flow_guide
+        gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
+        self.gradflow_mode = gradflow_guided_opt[
+            ("gradflow_mode", "grad_forward", " 'grad_forward' if only use position info otherwise 'ot_mapping'")]
+        self.geomloss_setting = gradflow_guided_opt[("geomloss", {}, "settings for geomloss")]
+        return partial(gradient_flow_guide(self.gradflow_mode), geomloss_setting=self.geomloss_setting)
 
 
     def set_mode(self, mode=None):
@@ -70,13 +79,15 @@ class Teaser(object):
         return return_param.to(device)
 
 
-    def __call__(self,source_batch, target_batch):
+    def __call__(self,source, target):
         """
 
-        :param source_batch: BxNxD
-        :param target_batch: BxNxD
+        :param source: Shape with points BxNxD
+        :param target_batch: Shape with points BxMxD
         :return: Bx(D+1)xD transform matrix
         """
+        source, target = self.get_correspondence_shape(source, target)
+        source_batch, target_batch = source.points, target.points
         device = source_batch.device
         source_list, target_list = self._get_input(source_batch, target_batch)
         solution_list = []

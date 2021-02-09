@@ -68,6 +68,7 @@ class PolyLine(ShapeBase):
         self.scale = polyline.scale
         self.points_mode_on = self.scale != -1
         self.update_info()
+        return self
 
 
 

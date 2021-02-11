@@ -147,14 +147,14 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # model_opt["gradflow_guided"] ['gradflow_blur_min']= 0.0005
 # model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
 # model_opt["gradflow_guided"]["geomloss"]["attr"] = "points" #todo  the pointfea will be  more generalized choice
-# model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8,debias=False)"
+# model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,debias=False)"
 #
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 # model_opt['sim_loss']['loss_list'] =  ["l2"]
 # model_opt['sim_loss']['l2']["attr"] = "points"
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 # model_opt['sim_loss']['geomloss']["attr"] = "points"
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8, debias=False)"
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8, debias=False)"
 #
 #
 # model = MODEL_POOL[model_name](model_opt)
@@ -167,7 +167,7 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 # saving_gif_path = os.path.join(gif_folder,task_name+".gif")
 # fea_to_map =  shape_pair.source.points[0]
 # blur = 0.0005
-# model_opt['sim_loss']['geomloss']["geom_obj"] = model_opt['sim_loss']['geomloss']["geom_obj"].replace("placeholder",str(blur))
+# model_opt['sim_loss']['geomloss']["geom_obj"] = model_opt['sim_loss']['geomloss']["geom_obj"].replace("blurplaceholder",str(blur))
 # mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
 # visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
 #                      [fea_to_map,fea_to_map, mapped_fea],
@@ -218,7 +218,7 @@ model_opt["gradflow_guided"] ['update_gradflow_blur_by_raito']= 0.5
 model_opt["gradflow_guided"] ['gradflow_blur_min']= 0.001
 model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
 model_opt["gradflow_guided"]["geomloss"]["attr"] = "points" #todo  the pointfea will be  more generalized choice
-model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=placeholder, scaling=0.8,debias=False)"
+model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,debias=False)"
 
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt['sim_loss']['loss_list'] = ["geomloss"]
@@ -237,7 +237,7 @@ os.makedirs(gif_folder,exist_ok=True)
 saving_gif_path = os.path.join(gif_folder,task_name+".gif")
 fea_to_map =  shape_pair.source.points[0]
 blur = 0.0005
-model_opt['sim_loss']['geomloss']["geom_obj"] = model_opt['sim_loss']['geomloss']["geom_obj"].replace("placeholder",str(blur))
+model_opt['sim_loss']['geomloss']["geom_obj"] = model_opt['sim_loss']['geomloss']["geom_obj"].replace("blurplaceholder",str(blur))
 shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
 mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'],shape_pair.source, shape_pair.target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
 visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],

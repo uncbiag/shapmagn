@@ -251,13 +251,29 @@ class DiscreteFlowOPT(nn.Module):
             ("update_gradflow_blur_by_raito", 0.05, "the raito that updates the 'blur' parameter in geomloss setting")]
         gradflow_blur_min = gradflow_guided_opt[
             ("gradflow_blur_min", 0.05, "the minium value of the 'blur' parameter in geomloss setting")]
+        gradflow_reach_init = \
+            gradflow_guided_opt[
+                ("gradflow_reach_init",1.0, "the inital 'reach' parameter in geomloss setting")]
+        update_gradflow_reach_by_raito = gradflow_guided_opt[
+            ("update_gradflow_reach_by_raito",0.8, "the raito that updates the 'reach' parameter in geomloss setting")]
+        gradflow_reach_min = gradflow_guided_opt[
+            ("gradflow_reach_min", 0.3, "the minium value of the 'reach' parameter in geomloss setting")]
+
+        pair_shape_transformer_obj = gradflow_guided_opt[
+            ("pair_shape_transformer_obj", "", "shape pair transformer before put into gradient guidance")]
         gradflow_mode = "ot_mapping" #if self.pair_feature_extractor else "grad_forward" #gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
         n_update = self.global_iter.item()
         cur_blur = max(gradflow_blur_init * (update_gradflow_blur_by_raito ** n_update), gradflow_blur_min)
+        cur_reach = max(gradflow_reach_init * (update_gradflow_reach_by_raito ** n_update), gradflow_reach_min)
         geomloss_setting = deepcopy(self.opt["gradflow_guided"]["geomloss"])
-        geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
+        geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("blurplaceholder", str(cur_blur))
+        geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("reachplaceholder", str(cur_reach))
+        print(geomloss_setting)
         geomloss_setting["mode"] = 'hard'
         guide_fn = gradient_flow_guide(gradflow_mode)
+        if pair_shape_transformer_obj:
+            pair_shape_transformer = obj_factory(pair_shape_transformer_obj)
+            flowed, target = pair_shape_transformer(flowed, target, self.local_iter)
         gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
         gradflowed_disp = (gradflowed.points-flowed.points).detach()
         #self.debug_gf(flowed,gradflowed_disp, target,geomloss_setting,cur_blur)
@@ -276,8 +292,7 @@ class DiscreteFlowOPT(nn.Module):
         self.update_spline_kernel_buffer(control_points, moving.points, shape_pair.target.points,shape_pair.dense_mode)
         moving, shape_pair.target = self.extract_fea(moving, shape_pair.target)
         _, gradflowed_disp = self.wasserstein_gradient_flow_guidence(moving, shape_pair.target)
-        gradflowed_disp = gradflowed_disp/2
-        # todo check the behavior of spline kernel with shape_pair.control points as input
+        gradflowed_disp = gradflowed_disp # if self.local_iter<3 else gradflowed_disp/(self.local_iter.item())# todo control the step size, should be set as a controlable parameter
         smoothed_reg_param = self.spline_kernel(control_points, moving.points,
                                                 gradflowed_disp, moving.weights,
                                                 self.spline_kernel_buffer["Gamma_moving"])
@@ -295,7 +310,7 @@ class DiscreteFlowOPT(nn.Module):
         if self.local_iter % 1 == 0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(), sim_factor, reg_factor))
-            self.debug(shape_pair)
+            #self.debug(shape_pair)
         loss = sim_loss + reg_loss
         self.local_iter += 1
         self.global_iter += 1
@@ -327,14 +342,14 @@ class DiscreteFlowOPT(nn.Module):
         from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
             target_weight_transform
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-        visualize_point_pair_overlap(flowed.points, target.points,
-                                     flowed_weight_transform(flowed.weights, True),
-                                     target_weight_transform(target.weights, True),
-                                     title1="flowed", title2="target", rgb_on=False)
         # visualize_point_pair_overlap(flowed.points, target.points,
-        #                              flowed.weights,
-        #                              target.weights,
+        #                              flowed_weight_transform(flowed.weights, True),
+        #                              target_weight_transform(target.weights, True),
         #                              title1="flowed", title2="target", rgb_on=False)
+        visualize_point_pair_overlap(flowed.points, target.points,
+                                     flowed.weights,
+                                     target.weights,
+                                     title1="flowed", title2="target", rgb_on=False)
 
 
 
@@ -351,5 +366,5 @@ class DiscreteFlowOPT(nn.Module):
 
         visualize_multi_point(points_list=[flowed.points, flowed.points + gradflowed_disp, target.points],
                               feas_list=[flowed.weights, flowed.weights, target.weights],
-                              titles_list=["cur_flow", "flowed", "target"],
+                              titles_list=["cur_source", "flowed", "target"],
                               rgb_on=[False, False, False])

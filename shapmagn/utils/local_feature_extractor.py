@@ -161,6 +161,46 @@ def pair_feature_extractor(fea_type_list,weight_list=None, radius=0.01, std_norm
     return extract
 
 
+
+def pair_feature_preextracted_extractor():
+    def extract(flowed, target):
+        return flowed, target
+    return extract
+
+
+
+def FPFH_extractor(radius_normal,radius_feature):
+    """ call the FPFH extractor of open3d"""
+    from probreg import features
+    fn =features.FPFH(radius_normal,radius_feature)
+    def extract(input):
+        points = input.points
+        device = points.device
+        B = points.shape[0]
+        points = points.detach().cpu().numpy()
+        fea_list = []
+        for b in range(B):
+            fea_list.append(fn(points[b]).astype(np.float32))
+        input_fea = torch.tensor(np.stack(fea_list)).to(device)
+        input.pointfea = input_fea
+        return input
+    return extract
+
+def pair_feature_FPFH_extractor(radius_normal=0.1, radius_feature=0.5):
+    fn = FPFH_extractor(radius_normal,radius_feature)
+    def extract(flowed, target, iter=None,flowed_gamma=None, target_gamma=None):
+        flowed = fn(flowed)
+        target = fn(target)
+        return flowed, target
+    return extract
+
+
+
+
+
+
+
+
 def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=None,):
     """
 

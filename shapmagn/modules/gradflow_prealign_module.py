@@ -11,6 +11,7 @@ class GradFlowPreAlign(nn.Module):
         self.opt = opt
         self.niter = opt[("niter", 10, "self iteration")]
         self.rel_ftol = opt[("rel_ftol", 1e-2, "relative tolerance")]
+        self.plot = opt[("plot", False, "plot the shape")]
         self.method_name = opt[("method_name","affine","affine or rigid")]
         pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
         self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
@@ -165,12 +166,13 @@ class GradFlowPreAlign(nn.Module):
                 print("reach relative tolerance {}".format(torch.norm(A-A_prev).item()))
                 break
             A_prev = A
-            #self.debug_gf(source, toflow, target, self.geomloss_setting, 0.05)
+            if self.plot:
+                self.visualize(source, toflow, target, self.geomloss_setting, i)
         return A
 
 
 
-    def debug_gf(self,source,transformed,target,geomloss_setting,cur_blur):
+    def visualize(self,source,transformed,target,geomloss_setting, iter):
         from shapmagn.utils.visualizer import visualize_multi_point
         from shapmagn.demos.demo_utils import get_omt_mapping
         mapped_fea = get_omt_mapping(geomloss_setting,source, target,
@@ -178,5 +180,5 @@ class GradFlowPreAlign(nn.Module):
 
         visualize_multi_point(points_list=[source.points, transformed.points, target.points],
                               feas_list=[source.points, source.points, mapped_fea],
-                              titles_list=["source", "prealiged", "target"],
+                              titles_list=["source", "prealiged_iter{}".format(iter), "target"],
                               rgb_on=[True, True, True])

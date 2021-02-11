@@ -154,6 +154,7 @@ class LDDMMOPT(nn.Module):
         return shape_pair_high
 
 
+
     def wasserstein_gradient_flow_guidence(self, flowed, target):
         """
         wassersten gradient flow has a reasonable behavior only when set self.pair_feature_extractor = None
@@ -161,15 +162,36 @@ class LDDMMOPT(nn.Module):
         gradflow_guided_opt = self.opt[("gradflow_guided", {}, "settings for gradflow guidance")]
         self.update_gradflow_every_n_step = gradflow_guided_opt[
             ("update_gradflow_every_n_step", 10, "update the gradflow every # step")]
-        gradflow_blur_init = gradflow_guided_opt[("gradflow_blur_init",0.5,"the inital 'blur' parameter in geomloss setting")]
-        update_gradflow_blur_by_raito = gradflow_guided_opt[("update_gradflow_blur_by_raito",0.5,"the raito that updates the 'blur' parameter in geomloss setting")]
-        gradflow_blur_min = gradflow_guided_opt[("gradflow_blur_min",0.5,"the minium value of the 'blur' parameter in geomloss setting")]
+        gradflow_blur_init = \
+            gradflow_guided_opt[
+                ("gradflow_blur_init", 0.05, "the inital 'blur' parameter in geomloss setting")]
+        update_gradflow_blur_by_raito = gradflow_guided_opt[
+            ("update_gradflow_blur_by_raito", 0.05, "the raito that updates the 'blur' parameter in geomloss setting")]
+        gradflow_blur_min = gradflow_guided_opt[
+            ("gradflow_blur_min", 0.05, "the minium value of the 'blur' parameter in geomloss setting")]
+        gradflow_reach_init = \
+            gradflow_guided_opt[
+                ("gradflow_reach_init", 1.0, "the inital 'reach' parameter in geomloss setting")]
+        update_gradflow_reach_by_raito = gradflow_guided_opt[
+            ("update_gradflow_reach_by_raito", 0.8, "the raito that updates the 'reach' parameter in geomloss setting")]
+        gradflow_reach_min = gradflow_guided_opt[
+            ("gradflow_reach_min", 1.0, "the minium value of the 'reach' parameter in geomloss setting")]
+
+        pair_shape_transformer_obj = gradflow_guided_opt[
+            ("pair_shape_transformer_obj", "", "shape pair transformer before put into gradient guidance")]
         gradflow_mode = gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
+
         if self.global_iter % self.update_gradflow_every_n_step==0 or len(self.gradflow_guided_buffer)==0:
+            if pair_shape_transformer_obj:
+                pair_shape_transformer = obj_factory(pair_shape_transformer_obj)
+                flowed, target = pair_shape_transformer(flowed, target, self.local_iter)
             n_update = self.global_iter.item() / self.update_gradflow_every_n_step
             cur_blur = max(gradflow_blur_init*(update_gradflow_blur_by_raito**n_update), gradflow_blur_min)
+            cur_reach = max(gradflow_reach_init * (update_gradflow_reach_by_raito ** n_update), gradflow_reach_min)
             geomloss_setting = deepcopy(self.opt["gradflow_guided"]["geomloss"])
-            geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("placeholder", str(cur_blur))
+            geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("blurplaceholder", str(cur_blur))
+            geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("reachplaceholder", str(cur_reach))
+            geomloss_setting["mode"] = 'hard'
             guide_fn = gradient_flow_guide(gradflow_mode)
             gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
             self.gradflow_guided_buffer["gradflowed"] = gradflowed

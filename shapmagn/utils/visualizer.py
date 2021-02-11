@@ -8,7 +8,7 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
         points = points.squeeze().detach().cpu().numpy()
     if isinstance(fea, torch.Tensor):
         fea = fea.squeeze().detach().cpu().numpy()
-    p = pv.Plotter(off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
     # install pyvistaqt for background plotting that plots without pause the program
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     p.add_mesh(pv.PolyData(points),
@@ -32,7 +32,7 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
         nframe = 360
         for i in range(nframe):
             p.camera_position = [
-                (5 * np.cos(i * np.pi / 180.0), 5 * np.cos(i * np.pi / 180.0), 5 * np.sin(i * np.pi / 180.0)),
+                (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
                 (0, 0, 0),
                 (0, 1, 0),
             ]
@@ -53,7 +53,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
         fea = fea.squeeze().detach().cpu().numpy()
     if isinstance(vectors,torch.Tensor):
         vectors = vectors.squeeze().detach().cpu().numpy()
-    p = pv.Plotter(off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
     # install pyvistaqt for background plotting that plots without pause the program
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     point_obj = pv.PolyData(points)
@@ -80,7 +80,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
         nframe = 360
         for i in range(nframe):
             p.camera_position = [
-                (5 * np.cos(i * np.pi / 180.0), 5 * np.cos(i * np.pi / 180.0), 5 * np.sin(i * np.pi / 180.0)),
+                (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
                 (0, 0, 0),
                 (0, 1, 0),
             ]
@@ -106,7 +106,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 2
 
-    p = pv.Plotter(notebook=0, shape=(1, 2), border=False,off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280],notebook=0, shape=(1, 2), border=False,off_screen= not show)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
@@ -130,7 +130,9 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
 
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(-5, 5, -5), (0, 0, 0), (0, 1, 0)]
+    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
+ (0.0, 0.0, 0.0),
+ (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
 
     if show:
         p.show(auto_close=False)
@@ -144,7 +146,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
         nframe = 360
         for i in range(nframe):
             p.camera_position = [
-                (5 * np.cos(i * np.pi / 180.0), 5 * np.cos(i * np.pi / 180.0), 5 * np.sin(i * np.pi / 180.0)),
+                (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
                 (0, 0, 0),
                 (0, 1, 0),
             ]
@@ -168,7 +170,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
 
     if isinstance(rgb_on, bool):
         rgb_on = [rgb_on] * 2
-    p = pv.Plotter(off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
     # install pyvistaqt for background plotting that plots without pause the program
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     p.add_text(title, font_size=18)
@@ -201,7 +203,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
         nframe = 360
         for i in range(nframe):
             p.camera_position = [
-                (5 * np.cos(i * np.pi / 180.0), 5 * np.cos(i * np.pi / 180.0), 5 * np.sin(i * np.pi / 180.0)),
+                (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
                 (0, 0, 0),
                 (0, 1, 0),
             ]
@@ -226,7 +228,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 2
 
-    p = pv.Plotter(notebook=0, shape=(1, 3), border=False, off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280],notebook=0, shape=(1, 3), border=False, off_screen= not show)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
@@ -268,7 +270,10 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(5, 5, 0), (0, 0, 0), (0, 1, 0)]
+    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
+ (0.0, 0.0, 0.0),
+ (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+
 
     if show:
         p.show(auto_close=False)
@@ -282,7 +287,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
         nframe = 360
         for i in range(nframe):
             p.camera_position = [
-                (5 * np.cos(i * np.pi / 180.0), 5 * np.cos(i * np.pi / 180.0), 5 * np.sin(i * np.pi / 180.0)),
+                (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
                 (0, 0, 0),
                 (0, 1, 0),
             ]
@@ -307,7 +312,7 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* num_views
 
-    p = pv.Plotter(notebook=0, shape=(1, num_views), border=False, off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280],notebook=0, shape=(1, num_views), border=False, off_screen= not show)
     for i in range(num_views):
         p.subplot(0, i)
         p.add_text(titles_list[i], font_size=18)
@@ -321,10 +326,13 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
                          style="points", show_scalar_bar=True)
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(7, 7, 0), (0, 0, 0), (0, 1, 0)]
+    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
+ (0.0, 0.0, 0.0),
+ (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+
 
     if show:
-        p.show(auto_close=False)
+        cm_position = p.show(auto_close=False)
     if saving_capture_path:
         p.show(screenshot=saving_capture_path)
 

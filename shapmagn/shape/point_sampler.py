@@ -52,6 +52,7 @@ def uniform_sampler(num_sample, rand_generator=Random(0)):
 def point_grid_sampler(scale):
     """
     :param scale: voxelgrid gather the point info inside grids of "scale" size
+    the batch size typically should be set to 1
     :return:
     """
     grid_point_sampler = grid_sampler(scale)

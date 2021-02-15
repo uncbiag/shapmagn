@@ -38,7 +38,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=No
     blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
     p = gemloss_setting[("p", 2,"cost order")]
     mode = gemloss_setting[("mode", 'hard',"soft, hard")]
-    confid = gemloss_setting[("confid", 0.1,"cost order")]
+    confid = gemloss_setting[("confid", 0.0,"cost order")]
     geomloss = obj_factory(geom_obj)
     attr = "pointfea"
     attr1 = getattr(cur_source, attr).detach()
@@ -59,13 +59,18 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=No
     P_i = ((F_i + G_j - C_ij) / eps).exp() * (b_j)  # (B, N,M,1) transport plan
     if mode=="soft":
         position_to_map = LazyTensor(points2.view(B,1, M, -1))  # B,1xMxD
+        P_sum_over_j = P_i.sum_reduction(2) # B,N,1
         mapped_position = (P_i*position_to_map).sum_reduction(2) #(B,N,M,D)-> (B,N,D)
+        mapped_position = mapped_position/P_sum_over_j
     elif mode == "hard":
         P_i_max, P_i_index = P_i.max_argmax(2) #  over M,  return (B,N)
-        pos_batch_list = []
-        for b in range(B):
-            pos_batch_list.append(points2[b,P_i_index[b,:,0]])
-        mapped_position = torch.stack(pos_batch_list,0)
+        P_i_max, P_i_index = P_i_max.view(-1), P_i_index.view(-1)
+        points1_flatten = points1.view(-1, D)
+        points2_flatten = points2.view(-1, D)
+        mapped_position = points2_flatten[P_i_index]
+        low_index = P_i_max<confid
+        mapped_position[low_index] = points1_flatten[low_index]
+        mapped_position = mapped_position.view(B,N,D)
     else:
         raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
     print("OT based forward mapping complete")

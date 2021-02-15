@@ -11,7 +11,7 @@ from tqdm import tqdm
 import torch.backends.cudnn as cudnn
 import torch.nn.init as init
 import numpy as np
-
+from pykeops.numpy.cluster import grid_cluster,  cluster_ranges_centroids,   sort_clusters,    from_matrix
 
 def init_weights(m, init_type='normal', gain=0.02):
     """ Randomly initialize a module's weights.
@@ -317,3 +317,34 @@ def get_grid_wrap_points(points, spacing, pad_size= 10, return_np=False):
         return torch.tensor(id_map).contiguous().to(device), grid_size
     else:
         return id_map, grid_size
+
+
+def memory_sort(points):
+    """
+    sort neighboring points close to each other in memory
+    :param points: BxNxD or NxD  tenosr /array
+    :return:
+    """
+
+
+    def _sort(points):
+        eps = 0.0
+        x_labels = grid_cluster(points, eps)
+        # Compute the memory footprint and centroid of each of those non-empty "cubic" clusters:
+        points, x_labels = sort_clusters(points, x_labels)
+        return points
+
+    is_tensor = isinstance(points, torch.tensor)
+    has_batch = len(points.shape) == 3
+    if is_tensor:
+        points_np = points.detach().cpu().numpy()
+    else:
+        points_np = points
+    if has_batch:
+        points_np_list = [_sort(_points_np) for _points_np in points_np]
+        points_np = np.concatenate(points_np_list,0)
+    else:
+        points_np = _sort(points_np)
+    if is_tensor:
+        points = torch.tensor(points_np).to(points.device)
+    return points

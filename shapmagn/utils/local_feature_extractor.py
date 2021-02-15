@@ -227,7 +227,7 @@ def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=
     return Gamma,principle_weight
 
 
-def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False):
+def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, leaf_decay=False, return_details=False):
     """
     compute inverse covariance matrix for anisotropic kernel
     this function doesn't support auto-grad
@@ -240,7 +240,7 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
     :return: Gamma, torch.Tensor, BxNxDxD  U{\Lambda}^{-2}U^T,  where U is the eigenvector of the local covariance matrix
     """
     aniso_kernel_scale = aniso_kernel_scale if aniso_kernel_scale is not None else cov_sigma_scale
-    B, D = points.shape[0], points.shape[-1]
+    B,N, D = points.shape[0], points.shape[1],points.shape[2]
     fea_type_list = ["eigenvalue", "eigenvector"]
     fea_extractor = feature_extractor(fea_type_list, radius=cov_sigma_scale, std_normalize=False, include_pos=False)
     combined_fea, mass = fea_extractor(points)
@@ -253,7 +253,7 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
         eigenvalue[eigenvalue < eigenvalue_min] = eigenvalue_min
     else:
         eigenvalue = None
-    Gamma, _ = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
+    Gamma, principle_weight_ouput = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
                                         eigenvector=eigenvector)
     if iter_twice:
         mass, dev, cov = compute_aniso_local_moments(points, Gamma)
@@ -266,8 +266,29 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
             eigenvalue[eigenvalue < eigenvalue_min] = eigenvalue_min
         else:
             eigenvalue = None
-        Gamma, principle_weight = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight,
+        Gamma, principle_weight_ouput = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight,
                                             eigenvalue=eigenvalue,
                                             eigenvector=eigenvector)
-    return Gamma.view(Gamma.shape[0],Gamma.shape[1],D,D)  #, principle_weight
+    if leaf_decay:
+        mass_thres = 2.5
+        decay_factor = 3
+        mass_falttern = mass.view(-1)
+        gamma_mask = torch.ones_like(mass_falttern)
+        principle_mask = torch.ones_like(mass_falttern)
+        low_index =mass_falttern<mass_thres
+        gamma_mask[low_index] = (decay_factor**2)
+        principle_mask[low_index] = 1/decay_factor
+        Gamma = Gamma.view(-1, Gamma.shape[2],Gamma.shape[3]) * gamma_mask.view(-1,1,1)
+        principle_weight_ouput = principle_weight_ouput.view(-1,D)*principle_mask.view(-1,1)
+    Gamma = Gamma.view(B,N,D,D)
+    principle_weight_ouput = principle_weight_ouput.view(B,N,D)
+
+    if not return_details:
+        return Gamma  #, principle_weight
+    else:
+        return Gamma, principle_weight_ouput, eigenvector, mass
+
+
+
+
 

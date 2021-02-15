@@ -1,56 +1,10 @@
 import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
-# def nadwat_kernel_interpolator(scale=0.1, exp_order=2):
-#     """
-#     Nadaraya-Watson kernel interpolation
-#
-#     :param scale: kernel width
-#     :param exp_order: float, 1,2,0.5
-#     """
-#     #todo write plot-test on this function
-#
-#     assert exp_order in [1,2,0.5]
-#     def interp(points,control_points,control_value,control_weights):
-#         """
-#
-#         :param points: NxD Tensor
-#         :param control_points: MxD Tensor
-#         :param control_value: Mxd Tensor
-#         :param control_weights: Mx1 Tensor
-#         :return: Nxd Tensor
-#         """
-#
-#         points, control_points = points / scale, control_points / scale
-#
-#         points_i = LazyTensor(points[:, None, :])  # (N, 1, D)  "column"
-#         control_points_j = LazyTensor(control_points[None, :, :])  # (1, M, D)  "line"
-#
-#         dist2 = ((points_i - control_points_j) ** 2).sum(-1)  # (N, M) squared distances
-#
-#         if exp_order == 1:
-#             C_ij = dist2.sqrt()  # + D_ij
-#         elif exp_order == 2:
-#             C_ij = dist2 / 2
-#         elif exp_order == 1 / 2:
-#             C_ij = 2 * dist2.sqrt().sqrt()
-#
-#         # For the sake of numerical stability, we perform the weight normalization
-#         # in the log-domain --------------------------------------------------------
-#         logw_j = LazyTensor(control_weights.log()[None, :, :])
-#
-#         scores = - (logw_j - C_ij).logsumexp(dim=1)  # (N, 1)
-#         scores_i = LazyTensor(scores[:, None, :])  # (N, 1, 1)
-#
-#         value_weight_j = LazyTensor((control_value * control_weights)[None, :, :])  # (1, M, D)
-#
-#         points_value = ((scores_i - C_ij).exp() * value_weight_j).sum(dim=1)
-#         return points_value
-#     return interp
 
 
 
-def nadwat_kernel_interpolator(scale=0.1, exp_order=2,iso=True):
+def compute_nadwat_kernel(scale=0.1, exp_order=2,iso=True):
     """
     Nadaraya-Watson kernel interpolation
 
@@ -58,18 +12,17 @@ def nadwat_kernel_interpolator(scale=0.1, exp_order=2,iso=True):
     :param exp_order: float, 1,2,0.5
     :param iso: bool, use isotropic kernel, sigma equals to scale
     """
-    #todo write plot-test on this function
+    #todo write plot-test for this function
 
     assert exp_order in [1,2,0.5]
-    def interp(points,control_points,control_value,control_weights, gamma=None):
+    def interp(points,control_points,control_weights, gamma=None):
         """
 
         :param points: BxNxD Tensor
         :param control_points: BxMxD Tensor
-        :param control_value: BxMxd Tensor
         :param control_weights: BxMx1 Tensor
         :param gamma: optional BxMxDxD Tensor, anisotropic inverse kernel
-        :return: BxNxd Tensor
+        :return: BxNxMxd Tensor
         """
 
 
@@ -98,11 +51,34 @@ def nadwat_kernel_interpolator(scale=0.1, exp_order=2,iso=True):
         scores = - (logw_j - C_ij).logsumexp(dim=2)  # (B,N, 1)
         scores_i = LazyTensor(scores[:,:, None, :])  # (B,N, 1, 1)
 
-        value_weight_j = LazyTensor((control_value * control_weights)[:,None, :, :])  # (B,1, M, D)
+        value_weight_j = LazyTensor((control_weights)[:,None, :, :])  # (B,1, M, D)
 
-        points_value = ((scores_i - C_ij).exp() * value_weight_j).sum(dim=2)
+        kernel = (scores_i - C_ij).exp() * value_weight_j  #LazyTenosr  (B,N,M,D)
+        return kernel
+    return interp
+
+
+
+def nadwat_kernel_interpolator(scale=0.1, exp_order=2,iso=True):
+    """
+    Nadaraya-Watson kernel interpolation
+
+    :param scale: kernel width of isotropic kernel, disabled if the iso is False
+    :param exp_order: float, 1,2,0.5
+    :param iso: bool, use isotropic kernel, sigma equals to scale
+    """
+    #todo write plot-test on this function
+    compute_kernel = compute_nadwat_kernel(scale=scale, exp_order=exp_order,iso=iso)
+    def interp(points,control_points,control_value,control_weights, gamma=None):
+        kernel = compute_kernel(points,control_points,control_weights, gamma=gamma)
+        value_weight_j = LazyTensor((control_value)[:,None, :, :])  # (B,1, M, D)
+        points_value = (kernel * value_weight_j).sum(dim=2)
         return points_value
     return interp
+
+
+
+
 
 
 
@@ -192,7 +168,7 @@ def ridge_kernel_intepolator(scale=0.1, kernel="gauss"):
 
 
 
-def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=(2.,1.,1.),eigenvalue_min=0.1,iter_twice=False):
+def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False):
     interp = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
 
     def compute(points,control_points,control_value,control_weights, gamma=None):
@@ -208,5 +184,101 @@ def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sig
         interp_value = interp(points, control_points,control_value,control_weights,Gamma_control_points)
         return interp_value
     return compute
+
+
+
+
+class NadWatAnisoSpline(object):
+    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False):
+        self.exp_order = exp_order
+        self.cov_sigma_scale = cov_sigma_scale
+        self.aniso_kernel_scale = aniso_kernel_scale
+        self.principle_weight = principle_weight
+        self.eigenvalue_min = eigenvalue_min
+        self.iter_twice = iter_twice
+        self.leaf_decay = leaf_decay
+        self.spline = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
+        self.fixed = fixed
+        self.is_interp = is_interp
+        self.iter = 0
+
+    def initialize(self, points, weights=None):
+        self.Gamma = compute_anisotropic_gamma_from_points(points,
+                                                        cov_sigma_scale=self.cov_sigma_scale,
+                                                        aniso_kernel_scale=self.aniso_kernel_scale,
+                                                        principle_weight=self.principle_weight,
+                                                        eigenvalue_min=self.eigenvalue_min,
+                                                        iter_twice=self.iter_twice,
+                                                        leaf_decay = self.leaf_decay)
+        if self.fixed and self.iter== 0:
+            compute_kernel = compute_nadwat_kernel(exp_order=self.exp_order, iso=False)
+            self.kernel = compute_kernel(points,points,weights, gamma=self.Gamma)
+        return self
+
+    def set_interp(self, is_interp=True):
+        self.is_interp=is_interp
+        self.iter=-1 if self.is_interp else 0 # to avoid save the kernel
+
+
+    def set_flow(self,is_interp=True):
+        self.is_interp = is_interp
+
+
+    def reset_kernel(self):
+        self.iter = 0
+
+    def get_buffer(self):
+        return {"normalized_Gamma": self.Gamma*(self.aniso_kernel_scale**2)}
+
+
+
+    def __call__(self,points, control_points, control_value, control_weights):
+        if not self.fixed or self.is_interp:
+            self.initialize(control_points)
+            Gamma_control_points = self.Gamma
+            spline_value = self.spline(points, control_points, control_value, control_weights, Gamma_control_points)
+        else:
+            if self.iter==0:
+                self.initialize(control_points,control_weights)
+            value_weight_j = LazyTensor((control_value)[:, None, :, :])  # (B,1, M, D)
+            spline_value = (self.kernel * value_weight_j).sum(dim=2)
+        self.iter += 1
+        return spline_value
+
+
+
+
+class NadWatIsoSpline(object):
+    def __init__(self, exp_order=2,kernel_scale=0.05):
+        self.exp_order = exp_order
+        self.kernel_scale = kernel_scale
+        self.spline = nadwat_kernel_interpolator(scale=kernel_scale,exp_order=exp_order, iso=True)
+        self.is_interp = False
+        self.iter = 0
+
+    def set_interp(self, is_interp=True):
+        pass
+
+    def set_flow(self, is_interp=True):
+        pass
+
+    def reset_kernel(self):
+        pass
+
+    def get_buffer(self):
+        return {"normalized_Gamma": None}
+
+
+    def __call__(self,points, control_points, control_value, control_weights):
+        spline_value = self.spline(points, control_points, control_value, control_weights, None)
+        return spline_value
+
+
+
+
+
+
+
+
 
 

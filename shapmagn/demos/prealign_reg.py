@@ -109,7 +109,6 @@ model_opt["gradflow_prealign"]["search_init_transform"]=False
 model_opt["gradflow_prealign"][("geomloss", {}, "settings for geomloss")]
 model_opt["gradflow_prealign"]['geomloss']["mode"] = "hard"
 model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.5,debias=False)".format(blur)
-#model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue'],weight_list=[100], radius=0.2,include_pos=True)"
 model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_FPFH_extractor(radius_normal=0.1, radius_feature=0.5)" # it only works for the same scale
 
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]

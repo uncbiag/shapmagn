@@ -5,18 +5,19 @@ import torch
 from shapmagn.utils.visualizer import visualize_point_fea,visualize_point_fea_with_arrow, visualize_point_overlap
 from shapmagn.datasets.data_utils import compute_interval
 from shapmagn.utils.shape_visual_utils import make_sphere, make_ellipsoid
+from shapmagn.shape.point_interpolator import *
 from shapmagn.utils.local_feature_extractor import *
 
 ###############################################################################
 # Create a dataset to plot
 
-def make_spirial_points():
+def make_spirial_points(noise=0.1):
     """Helper to make XYZ points"""
     theta = np.linspace(-4 * np.pi, 4 * np.pi, 1000)
     z = np.linspace(-2, 2, 1000)
-    r = z**2 + 1
-    x = r * np.sin(theta)
-    y = r * np.cos(theta)
+    r = z**2 + 1+np.random.rand(len(z))*noise
+    x = r * np.sin(theta)+np.random.rand(len(z))*noise
+    y = r * np.cos(theta)+np.random.rand(len(z))*noise
     return np.column_stack((x, y, z))
 
 
@@ -76,7 +77,7 @@ def generate_eigen_vector_from_main_direction(main_direction):
 
 
 # demo1 visualize main direction on a spirial
-points = make_spirial_points()
+points = make_spirial_points(noise=0.1)
 points = points.astype(np.float32)
 compute_interval(points)
 points = torch.Tensor(points)[None]
@@ -84,7 +85,7 @@ fea_type_list= ["eigenvalue_prod","eigenvector_main"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.1,std_normalize=False)
 combined_fea, mass = fea_extractor(points)
 pointfea, main_direction = combined_fea[..., :1], combined_fea[..., 1:]
-visualize_point_fea_with_arrow(points, mass, main_direction*0.1 , rgb_on=False)
+#visualize_point_fea_with_arrow(points, mass, main_direction*0.1 , rgb_on=False)
 
 
 
@@ -124,32 +125,16 @@ visualize_point_fea_with_arrow(points, mass, main_direction*0.1 , rgb_on=False)
 # visualize anisotropic kernel on spirial
 points = make_spirial_points()
 points = points.astype(np.float32)
-npoints = points.shape[0]
-points = torch.tensor(points)[None]
-eigenvalue_min = 0.05
-fea_type_list = ["eigenvalue","eigenvector"]
-fea_extractor = feature_extractor(fea_type_list, radius=0.1,std_normalize=False, include_pos=False)
-combined_fea1, mass1 = fea_extractor(points)
-eigenvalue, eigenvector = combined_fea1[:,:,:3], combined_fea1[:,:,3:]
-eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], 3, 3)
-eigenvector_main = eigenvector[...,0]
-# eigenvalue is not used, but compute to check abnormal
-print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eigenvalue<=0)))
-eigenvalue[eigenvalue<=0.]=1e-7
-
-
+points = torch.Tensor(points)[None]
 points_np = points.detach().cpu().numpy().squeeze()
-eigenvector_np = eigenvector.detach().cpu().numpy().squeeze()
+weights =torch.ones(points.shape[0],points.shape[1],1)
 npoints = points.shape[1]
-device = points.device
-sigma_scale = 0.2
-principle_weight = [3,1,1]
-eigenvalue = eigenvalue / torch.norm(eigenvalue, p=2, dim=2, keepdim=True)
-eigenvalue[eigenvalue<=0.3]=0.3
-#Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=principle_weight,eigenvalue=None,eigenvector=eigenvector)
-Gamma, principle_weight = get_Gamma(sigma_scale,principle_weight=None,eigenvalue=eigenvalue,eigenvector=eigenvector)
+Gamma,principle_weight,eigenvector, mass = compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.1,aniso_kernel_scale=0.4,leaf_decay=True,principle_weight=None,eigenvalue_min=0.1,iter_twice=True,return_details=True)
+filtered_points = nadwat_kernel_interpolator(scale=0.4, exp_order=2,iso=False)(points,points,points,weights,Gamma)
+visualize_point_fea(points, mass, rgb_on=False)
+visualize_point_fea(filtered_points, mass, rgb_on=False)
 principle_weight_np = principle_weight.squeeze().numpy()
-mass,_,_ = compute_aniso_local_moments(points, Gamma)
+eigenvector_np = eigenvector.squeeze().numpy()
 nsample = 30
 full_index = np.arange(npoints)
 index = np.random.choice(full_index, nsample, replace=False)
@@ -157,7 +142,7 @@ spheres_list = [make_ellipsoid(200,radius=principle_weight_np[ind], center=point
 spheres = np.concatenate(spheres_list,0)
 fg_spheres_color = np.array([[0.8,.5,.2]]*len(spheres))
 #visualize_point_fea(points, mass , rgb_on=False)
-visualize_point_fea_with_arrow(points, mass1,eigenvector_main*0.05,rgb_on=False)
+visualize_point_fea_with_arrow(points, mass,eigenvector[...,0]*0.05,rgb_on=False)
 visualize_point_overlap(points, spheres,mass,fg_spheres_color,"aniso_filter_with_kernel_radius",point_size=[10,5],rgb_on=[False,True])
 
 

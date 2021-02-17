@@ -1,3 +1,6 @@
+"""the spline aug including computational kernel operations, it would be better perform augmentation on gpu (after dataloader)"""
+import random
+import time
 from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 from shapmagn.global_variable import *
 from shapmagn.utils.utils import get_grid_wrap_points
@@ -5,12 +8,27 @@ from shapmagn.shape.point_sampler import uniform_sampler, grid_sampler
 from shapmagn.utils.module_parameters import ParameterDict
 
 
+
+def visualize(points, deformed_points, point_weights=None, deformed_point_weights=None):
+    from shapmagn.utils.visualizer import visualize_point_pair_overlap
+    from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
+        target_weight_transform
+    # visualize_point_pair_overlap(points, deformed_points,
+    #                              flowed_weight_transform(point_weights, True),
+    #                              target_weight_transform(deformed_point_weights, True),
+    #                              title1="original", title2="deformed", rgb_on=False)
+    visualize_point_pair_overlap(points, deformed_points,
+                                 point_weights,
+                                 deformed_point_weights,
+                                 title1="original", title2="deformed", rgb_on=False)
+
 class PointAug(object):
     def __init__(self, aug_settings):
         self.remove_random_points_by_ratio = aug_settings["remove_random_points_by_ratio"]
         self.add_random_noise_by_ratio = aug_settings["add_random_noise_by_ratio"]
         self.random_noise_raidus = aug_settings["random_noise_raidus"]
         self.normalize_weights = aug_settings["normalize_weights"]
+        self.plot = aug_settings["plot"]
 
     def remove_random_points(self, points, point_weights, index):
         npoints = points.shape[0]
@@ -23,11 +41,11 @@ class PointAug(object):
         npoints, D = points.shape[0], points.shape[-1]
         nnoise = int(self.add_random_noise_by_ratio*npoints)
         index = np.random.choice(list(range(npoints)), nnoise, replace=False)
-        noise_disp = torch.ones(nnoise,3).uniform_(-1,1)*self.random_noise_raidus
+        noise_disp = torch.ones(nnoise,3).to(points.device).uniform_(-1,1)*self.random_noise_raidus
         noise = points[index] + noise_disp
         points = torch.cat([points, noise],0)
         weights = torch.cat([point_weights,point_weights[index]],0)
-        added_index = list(range(npoints+nnoise))
+        added_index = index + list(range(npoints,npoints+nnoise))
         return points, weights, added_index
 
     def __call__(self,points, point_weights):
@@ -37,7 +55,10 @@ class PointAug(object):
         if self.add_random_noise_by_ratio!=0:
            new_points, new_weights, new_index = self.add_noises_around_points(new_points, new_weights, new_index)
         if self.normalize_weights:
-            new_points = new_points*(point_weights.sum()/(new_weights.sum()))
+            new_weights = new_weights*(point_weights.sum()/(new_weights.sum()))
+        if self.plot:
+            visualize(points,new_points,point_weights,new_weights)
+
         return new_points, new_weights, new_index
 
 
@@ -96,18 +117,7 @@ class SplineAug(object):
 
 
 
-    def visualize(self, points, deformed_points, point_weights=None, deformed_point_weights=None):
-        from shapmagn.utils.visualizer import visualize_point_pair_overlap
-        from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
-            target_weight_transform
-        # visualize_point_pair_overlap(points, deformed_points,
-        #                              flowed_weight_transform(point_weights, True),
-        #                              target_weight_transform(deformed_point_weights, True),
-        #                              title1="original", title2="deformed", rgb_on=False)
-        visualize_point_pair_overlap(points, deformed_points,
-                                     point_weights,
-                                     deformed_point_weights,
-                                     title1="original", title2="deformed", rgb_on=False)
+
 
     def __call__(self,points, point_weights):
         """
@@ -121,11 +131,11 @@ class SplineAug(object):
         if self.do_sampling_aug:
             deformed_points, deformed_weights = self.sampling_spline_deform(deformed_points,deformed_weights)
         if self.plot:
-            self.visualize(points,deformed_points,point_weights,deformed_weights)
+            visualize(points,deformed_points,point_weights,deformed_weights)
         if self.do_grid_aug:
             deformed_points, deformed_weights = self.grid_spline_deform(deformed_points,deformed_weights)
         if self.plot:
-            self.visualize(points,deformed_points,point_weights,deformed_weights)
+            visualize(points,deformed_points,point_weights,deformed_weights)
         return deformed_points, deformed_weights
 
 
@@ -134,15 +144,15 @@ class SplineAug(object):
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
     device = torch.device("cpu") # cuda:0  cpu
-    reader_obj = "lung_dataset_utils.lung_reader()"
+    reader_obj = "lung_dataloader_utils.lung_reader()"
     scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-    normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
-    sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
-    use_local_mount = True
+    normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
+    sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+    use_local_mount = False
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
 
-    dataset_json_path = "/home/zyshen/remote/llr11_mount/zyshen/data/point_cloud_expri/train/pair_data.json" #
+    dataset_json_path = "/playpen-raid1/zyshen/data/point_cloud_expri/train/pair_data.json" #home/zyshen/remote/llr11_mount
     dataset_json_path = path_transfer(dataset_json_path)
     pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
     pair_path_list = [[pair_info["source"]["data_path"], pair_info["target"]["data_path"]] for pair_info in
@@ -159,7 +169,7 @@ if __name__ == "__main__":
     aug_settings = ParameterDict()
     aug_settings["do_sampling_aug"] = True
     aug_settings["do_grid_aug"] = True
-    aug_settings["plot"] = True
+    aug_settings["plot"] = False
 
     sampling_spline_aug = aug_settings[("sampling_spline_aug",{},"settings for uniform sampling based spline augmentation")]
     sampling_spline_aug["num_sample"] = 1000
@@ -175,5 +185,17 @@ if __name__ == "__main__":
     kernel_scale = 0.1
     grid_spline_aug["grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(kernel_scale)
 
-    data_augmentation = SplineAug(aug_settings)
-    data_augmentation(source_points[0],source_weights[0])
+    st = time.time()
+    spline_aug = SplineAug(aug_settings)
+    print("it takes {} s".format(time.time()-st))
+    spline_aug(source_points[0],source_weights[0])
+
+    points_aug = aug_settings[
+        ("points_aug", {}, "settings for remove or add noise points")]
+    points_aug["remove_random_points_by_ratio"] = 0.01
+    points_aug["add_random_noise_by_ratio"] = 0.01
+    points_aug["random_noise_raidus"] = 0.1
+    points_aug["normalize_weights"] = False
+    points_aug["plot"] = False
+    point_aug = PointAug(points_aug)
+

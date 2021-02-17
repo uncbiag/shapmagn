@@ -10,16 +10,16 @@ from shapmagn.metrics.losses import *
 LOSS_POOL = {"current": CurrentDistance, "varifold": VarifoldDistance, "geomloss": GeomDistance, "l2": L2Distance}
 
 
-from shapmagn.datasets.reg_dataset import RegistrationDataset
+from shapmagn.datasets.reg_pair_dataset import RegistrationPairDataset
 DATASET_POOL = {
-    "pair_dataset": RegistrationDataset
+    "pair_dataset": RegistrationPairDataset
 }
 
 
-from shapmagn.models.model_opt_lddmm import LDDMMOPT
-from shapmagn.models.model_opt_discrete_flow import DiscreteFlowOPT
-from shapmagn.models.model_opt_gradient_flow import GradientFlowOPT
-from shapmagn.models.model_opt_prealign import PrealignOPT
+from shapmagn.models.model_lddmm import LDDMMOPT
+from shapmagn.models.model_discrete_flow import DiscreteFlowOPT
+from shapmagn.models.model_gradient_flow import GradientFlowOPT
+from shapmagn.models.model_prealign import PrealignOPT
 MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prealign_opt": PrealignOPT,"gradient_flow_opt":GradientFlowOPT}
 
 

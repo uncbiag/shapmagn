@@ -46,7 +46,7 @@ class DataManager(object):
         batch_size = [batch_size]*4 if not isinstance(batch_size, list) else batch_size
         batch_size = {'train': batch_size[0],'val':batch_size[1],'test':batch_size[2],'debug':batch_size[3]}
         dataloaders = {x: torch.utils.data.DataLoader(transformed_dataset[x], batch_size=batch_size[x],
-                                                  shuffle=shuffle_list[x], num_workers=num_workers_reg[x],worker_init_fn=_init_fn) for x in self.phases}
+                                                  shuffle=shuffle_list[x], num_workers=num_workers_reg[x],worker_init_fn=_init_fn, pin_memory=True) for x in self.phases}
         return dataloaders
 
 

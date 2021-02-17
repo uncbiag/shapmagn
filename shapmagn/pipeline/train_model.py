@@ -24,7 +24,6 @@ def train_model(opt,model, dataloaders,writer, device):
     period ={x: print_step[i] for i, x in enumerate(phases)}
     check_best_model_period =opt[('check_best_model_period',5,'save best performed model every # epoch')]
     visual_opt = opt[('visual',{},"settings for visualziation")]
-    save_visual_results =visual_opt[('save_visual_results',False,'save the visualizatio results during the evalution')]
     tensorboard_print_period = { phase: min(max_batch_num_per_epoch[phase],period[phase]) for phase in phases}
     val_period = opt[('val_period',10,'do validation every num epoch')]
     warmming_up_epoch = opt[('warmming_up_epoch',2,'warming up the model in the first # epoch')]
@@ -87,10 +86,10 @@ def train_model(opt,model, dataloaders,writer, device):
 
                 elif phase =='val':
                     val_res= model.get_evaluation(input)
-                    score, detailed_scores= model.analyze_res(val_res, cache_res=True)
+                    score, detailed_scores= model.analyze_res(val_res)
                     print('val loss of batch {} is {}:'.format(model.get_batch_names(),score))
                     print('val detailed metric of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
-                    model.save_visual_res(save_visual_results,input,val_res, phase)
+                    model.save_visual_res(input,val_res, phase)
                     model.update_loss(epoch,end_of_epoch)
                     update_res(detailed_scores,running_val_score)
                     update_res({"val_score":score}, running_val_score)
@@ -101,10 +100,10 @@ def train_model(opt,model, dataloaders,writer, device):
                 elif phase == 'debug':
                     print('debugging loss:')
                     debug_res = model.get_evaluation(input)
-                    score, detailed_scores = model.analyze_res(debug_res,cache_res=False)
+                    score, detailed_scores = model.analyze_res(debug_res)
                     print('debug loss of batch {} is {}:'.format(model.get_batch_names(),score))
                     print('debug detailed metric of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
-                    model.save_visual_res(save_visual_results,input,debug_res, phase)
+                    model.save_visual_res(input,debug_res, phase)
                     update_res(detailed_scores,running_debug_score)
                     update_res({"debug_score":score}, running_debug_score)
                     loss = score

@@ -297,10 +297,10 @@ def analysis_large_vessel(source, target, source_weight_transform=source_weight_
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
     device = torch.device("cuda:0") # cuda:0  cpu
-    reader_obj = "lung_dataset_utils.lung_reader()"
+    reader_obj = "lung_dataloader_utils.lung_reader()"
     scale = 80  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-    normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
-    sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+    normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
+    sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
     use_local_mount = True
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)

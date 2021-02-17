@@ -318,6 +318,26 @@ def get_grid_wrap_points(points, spacing, pad_size= 10, return_np=False):
     else:
         return id_map, grid_size
 
+def detect_folding(warped_grid_points, grid_size,spacing, saving_path=None,file_name=None):
+    from shapmagn.utils.img_visual_utils import compute_jacobi_map
+    warped_grid = point_to_grid(warped_grid_points,grid_size)
+    compute_jacobi_map(warped_grid[None],spacing,saving_path,[file_name])
+
+
+def compute_jacobi_of_pointcloud():
+    def compute_jacobi(shape_pair, pair_name,model, record_path):
+        from shapmagn.global_variable import Shape
+        source_grid_spacing = np.array([0.05] * 3).astype(np.float32)  # max(source_interval*20, 0.01)
+        source_wrap_grid, grid_size = get_grid_wrap_points(shape_pair.source.points[0], source_grid_spacing)
+        source_wrap_grid = source_wrap_grid[None]
+        toflow = Shape()
+        toflow.set_data(points=source_wrap_grid)
+        shape_pair.set_toflow(toflow)
+        shape_pair.control_weights = torch.ones_like(shape_pair.control_weights) / shape_pair.control_weights.shape[1]
+        model.flow(shape_pair)
+        detect_folding(shape_pair.flowed.points, grid_size, source_grid_spacing, record_path, pair_name)
+    return compute_jacobi
+
 
 def memory_sort(points):
     """

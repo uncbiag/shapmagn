@@ -42,10 +42,10 @@ compute_on_half_lung = True
 
 ####################  prepare data ###########################
 pair_name = generate_pair_name([source_path,target_path])
-reader_obj = "lung_dataset_utils.lung_reader()"
+reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
-sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
+sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)

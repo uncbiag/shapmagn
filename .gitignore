@@ -3,6 +3,7 @@
 __pycache__
 weights
 geomloss
+flownet3d.pytorch
 torchdiffeq
 torchdiffeq_mine
 torchdiffeq_prev

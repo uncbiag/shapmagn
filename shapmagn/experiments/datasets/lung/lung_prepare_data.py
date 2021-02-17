@@ -20,3 +20,17 @@ dataset.set_output_path("/playpen-raid1/zyshen/data/lung_pointcloud/debugging")
 dataset.set_coupled_pair_list([exp_list,insp_list])
 dataset.set_divided_ratio((0.6,0.1,0.3))
 dataset.prepare_data()
+
+# import json
+# from shapmagn.datasets.data_utils import save_json
+# for phase in ["train","val","debug","test"]:
+#     with open('/playpen-raid1/zyshen/data/lung_pointcloud/debugging/{}/pair_data.json'.format(phase)) as f:
+#         pair_info_dict = json.load(f)
+#     output_dict = {pair_info_dict[pair_name]["source"]["name"]:pair_info_dict[pair_name]["source"]["data_path"] for pair_name in pair_info_dict}
+#     target_dict = {pair_info_dict[pair_name]["target"]["name"]:pair_info_dict[pair_name]["target"]["data_path"] for pair_name in pair_info_dict}
+#     output_dict.update(target_dict)
+#     save_json("/playpen-raid1/zyshen/data/lung_pointcloud/debugging/{}/single_data.json".format(phase), output_dict)
+
+
+
+

@@ -2,9 +2,9 @@
     "dataset": {
         "name": "pair_dataset",
         "pair_dataset": {
-            "reader" : "lung_dataset_utils.lung_reader()",
-                "sampler" : "lung_dataset_utils.lung_sampler(num_sample=-1, method='voxelgrid',scale=0.05)",
-            "normalizer": "lung_dataset_utils.lung_normalizer()",
+            "reader" : "lung_dataloader_utils.lung_reader()",
+                "sampler" : "lung_dataloader_utils.lung_sampler(num_sample=-1, method='voxelgrid',scale=0.05)",
+            "normalizer": "lung_dataloader_utils.lung_normalizer()",
             "max_num_for_loading": [-1,-1,-1,-1],
             "load_training_data_into_memory": true,
             "aug_data_via_inverse_reg_direction": false

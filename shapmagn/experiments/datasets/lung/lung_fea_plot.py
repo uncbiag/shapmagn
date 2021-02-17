@@ -12,10 +12,10 @@ path_1 =  server_path+"data/lung_vessel_demo_data/10005Q_EXP_STD_NJC_COPD_wholeL
 path_2 = server_path + "data/lung_vessel_demo_data/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
 
 saving_path = "/playpen-raid1/zyshen/debug/debugg_point_visual2.vtk"
-reader_obj = "lung_dataset_utils.lung_reader()"
+reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
-sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
+sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device=torch.device("cpu"))
 source_obj, source_interval = get_obj_func(path_1)
 target_obj, target_interval = get_obj_func(path_2)

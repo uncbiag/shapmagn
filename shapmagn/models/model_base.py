@@ -121,7 +121,7 @@ class ModelBase():
         pass
 
 
-    def analyze_res(self, res,cache_res=True):
+    def analyze_res(self, res):
         """
         analyze the results
         :return:

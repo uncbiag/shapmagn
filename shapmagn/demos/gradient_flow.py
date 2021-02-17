@@ -15,10 +15,10 @@ assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_var
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 source_path = "./data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
 target_path = "./data/lung_vessel_demo_data/10031R_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
-reader_obj = "lung_dataset_utils.lung_reader()"
+reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto rescaling
-normalizer_obj = "lung_dataset_utils.lung_normalizer(scale={})".format(scale)
-sampler_obj = "lung_dataset_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
+sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)

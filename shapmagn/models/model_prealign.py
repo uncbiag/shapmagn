@@ -28,6 +28,10 @@ class PrealignOPT(nn.Module):
         self.drift_buffer = {}
 
 
+    def set_record_path(self, record_path):
+        self.record_path = record_path
+
+
     def init_reg_param(self, shape_pair):
         batch, dim, device = shape_pair.source.nbatch, shape_pair.source.dimension, shape_pair.source.points.device
         reg_param = torch.zeros([batch,dim+1,dim],device=device).normal_(0, 1e-7)

@@ -79,6 +79,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
     capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
+    model.set_record_path(record_path)
     os.makedirs(record_path, exist_ok=True)
     shape_folder_3d = os.path.join(record_path, "3d")
     os.makedirs(shape_folder_3d, exist_ok=True)
@@ -152,6 +153,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
     capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
     record_path = os.path.join(record_path, "scale_{}".format(scale))
+    model.set_record_path(record_path)
     os.makedirs(record_path, exist_ok=True)
     shape_folder_3d = os.path.join(record_path, "3D")
     os.makedirs(shape_folder_3d, exist_ok=True)
@@ -170,8 +172,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
             if save_3d_shape_every_n_iter>0 and iter % save_3d_shape_every_n_iter == 0:
                 save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter), shape_pair)
             if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
-                pass
-                #capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
+                capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
                 print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count + 1 if (iter - previous_converged_iter) == 1 else 0

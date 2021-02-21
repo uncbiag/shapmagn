@@ -36,7 +36,6 @@ class TorchKernel(object):
             dist2 = ((x - y) ** 2).sum(-1, keepdim=True) #BxNxKx1
             kernel = (-dist2 * gamma).exp()
             return (kernel * b).sum(axis=2)
-
         return reduce
 
     @staticmethod

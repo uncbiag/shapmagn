@@ -1,4 +1,5 @@
 from shapmagn.models.model_opt import OptModel
+from shapmagn.models.model_deep import DeepModel
 def build_model(opt, devie, gpus):
     """
     create model object
@@ -8,6 +9,8 @@ def build_model(opt, devie, gpus):
     model_name = opt['model']
     if model_name == 'optimization':
         model = OptModel()
+    elif model_name =="deep_learning":
+        model = DeepModel()
     else:
         raise ValueError("Model [%s] not recognized." % model_name)
     model.initialize(opt, devie, gpus)

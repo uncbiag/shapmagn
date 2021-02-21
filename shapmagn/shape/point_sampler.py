@@ -1,4 +1,5 @@
 from pykeops.torch.cluster import grid_cluster
+import numpy as np
 import torch
 from torch_scatter import scatter
 from random import Random
@@ -24,28 +25,37 @@ def grid_sampler(scale):
         return points, cluster_weights, index
     return sampling
 
-def uniform_sampler(num_sample, rand_generator=Random(0)):
+def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
     """
     :param num_sample: float
     :param rand_generator:
     :return:
     """
+
     def sampling(points, weights=None):
         """
         :param points:  NxD tensor
         :return:
         """
-        if weights==None:
+        if fixed_random_seed:
+            np.random.seed(0)
+        else:
+            np.random.seed(int(time.time()))
+
+        if weights is None:
             weights = torch.ones(points.shape[0],1).to(points.device)
         npoints = points.shape[0]
-        ind = list(range(npoints))
-        rand_generator.shuffle(ind)
-        ind = ind[: num_sample]
-        # continuous in spatial
-        ind.sort()
-        points = points[ind]
-        weights = weights[ind]
-        return points, weights, ind
+        if sampled_by_weight:
+            weights_np = weights.squeeze().detach().cpu().numpy()
+            rand_ind = np.random.choice(np.arange(npoints),num_sample,replace=False,p=weights_np/weights_np.sum())
+        else:
+            rand_ind = list(range(npoints))
+            np.random.shuffle(rand_ind)
+            rand_ind = rand_ind[: num_sample]
+        rand_ind.sort()
+        points = points[rand_ind]
+        weights = weights[rand_ind]
+        return points, weights, rand_ind
     return sampling
 
 
@@ -86,14 +96,14 @@ def point_grid_sampler(scale):
     return sampling
 
 
-def point_uniform_sampler(num_sample, rand_generator=Random(0)):
+def point_uniform_sampler(num_sample,fixed_random_seed=True, sampled_by_weight=True):
     """
     :param num_sample: float
     :param rand_generator:
     :return:
     """
 
-    uniform_point_sampler = uniform_sampler(num_sample, rand_generator=rand_generator)
+    uniform_point_sampler = uniform_sampler(num_sample,fixed_random_seed, sampled_by_weight)
     def sampling(input_shape):
         from shapmagn.global_variable import Shape
         nbatch = input_shape.nbatch
@@ -104,7 +114,7 @@ def point_uniform_sampler(num_sample, rand_generator=Random(0)):
             points = input_shape.points[i]
             weights = input_shape.weights[i]
             sampled_points, sampled_weights, index =uniform_point_sampler(points, weights)
-            sampled_weights = sampled_weights/sum(sampled_weights)
+            sampled_weights = sampled_weights
             if input_shape.pointfea is not None:
                 sampled_pointfea =input_shape.pointfea[i][index]
                 sampled_pointfea_list.append(sampled_pointfea)

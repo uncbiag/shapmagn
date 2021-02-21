@@ -1,3 +1,4 @@
+import os
 from copy import deepcopy
 import torch
 import torch.nn as nn
@@ -34,6 +35,7 @@ class DiscreteFlowOPT(nn.Module):
     def __init__(self, opt):
         super(DiscreteFlowOPT, self).__init__()
         self.opt = opt
+        self.record_path = None
         self.gradient_flow_mode =  self.opt[("gradient_flow_mode",False,"if true, work on gradient flow guided spline registration, otherwise standard spline registration")]
         self.drift_every_n_iter = self.opt[("drift_every_n_iter",10, "if n is set bigger than -1, then after every n iteration, the current flowed shape is set as the source shape")]
         spline_kernel_obj = self.opt[("spline_kernel_obj","point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)", "shape interpolator in multi-scale solver")]
@@ -52,13 +54,16 @@ class DiscreteFlowOPT(nn.Module):
         self.register_buffer("local_iter", torch.Tensor([0]))
         self.register_buffer("global_iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
+        self.debugging_visualize = self.opt[('debugging_visualize',False,"visualize the intermid results")]
+        self.saving_debugging_visualize = self.opt[('saving_debugging_visualize',False,"save the visualize results")]
         self.drift_buffer = {}
         if self.gradient_flow_mode:
             print("in gradient flow mode, points drift every iteration")
             self.drift_every_n_iter =1
 
 
-
+    def set_record_path(self, record_path):
+        self.record_path = record_path
 
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
@@ -211,7 +216,8 @@ class DiscreteFlowOPT(nn.Module):
         if self.local_iter % 10 == 0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(), sim_factor, reg_factor))
-            #self.debug(shape_pair)
+            if self.debugging_visualize or self.saving_debugging_visualize:
+                self.visualize_discreteflow(shape_pair)
         loss = sim_loss + reg_loss
         self.local_iter += 1
         self.global_iter +=1
@@ -249,14 +255,15 @@ class DiscreteFlowOPT(nn.Module):
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("blurplaceholder", str(cur_blur))
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("reachplaceholder", str(cur_reach))
         print(geomloss_setting)
-        geomloss_setting["mode"] = 'hard'
+        geomloss_setting["mode"] = 'soft'
         guide_fn = gradient_flow_guide(gradflow_mode)
         if pair_shape_transformer_obj:
             pair_shape_transformer = obj_factory(pair_shape_transformer_obj)
             flowed, target = pair_shape_transformer(flowed, target, self.local_iter)
         gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
         gradflowed_disp = (gradflowed.points-flowed.points).detach()
-        #self.debug_gf(flowed,gradflowed_disp, target,geomloss_setting,cur_blur)
+        if self.debugging_visualize or self.saving_debugging_visualize:
+            self.visualize_gradflow(flowed,gradflowed_disp, target,geomloss_setting,cur_blur)
         return gradflowed, gradflowed_disp
 
     def gradflow_spline_foward(self, shape_pair):
@@ -289,7 +296,8 @@ class DiscreteFlowOPT(nn.Module):
         if self.local_iter % 1 == 0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(), sim_factor, reg_factor))
-            self.debug(shape_pair)
+            if self.debugging_visualize or self.saving_debugging_visualize:
+                self.visualize_discreteflow(shape_pair)
         loss = sim_loss + reg_loss
         self.local_iter += 1
         self.global_iter += 1
@@ -305,18 +313,7 @@ class DiscreteFlowOPT(nn.Module):
 
 
 
-
-    # def debug(self,shape_pair):
-    #     from shapmagn.utils.visualizer import visualize_point_pair_overlap
-    #     source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-    #     # visualize_point_pair_overlap(flowed.points, target.points,
-    #     #                          flowed.weights,target.weights,
-    #     #                          title1="flowed",title2="target", rgb_on=False)
-    #     visualize_point_pair_overlap(flowed.points, target.points,
-    #                                  source.points.squeeze(), target.points.squeeze(),
-    #                                  title1="flowed", title2="target", rgb_on=True)
-
-    def debug(self, shape_pair):
+    def visualize_discreteflow(self, shape_pair):
         from shapmagn.utils.visualizer import visualize_point_pair_overlap
         from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
             target_weight_transform
@@ -325,25 +322,31 @@ class DiscreteFlowOPT(nn.Module):
         #                              flowed_weight_transform(flowed.weights, True),
         #                              target_weight_transform(target.weights, True),
         #                              title1="flowed", title2="target", rgb_on=False)
+        saving_capture_path = None if not self.saving_debugging_visualize else os.path.join(self.record_path,"debugging")
+        os.makedirs(saving_capture_path,exist_ok=True)
+        saving_capture_path = os.path.join(saving_capture_path, "discreteflow_iter_{}".format(self.local_iter.item())+".png")
         visualize_point_pair_overlap(flowed.points, target.points,
                                      flowed.weights,
                                      target.weights,
-                                     title1="flowed", title2="target", rgb_on=False)
+                                     title1="flowed", title2="target", rgb_on=False,show=self.debugging_visualize, saving_capture_path=saving_capture_path)
 
 
 
-    def debug_gf(self,flowed,gradflowed_disp,target,geomloss_setting,cur_blur):
+    def visualize_gradflow(self,flowed,gradflowed_disp,target,geomloss_setting,cur_blur):
         from shapmagn.utils.visualizer import visualize_multi_point
         from shapmagn.demos.demo_utils import get_omt_mapping
-        mapped_fea = get_omt_mapping(geomloss_setting,flowed, target,
-                                     flowed.points[0], p=2, mode="hard", confid=0.1)
+        # mapped_fea = get_omt_mapping(geomloss_setting,flowed, target,
+        #                              flowed.points[0], p=2, mode="hard", confid=0.1)
 
         # visualize_multi_point(points_list=[flowed.points, flowed.points+gradflowed_disp, target.points],
         #                       feas_list=[flowed.points, flowed.points, mapped_fea],
         #                       titles_list=["cur_flow", "flowed", "target"],
         #                       rgb_on=[True, True, True])
-
+        saving_capture_path = None if not self.saving_debugging_visualize else os.path.join(self.record_path,"debugging")
+        os.makedirs(saving_capture_path,exist_ok=True)
+        saving_capture_path = os.path.join(saving_capture_path, "gradflow_iter_{}".format(self.local_iter.item())+".png")
         visualize_multi_point(points_list=[flowed.points, flowed.points + gradflowed_disp, target.points],
                               feas_list=[flowed.weights, flowed.weights, target.weights],
-                              titles_list=["cur_source", "flowed", "target"],
-                              rgb_on=[False, False, False])
+                              titles_list=["cur_source", "gradflowed", "target"],
+                              rgb_on=[False, False, False],
+                            show = self.debugging_visualize, saving_capture_path = saving_capture_path)

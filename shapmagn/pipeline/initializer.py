@@ -1,6 +1,6 @@
 import os, sys
 from shapmagn.utils.utils import set_device
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import shapmagn.utils.module_parameters as pars
 from shapmagn.datasets.data_manager import DataManager
 

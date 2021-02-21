@@ -4,6 +4,7 @@ here turns it into a batch version
 """
 
 import torch
+from pykeops.torch import LazyTensor
 from shapmagn.kernels.keops_kernels import LazyKeopsKernel
 from shapmagn.kernels.torch_kernels import TorchKernel
 from shapmagn.utils.obj_factory import obj_factory
@@ -58,12 +59,18 @@ class VarifoldDistance(object):
 
 class L2Distance(object):
     def __init__(self, opt):
-        self.attr = opt[('attr','landmarks',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
+        self.attr = opt[('attr','pointfea',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
     def __call__(self,flowed, target):
         batch = flowed.nbatch
         attr1 = getattr(flowed, self.attr)
         attr2 = getattr(target, self.attr)
         return ((attr1.view(batch,-1)-attr2.view(batch,-1))**2).mean(-1) # B
+
+
+
+
+
+
 
 
 

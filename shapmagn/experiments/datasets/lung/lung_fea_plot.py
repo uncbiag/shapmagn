@@ -25,7 +25,7 @@ points_2 = target_obj['points'][:,:10000]
 
 npoints, points = points_1.shape[1], points_1
 points_np = points.detach().cpu().numpy().squeeze()
-aniso_kernel_scale=0.05
+aniso_kernel_scale=0.03
 Gamma,principle_weight,eigenvector, mass = compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.02,aniso_kernel_scale=aniso_kernel_scale,leaf_decay=True,principle_weight=None,eigenvalue_min=0.1,iter_twice=True,return_details=True)
 principle_weight_np = principle_weight.squeeze().numpy()
 eigenvector_np = eigenvector.squeeze().numpy()

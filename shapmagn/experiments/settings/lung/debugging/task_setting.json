@@ -3,112 +3,83 @@
         "name": "pair_dataset",
         "pair_dataset": {
             "reader" : "lung_dataloader_utils.lung_reader()",
-                "sampler" : "lung_dataloader_utils.lung_sampler(num_sample=-1, method='voxelgrid',scale=0.05)",
-            "normalizer": "lung_dataloader_utils.lung_normalizer()",
+            "sampler" : "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=30000)",
+            "normalizer": "lung_dataloader_utils.lung_normalizer(weight_scale=60000)",
+            "pair_postprocess_obj": "lung_dataloader_utils.lung_pair_postprocess()",
             "max_num_for_loading": [-1,-1,-1,-1],
-            "load_training_data_into_memory": true,
+            "load_training_data_into_memory": false,
             "aug_data_via_inverse_reg_direction": false
         }
     },
     "tsk_set": {
-        "batch_sz": [2,1,1,1],
+        "batch_sz": [
+            2,
+            1,
+            1,
+            1
+        ],
+        "epoch": 100,
         "gpu_ids": 0,
         "max_batch_num_per_epoch": [
-                800,
-                600,
-                50
-            ],
-        "model": "optimization",
-        "method_name": "lddmm_opt",
+            800,
+            600,
+            50
+        ],
+        "model": "deep_learning",
+        "method_name": "feature_deep",
         "loss_name": "geomloss",
+        "prepare_input_object": "lung_shape_pair.prepare_synth_input()",
         "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
-        "lddmm_opt": {
-            "module":"hamiltonian",
-            "print_step":10,
-            "hamiltonian": {
-                "kernel": "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.05,0.1],weight_list=[0.2,0.3,0.5])"
+        "feature_deep": {
+            "debugging_visualize": false,
+            "deep_extractor": "pointnet2_extractor",
+            "pointnet2_extractor": {
+                "local_pair_feature_extractor_obj": "lung_feature_extractor.LungFeatureExtractor(fea_type_list=['cov','weights'],weight_list=[1.0,'1000.'], radius=0.06,std_normalize=True, include_pos=False, fixed=True)",
+                "include_position": true
             },
-            "variational": {
-                "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)",
-                "grad_kernel": "keops_kernels.LazyKeopsKernel('gauss_grad',sigma=0.1)"
-            },
-            "integrator": {
-                    "tFrom": 0.0,
-                    "tTo": 1.0,
-                    "solver":"dopri5",
-                    "adjoin_on": true,
-                    "rtol": 1e-5,
-                    "atol": 1e-5,
-                    "number_of_time_steps": 15
-            },
-            "sim_loss": {
-                "loss_list": ["geomloss"],
-                "loss_weight_strategy_dict":{},
-                "loss_activate_epoch_list": [0],
-                "geomloss":{
-                    "attr": "points",
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.05, scaling=0.8, debias=True)"
-                },
-                "l2": {
-                    "attr": "points"
-                },
-                "varifold": {
-                    "kernel_backend": "keops",
-                    "sigma": 0.1
-
-                },
-                "current": {
-                    "kernel_backend": "keops",
-                    "sigma": 0.1
+            "deepfea_loss": {
+                "loss_type": "ot_corres",
+                "geomloss": {
+                    "attr": "pointfea",
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,reach=reachplaceholder,debias=False)"
                 }
+            },
+            "interp_kernel_obj": "point_interpolator.nadwat_kernel_interpolator(exp_order=2)",
+            "print_step": 1,
+            "saving_debugging_visualize": true,
+            "sim_loss_for_evaluation_only": {
+                "geomloss": {
+                    "attr": "points",
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=1.0, debias=False)"
+                },
+                "loss_activate_epoch_list": [
+                    0
+                ],
+                "loss_list": [
+                    "geomloss"
+                ],
+                "loss_weight_strategy": ""
+            },
+            "spline_kernel_obj": "point_interpolator.NadWatAnisoSpline(exp_order=2,cov_sigma_scale=0.02,aniso_kernel_scale=0.12,principle_weight=(3.,1.,1.),eigenvalue_min=0.1,iter_twice=True)"
+        },
+        "optim": {
+            "type": "adam",
+            "lr": 0.001,
+            "adam": {
+                "betas": [
+                    0.9,
+                    0.999
+                ]
             }
         },
-        "multi_scale_optimization": {
-            "point_grid_scales": [0.01,  -1],
-            "iter_per_scale": [100, 100],
-            "rel_ftol_per_scale": [1e-4, 1e-4],
-            "init_lr_list": [1e-3,1e-4],
-            "save_3d_shape_every_n_iter": 20,
-            "shape_sampler_type": "point_grid",
-             "optim": {
-                 "type": "sgd",
-                 "adam": {
-                     "betas": [
-                         0.9,
-                         0.999
-                     ]
-                 },
-                 "lbgfs": {
-                     "rel_ftol": 1e-7,
-                     "max_iter": 1,
-                     "max_eval": 5,
-                     "history_size": 5
-                 },
-                 "sgd": {
-                     "momentum": 0.9,
-                     "dampening": 0.0,
-                     "weight_decay": 0.0,
-                     "nesterov": true
-                 }
-             },
-            "scheduler": {
-                "type": "step_lr",
-                "step_lr": {
-                    "gamma": 0.5,
-                    "step_size": 50
-                },
-                "plateau": {
-                    "patience": 10,
-                    "mode": "min",
-                    "factor": 0.5,
-                    "threshold_mode": "rel",
-                    "threshold": 1e-3,
-                    "cooldown": 0,
-                    "min_lr": 1e-8
-                }
+        "scheduler": {
+            "type": "step_lr",
+            "step_lr": {
+                "gamma": 0.5,
+                "step_size": 50
             }
         },
         "save_fig_on": true,
-        "is_train": false
+        "is_train": true
     }
 }

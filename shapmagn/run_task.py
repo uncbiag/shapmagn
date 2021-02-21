@@ -4,15 +4,13 @@ run shape registration
 
 import os, sys
 from distutils.dir_util import copy_tree
-sys.path.insert(0, os.path.abspath(''))
-sys.path.insert(0, os.path.abspath(''))
-sys.path.insert(0, os.path.abspath(''))
+sys.path.insert(0, os.path.abspath('..'))
 import torch
 torch.backends.cudnn.benchmark=True
 import shapmagn.utils.module_parameters as pars
 from abc import ABCMeta, abstractmethod
 from shapmagn.pipeline.run_pipeline import run_one_task
-
+torch.multiprocessing.set_start_method("spawn", force = True)
 
 
 class BaseTask():

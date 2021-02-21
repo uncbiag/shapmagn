@@ -43,7 +43,6 @@ def compute_local_moments(points, radius=1.):
 
 
 def compute_aniso_local_moments(points, gamma=None):
-    gamma = gamma.view(gamma.shape[0], gamma.shape[1], -1)
     # B, N, D = points.shape
     shape_head, D = points.shape[:-1], points.shape[-1]
 
@@ -51,7 +50,9 @@ def compute_aniso_local_moments(points, gamma=None):
     # Computation:
     xp_i = LazyTensor(x[...,:,None,:])
     xp_j = LazyTensor(x[...,None,:,:])
-    dist2 = xp_i.weightedsqdist(xp_j, gamma)
+    gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xMxD*D
+    dist2 = (xp_i - xp_j) | gamma.matvecmult(xp_i - xp_j)
+    # dist2 = xp_i.weightedsqdist(xp_j, gamma)
     K_ij = (-dist2).exp()  # BxNxN
 
     x = torch.cat((torch.ones_like(x[...,:1]), x), dim = -1)  # (B, N, D+1)
@@ -72,15 +73,19 @@ def compute_aniso_local_moments(points, gamma=None):
     return mass_i, dev_i, cov_i
 
 
-def compute_local_fea_from_moments(fea_type, mass,dev,cov):
+def compute_local_fea_from_moments(fea_type,weights, mass,dev,cov):
     fea = None
-    if fea_type=="mass":
-        fea = mass
+    B, N, D = cov.shape[0], cov.shape[1], cov.shape[-1]
+    if fea_type=="weights":
+        fea = weights
+    elif fea_type=="mass":
+        fea = mass.view(B,N,-1)
     elif fea_type == "dev":
         fea = (dev ** 2).sum(-1,keepdim=True)
+    elif fea_type == "cov":
+        fea = cov.view(B,N,-1)
     elif 'eigen' in fea_type:
         compute_eigen_vector = fea_type in ["eigenvector","eigenvector_main"]
-        B, N, D = cov.shape[0], cov.shape[1], cov.shape[-1]
         cov = cov.view(B, N, -1, 1, 1).permute(0, 2, 1, 3, 4)
         vals, vectors = vSymEig(cov, eigenvectors=compute_eigen_vector, flatten_output=True,descending_eigenvals=True)
         vals = vals.view(B, N, -1)
@@ -112,7 +117,7 @@ def extract_point_fea(flowed, target):
     return flowed, target
 
 def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=False):
-    def _compute_fea(points, weight_list=None,gamma=None,  return_stats=False, mean=None, std=None):
+    def _compute_fea(points, weights, weight_list=None,gamma=None,  return_stats=False, mean=None, std=None):
         if isinstance(points, np.ndarray):
             points =torch.from_numpy(points)
         if weight_list is None:
@@ -121,7 +126,7 @@ def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=F
             mass, dev, cov = compute_local_moments(points, radius=radius)  # (N,), (N, D), (N, D, D)
         else:
             mass, dev, cov = compute_aniso_local_moments(points,gamma=gamma)  # (N,), (N, D), (N, D, D)
-        fea_list = [compute_local_fea_from_moments(fea_type, mass, dev, cov) for fea_type in fea_type_list]
+        fea_list = [compute_local_fea_from_moments(fea_type,weights, mass, dev, cov) for fea_type in fea_type_list]
         fea_dim_list = [fea.shape[-1] for fea in fea_list]
         weights = []
         for i, dim in enumerate(fea_dim_list):
@@ -154,9 +159,9 @@ def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=F
 def pair_feature_extractor(fea_type_list,weight_list=None, radius=0.01, std_normalize=True, include_pos=False):
     fea_extractor = feature_extractor(fea_type_list, radius, std_normalize, include_pos)
     def extract(flowed, target,iter=None,flowed_gamma=None, target_gamma=None):
-        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points, weight_list=weight_list,gamma=flowed_gamma,
+        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points, flowed.weights, weight_list=weight_list,gamma=flowed_gamma,
                                                       return_stats=True)
-        target.pointfea, _ = fea_extractor(target.points, weight_list=weight_list,gamma=target_gamma, mean=mean, std=std)
+        target.pointfea, _ = fea_extractor(target.points, target.weights, weight_list=weight_list,gamma=target_gamma, mean=mean, std=std)
         return flowed, target
     return extract
 
@@ -227,7 +232,7 @@ def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=
     return Gamma,principle_weight
 
 
-def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, leaf_decay=False, return_details=False):
+def compute_anisotropic_gamma_from_points(points,weights=None,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, leaf_decay=False, return_details=False):
     """
     compute inverse covariance matrix for anisotropic kernel
     this function doesn't support auto-grad
@@ -243,7 +248,7 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
     B,N, D = points.shape[0], points.shape[1],points.shape[2]
     fea_type_list = ["eigenvalue", "eigenvector"]
     fea_extractor = feature_extractor(fea_type_list, radius=cov_sigma_scale, std_normalize=False, include_pos=False)
-    combined_fea, mass = fea_extractor(points)
+    combined_fea, mass = fea_extractor(points,weights)
     eigenvalue, eigenvector = combined_fea[:, :, :D], combined_fea[:, :, D:]
     eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], D, D)
     print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eigenvalue <= 0)))
@@ -257,8 +262,8 @@ def compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.05,aniso_kern
                                         eigenvector=eigenvector)
     if iter_twice:
         mass, dev, cov = compute_aniso_local_moments(points, Gamma)
-        eigenvector = compute_local_fea_from_moments("eigenvector", mass, dev, cov)
-        eigenvalue = compute_local_fea_from_moments("eigenvalue", mass, dev, cov)
+        eigenvector = compute_local_fea_from_moments("eigenvector",weights, mass, dev, cov)
+        eigenvalue = compute_local_fea_from_moments("eigenvalue",weights, mass, dev, cov)
         eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], D, D)
         if principle_weight is None:
             eigenvalue[eigenvalue <= 0.] = 1e-7

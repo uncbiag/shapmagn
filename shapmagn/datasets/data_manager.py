@@ -41,7 +41,7 @@ class DataManager(object):
         """
         def _init_fn(worker_id):
             np.random.seed(12 + worker_id)
-        num_workers_reg ={'train':32,'val':16,'test':16,'debug':16}#{'train':0,'val':0,'test':0,'debug':0}#{'train':8,'val':4,'test':4,'debug':4}
+        num_workers_reg ={'train':0,'val':16,'test':16,'debug':16}#{'train':0,'val':0,'test':0,'debug':0}#{'train':8,'val':4,'test':4,'debug':4}
         shuffle_list ={'train':True,'val':False,'test':False,'debug':False}
         batch_size = [batch_size]*4 if not isinstance(batch_size, list) else batch_size
         batch_size = {'train': batch_size[0],'val':batch_size[1],'test':batch_size[2],'debug':batch_size[3]}

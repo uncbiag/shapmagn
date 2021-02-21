@@ -23,6 +23,8 @@ class DeepModel(ModelBase):
         :return:
         """
         ModelBase.initialize(self,opt, device, gpus)
+
+
         self.opt_optim = opt[('optim', {}, "setting for the optimizer")]
         self.opt_scheduler = opt[('scheduler', {}, "setting for the scheduler")]
         self.criticUpdates = opt['tsk_set']['criticUpdates']
@@ -30,24 +32,22 @@ class DeepModel(ModelBase):
         self.step_count = 0
         """ count of the step"""
         self.cur_epoch = 0
-        capture_plotter_obj = opt[
-            ("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
-        self.capture_plotter = obj_factory(capture_plotter_obj)
+        prepare_input_object = opt[("prepare_input_object", "", "input processing function")]
+        self.prepare_input = obj_factory(prepare_input_object) if prepare_input_object else self._set_input
         source_target_generator = opt[
             ("source_target_generator", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
         self.source_target_generator = obj_factory(source_target_generator)
-
+        capture_plotter_obj = opt[
+            ("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
+        self.capture_plotter = obj_factory(capture_plotter_obj)
         analyzer_obj = opt[
             ("analyzer_obj", "utils.compute_jacobi_of_pointcloud()", "result analyzer")]
         self.analyzer = obj_factory(analyzer_obj)
 
 
-
-
     def init_learning_env(self, opt, device):
-        method_name = opt[('method_name', "lddmm", "specific optimization method")]
-        if method_name in ["lddmm","discrete_flow","gradient_flow"]:
-            self.run_nonparametric = True
+        method_name = opt[('method_name', "discrete_flow_deep", "specific optimization method")]
+        if method_name in ["feature_deep","discrete_flow_deep"]:
             method_opt = opt[(method_name, {}, "method settings")]
             self._model = MODEL_POOL[method_name](method_opt).to(device)
         else:
@@ -85,19 +85,16 @@ class DeepModel(ModelBase):
         print(" the learning rate now is set to {}".format(lr))
 
 
+    def _set_input(self, input_data, batch_info):
+        return input_data, batch_info
+
     def set_input(self, input_data, device, is_train=False):
-        """
-        :param input_data:
-        :param is_train:
-        :return:
-        """
-        self.batch_info = {"pair_name":input_data["pair_name"],
+        batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"]}
-
-        input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
-        input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
+        input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
         return input_data
+
 
 
 

@@ -38,6 +38,8 @@ class RegistrationPairDataset(Dataset):
         self.reader = obj_factory(option[('reader',"","a reader instance")])
         self.sampler = obj_factory(option[('sampler',"","a sampler instance")])
         self.normalizer = obj_factory(option[('normalizer',"", "a normalizer instance")])
+        pair_postprocess_obj = option[('pair_postprocess_obj', "", "a pair_postprocess instance")]
+        self.pair_postprocess =  obj_factory(pair_postprocess_obj) if pair_postprocess_obj else None
         load_training_data_into_memory = option[('load_training_data_into_memory',True, "when train network, load all training sample into memory can relieve disk burden")]
         self.load_into_memory = load_training_data_into_memory if phase == 'train' else False
 
@@ -118,7 +120,7 @@ class RegistrationPairDataset(Dataset):
         """
         case_dict = self.reader(file_info)
         case_dict = self.normalizer(case_dict)
-        case_dict = self.sampler(case_dict)
+        case_dict = self.sampler(case_dict, fixed_random_seed=self.phase!="train")
 
         return case_dict
 
@@ -177,6 +179,9 @@ class RegistrationPairDataset(Dataset):
             unzip_shape_fn = lambda shape_dict: {key: unzip_fn(fea) for key, fea in shape_dict.items()}
             source_dict = unzip_shape_fn(zip_source_dict)
             target_dict = unzip_shape_fn(zip_target_dict)
+
+        if self.pair_postprocess is not None:
+            source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
 
         if self.transform:
             source_dict = {key:self.transform(fea) for key,fea in source_dict.items()}

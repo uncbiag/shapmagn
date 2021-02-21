@@ -121,7 +121,32 @@ def hist_match(source, template):
 
     return interp_t_values[bin_idx].reshape(oldshape)
 
-def matching_radius(source, target, sampled_by_radius=False, show=True):
+
+def matching_np_radius(source_weights, target_weights):
+    """
+
+    :param source_weights: Nx1
+    :param target_weights: Mx1
+    :param matched_weights: Nx1
+    :return:
+    """
+
+    ns = source_weights.shape[0]
+    sw = source_weights.squeeze()
+    tw = target_weights.squeeze()
+    range = [min(sw.min(), tw.min()), max(sw.max(), tw.max())]
+    resol = 10000
+    interp = (range[1] - range[0]) / resol
+    bins = np.linspace(range[0] - 2 * interp, range[1] + 2 * interp, resol)
+    sw_indice = np.digitize(sw, bins, right=False)
+    tw_indice = np.digitize(tw, bins, right=False)
+    sw_digitize = bins[sw_indice]
+    tw_digitize = bins[tw_indice]
+    sw_transformed = hist_match(sw_digitize, tw_digitize)
+    return sw_transformed.reshape(ns,1).astype(np.float32)
+
+
+def matching_shape_radius(source, target, sampled_by_radius=False, show=True):
     if sampled_by_radius:
         source, target = sampled_via_radius(source, target)
     device = source.points.device
@@ -234,7 +259,7 @@ def lung_isolated_leaf_clean_up(lung, radius=0.032, principle_weight=None, norma
     points = lung.points.detach()
     weights = lung.weights.detach()
     mass, dev, cov = compute_local_moments(points, radius=radius)
-    eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
+    eigenvector_main = compute_local_fea_from_moments("eigenvector_main",weights, mass, dev, cov)
     filter = mass[..., 0].squeeze() > 2
     to_remove = ~filter
     print("In the first step, num of points are removed {}, {}".format(torch.sum(to_remove),torch.sum(to_remove)/len(filter) ))
@@ -250,7 +275,7 @@ def lung_isolated_leaf_clean_up(lung, radius=0.032, principle_weight=None, norma
 
     Gamma= compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
     mass, dev, cov = compute_aniso_local_moments(points, Gamma)
-    eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
+    eigenvector_main = compute_local_fea_from_moments("eigenvector_main",weights, mass, dev, cov)
     filter = mass[..., 0].squeeze() > 2.5
     to_remove = ~filter
     print("In the second step, num of points are removed {}, {}".format(torch.sum(to_remove), torch.sum(to_remove) / len(filter)))
@@ -266,7 +291,7 @@ def lung_isolated_leaf_clean_up(lung, radius=0.032, principle_weight=None, norma
 
     Gamma = compute_anisotropic_gamma_from_points(points, cov_sigma_scale=radius, aniso_kernel_scale=radius, principle_weight=principle_weight)
     mass, dev, cov = compute_aniso_local_moments(points, Gamma)
-    eigenvector_main = compute_local_fea_from_moments("eigenvector_main", mass, dev, cov)
+    eigenvector_main = compute_local_fea_from_moments("eigenvector_main",weights, mass, dev, cov)
     filter = mass[..., 0].squeeze() > 3
     to_remove = ~filter
     print("In the third step, num of points are removed {}, {}".format(torch.sum(to_remove), torch.sum(to_remove) / len(filter)))
@@ -324,7 +349,7 @@ if __name__ == "__main__":
 
 
 
-    matching_radius(source, target)
+    matching_shape_radius(source, target)
     source_sampled, target_sampled = sampled_via_radius(source, target)
     interp_target_weights = hist_match(source_sampled.weights.squeeze().cpu().numpy(),
                                        target_sampled.weights.squeeze().cpu().numpy())

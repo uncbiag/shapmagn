@@ -53,6 +53,8 @@ class LDDMMOPT(nn.Module):
             assert self.pair_feature_extractor is None
 
 
+    def set_record_path(self, record_path):
+        self.record_path = record_path
 
     def init_reg_param(self,shape_pair, force=False):
         if shape_pair.reg_param is None or force:

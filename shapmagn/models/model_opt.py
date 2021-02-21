@@ -1,7 +1,5 @@
 import os
 import numpy as np
-import pandas as pd
-
 from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
 from shapmagn.utils.net_utils import print_model

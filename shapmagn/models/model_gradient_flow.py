@@ -24,6 +24,10 @@ class GradientFlowOPT(nn.Module):
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
 
 
+    def set_record_path(self, record_path):
+        self.record_path = record_path
+
+
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
 

@@ -22,7 +22,8 @@ KNOWN_MODULES = {
     'optim': 'torch.optim',
     'lr_scheduler': 'torch.optim.lr_scheduler',
     'probreg':'probreg',
-    'features':'probreg.features'
+    'features':'probreg.features',
+    'utils':'shapmagn.utils.utils'
     #'probreg.filterreg':'probreg.filterreg'
 }
 

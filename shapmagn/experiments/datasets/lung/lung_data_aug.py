@@ -1,142 +1,61 @@
-"""the spline aug including computational kernel operations, it would be better perform augmentation on gpu (after dataloader)"""
+"""keops failed on multi-processing data loader,  so the synthsis process are put before the network"""
+import os, sys
+sys.path.insert(0, os.path.abspath('../../../..'))
 import random
 import time
 from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 from shapmagn.global_variable import *
-from shapmagn.utils.utils import get_grid_wrap_points
-from shapmagn.shape.point_sampler import uniform_sampler, grid_sampler
+from shapmagn.datasets.data_aug import SplineAug, PointAug
 from shapmagn.utils.module_parameters import ParameterDict
 
 
 
-def visualize(points, deformed_points, point_weights=None, deformed_point_weights=None):
-    from shapmagn.utils.visualizer import visualize_point_pair_overlap
-    from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
-        target_weight_transform
-    # visualize_point_pair_overlap(points, deformed_points,
-    #                              flowed_weight_transform(point_weights, True),
-    #                              target_weight_transform(deformed_point_weights, True),
-    #                              title1="original", title2="deformed", rgb_on=False)
-    visualize_point_pair_overlap(points, deformed_points,
-                                 point_weights,
-                                 deformed_point_weights,
-                                 title1="original", title2="deformed", rgb_on=False)
 
-class PointAug(object):
-    def __init__(self, aug_settings):
-        self.remove_random_points_by_ratio = aug_settings["remove_random_points_by_ratio"]
-        self.add_random_noise_by_ratio = aug_settings["add_random_noise_by_ratio"]
-        self.random_noise_raidus = aug_settings["random_noise_raidus"]
-        self.normalize_weights = aug_settings["normalize_weights"]
-        self.plot = aug_settings["plot"]
+def lung_synth_data(**args):
+    aug_settings = ParameterDict()
+    aug_settings["do_local_deform_aug"] = True
+    aug_settings["do_grid_aug"] = True
+    aug_settings["do_point_aug"] = False
+    aug_settings["plot"] = False
+    local_deform_aug = aug_settings[
+        ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
+    local_deform_aug["num_sample"] = 1000
+    local_deform_aug["disp_scale"] = 0.05
+    kernel_scale = 0.12
+    spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+        kernel_scale)
+    local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
+        spline_param)
+    grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
+    grid_spline_aug["grid_spacing"] = 0.9
+    grid_spline_aug["disp_scale"] = 0.1
+    kernel_scale = 0.1
+    grid_spline_aug[
+        "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
+        kernel_scale)
+    spline_aug = SplineAug(aug_settings)
 
-    def remove_random_points(self, points, point_weights, index):
-        npoints = points.shape[0]
-        nsample = int((1 - self.remove_random_points_by_ratio) * npoints)
-        sampler = uniform_sampler(nsample)
-        sampling_points, sampling_weights, sampling_index = sampler(points, point_weights)
-        return sampling_points, sampling_weights, [index[sind] for sind in sampling_index]
+    points_aug = aug_settings[
+        ("points_aug", {}, "settings for remove or add noise points")]
+    points_aug["remove_random_points_by_ratio"] = 0.01
+    points_aug["add_random_noise_by_ratio"] = 0.01
+    points_aug["random_noise_raidus"] = 0.1
+    points_aug["normalize_weights"] = False
+    points_aug["plot"] = False
+    point_aug = PointAug(points_aug)
 
-    def add_noises_around_points(self, points, point_weights, index=None):
-        npoints, D = points.shape[0], points.shape[-1]
-        nnoise = int(self.add_random_noise_by_ratio*npoints)
-        index = np.random.choice(list(range(npoints)), nnoise, replace=False)
-        noise_disp = torch.ones(nnoise,3).to(points.device).uniform_(-1,1)*self.random_noise_raidus
-        noise = points[index] + noise_disp
-        points = torch.cat([points, noise],0)
-        weights = torch.cat([point_weights,point_weights[index]],0)
-        added_index = index + list(range(npoints,npoints+nnoise))
-        return points, weights, added_index
+    def _synth(data_dict):
+        synth_info = {"aug_settings":aug_settings}
+        points, weights = data_dict["points"],data_dict["weights"]
+        if aug_settings["do_point_aug"]:
+            points, weights, corr_index = point_aug(points, weights)
+            synth_info["corr_index"] = corr_index
 
-    def __call__(self,points, point_weights):
-        new_points, new_weights, new_index = points, point_weights, list(range(points.shape[0]))
-        if self.remove_random_points_by_ratio!=0:
-           new_points, new_weights, new_index = self.remove_random_points(new_points, new_weights, new_index)
-        if self.add_random_noise_by_ratio!=0:
-           new_points, new_weights, new_index = self.add_noises_around_points(new_points, new_weights, new_index)
-        if self.normalize_weights:
-            new_weights = new_weights*(point_weights.sum()/(new_weights.sum()))
-        if self.plot:
-            visualize(points,new_points,point_weights,new_weights)
-
-        return new_points, new_weights, new_index
-
-
-class SplineAug(object):
-    """
-    deform the point cloud via spline deform
-    for the grid deformation the isotropic deformation should be used
-    for the sampling deformation, either isotropic or anistropic deformation can be used
-    for both deformation the nadwat interpolation is used
-    :param deform_settings:
-    :return:
-    """
-
-    def __init__(self,aug_settings):
-        super(SplineAug,self).__init__()
-        self.aug_settings = aug_settings
-        self.do_grid_aug = aug_settings["do_grid_aug"]
-        self.do_sampling_aug = aug_settings["do_sampling_aug"]
-        grid_aug_settings = self.aug_settings["grid_spline_aug"]
-        sampling_aug_settings = self.aug_settings["sampling_spline_aug"]
-        grid_spline_kernel_obj = grid_aug_settings[("grid_spline_kernel_obj","","grid spline kernel object")]
-        sampling_spline_kernel_obj = sampling_aug_settings[("sampling_spline_kernel_obj","","sampling spline kernel object")]
-        self.grid_spline_kernel = obj_factory(grid_spline_kernel_obj) if grid_spline_kernel_obj else None
-        self.sampling_spline_kernel = obj_factory(sampling_spline_kernel_obj)  if sampling_spline_kernel_obj else None
-        self.plot = aug_settings["plot"]
-
-
-    def grid_spline_deform(self,points,point_weights):
-        grid_aug_settings = self.aug_settings["grid_spline_aug"]
-        grid_spacing = grid_aug_settings["grid_spacing"]
-        scale = grid_aug_settings["disp_scale"]
-
-        # grid_control_points, _ = get_grid_wrap_points(points, np.array([grid_spacing]*3).astype(np.float32))
-        # grid_control_disp = torch.ones_like(grid_control_points).uniform_(-1,1)*scale
-        # ngrids = grid_control_points.shape[0]
-        # grid_control_weights = torch.ones(ngrids, 1).to(points.device) / ngrids
-
-        sampler = grid_sampler(grid_spacing)
-        grid_control_points,grid_control_weights, _ = sampler(points, point_weights)
-        grid_control_disp = torch.ones_like(grid_control_points).uniform_(-1,1)*scale
-
-        points_disp = self.grid_spline_kernel(points[None], grid_control_points[None], grid_control_disp[None],grid_control_weights[None])
-        deformed_points =points + points_disp[0]
-        return deformed_points, point_weights
-
-    def sampling_spline_deform(self,points, point_weights):
-        sampling_aug_settings = self.aug_settings["sampling_spline_aug"]
-        num_sample = sampling_aug_settings["num_sample"]
-        scale = sampling_aug_settings["disp_scale"]
-        sampler = uniform_sampler(num_sample)
-        sampling_control_points,sampling_control_weights, _ = sampler(points, point_weights)
-        sampling_control_disp = torch.ones_like(sampling_control_points).uniform_(-1,1)*scale
-        points_disp = self.sampling_spline_kernel(points[None], sampling_control_points[None], sampling_control_disp[None],sampling_control_weights[None])
-        deformed_points =points + points_disp[0]
-        return deformed_points, point_weights
-
-
-
-
-
-    def __call__(self,points, point_weights):
-        """
-
-        :param points: torch.tensor  NxD
-        :param point_weights: torch.tensor Nx1
-        :return:
-        """
-        deformed_points = points
-        deformed_weights = point_weights
-        if self.do_sampling_aug:
-            deformed_points, deformed_weights = self.sampling_spline_deform(deformed_points,deformed_weights)
-        if self.plot:
-            visualize(points,deformed_points,point_weights,deformed_weights)
-        if self.do_grid_aug:
-            deformed_points, deformed_weights = self.grid_spline_deform(deformed_points,deformed_weights)
-        if self.plot:
-            visualize(points,deformed_points,point_weights,deformed_weights)
-        return deformed_points, deformed_weights
+        if aug_settings["do_local_deform_aug"] or aug_settings["do_spline_aug"]:
+            points, weights = spline_aug(points, weights)
+        data_dict["points"], data_dict["weights"] = points, weights
+        return data_dict, synth_info
+    return _synth
 
 
 
@@ -167,28 +86,28 @@ if __name__ == "__main__":
 
     # set deformation
     aug_settings = ParameterDict()
-    aug_settings["do_sampling_aug"] = True
+    aug_settings["do_local_deform_aug"] = True
     aug_settings["do_grid_aug"] = True
-    aug_settings["plot"] = False
+    aug_settings["plot"] = True
 
-    sampling_spline_aug = aug_settings[("sampling_spline_aug",{},"settings for uniform sampling based spline augmentation")]
-    sampling_spline_aug["num_sample"] = 1000
-    sampling_spline_aug["disp_scale"] = 0.05
+    local_deform_aug = aug_settings[("local_deform_aug",{},"settings for uniform sampling based spline augmentation")]
+    local_deform_aug["num_sample"] = 1000
+    local_deform_aug["disp_scale"] = 0.05
     kernel_scale = 0.12
     spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(kernel_scale)
-    sampling_spline_aug['sampling_spline_kernel_obj']="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
+    local_deform_aug['local_deform_spline_kernel_obj']="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
 
 
     grid_spline_aug = aug_settings[("grid_spline_aug",{},"settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.09
+    grid_spline_aug["disp_scale"] = 0.1
     kernel_scale = 0.1
     grid_spline_aug["grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(kernel_scale)
 
     st = time.time()
     spline_aug = SplineAug(aug_settings)
     print("it takes {} s".format(time.time()-st))
-    spline_aug(source_points[0],source_weights[0])
+    spline_aug(source_points,source_weights)
 
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
@@ -196,6 +115,7 @@ if __name__ == "__main__":
     points_aug["add_random_noise_by_ratio"] = 0.01
     points_aug["random_noise_raidus"] = 0.1
     points_aug["normalize_weights"] = False
-    points_aug["plot"] = False
+    points_aug["plot"] = True
     point_aug = PointAug(points_aug)
+    point_aug(source_points,source_weights)
 

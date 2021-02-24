@@ -226,29 +226,31 @@ def pair_shape_transformer( init_thres= 2.9e-5, nstep=5):
         return s_transformed, t_transformed
     return transform
 
-def capture_plotter():
+def capture_plotter(save_source=False):
     from shapmagn.utils.visualizer import visualize_point_pair_overlap
     inner_count = 0
     def save(record_path,name_suffix, shape_pair):
         nonlocal  inner_count
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-        if inner_count==0:
-            path = os.path.join(record_path,"source_target"+"_"+name_suffix+".png")
-            visualize_point_pair_overlap(source.points, target.points,
-                                         flowed_weight_transform(flowed.weights, True),
-                                         target_weight_transform(target.weights, True),
-                                         title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
-        path_1 = os.path.join(record_path, "flowed_target" + "_main_" + name_suffix + ".png")
-        path_2 = os.path.join(record_path, "flowed_target" + "_whole_" + name_suffix + ".png")
-        visualize_point_pair_overlap(flowed.points, target.points,
-                                 flowed_weight_transform(flowed.weights,True),
-                                 target_weight_transform(target.weights,True),
-                                 title1="flowed",title2="target", rgb_on=False,saving_capture_path=path_1, show=False)
-        visualize_point_pair_overlap(flowed.points, target.points,
-                                     flowed.weights,
-                                     target.weights,
-                                     title1="flowed", title2="target", rgb_on=False, saving_capture_path=path_2,
-                                     show=False)
+        for sp, fp, tp, sw, fw, tw, pair_name in zip(source.points, flowed.points, target.points, source.weights,
+                                                     flowed.weights, target.weights, pair_name_list):
+            if inner_count==0 or save_source:
+                path = os.path.join(record_path,"source_target"+"_"+name_suffix+".png")
+                visualize_point_pair_overlap(sp, tp,
+                                             flowed_weight_transform(fw, True),
+                                             target_weight_transform(tw, True),
+                                             title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
+            path_1 = os.path.join(record_path, pair_name+"_flowed_target" + "_main_" + name_suffix + ".png")
+            path_2 = os.path.join(record_path, pair_name+"_flowed_target" + "_whole_" + name_suffix + ".png")
+            visualize_point_pair_overlap(fp, tp,
+                                     flowed_weight_transform(fw,True),
+                                     target_weight_transform(tw,True),
+                                     title1="flowed",title2="target", rgb_on=False,saving_capture_path=path_1, show=False)
+            visualize_point_pair_overlap(fp, tp,
+                                         fw,
+                                         tw,
+                                         title1="flowed", title2="target", rgb_on=False, saving_capture_path=path_2,
+                                         show=False)
         inner_count +=1
     return save
 

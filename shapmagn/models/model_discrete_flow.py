@@ -313,6 +313,8 @@ class DiscreteFlowOPT(nn.Module):
 
 
 
+
+
     def visualize_discreteflow(self, shape_pair):
         from shapmagn.utils.visualizer import visualize_point_pair_overlap
         from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \

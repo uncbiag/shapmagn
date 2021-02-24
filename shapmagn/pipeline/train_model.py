@@ -13,7 +13,7 @@ def train_model(opt,model, dataloaders,writer, device):
     load_model_but_train_from_epoch =opt[('load_model_but_train_from_epoch',0,'if reset_train_epoch is true, the epoch will be set as the given number')]
     check_point_path = opt['path']['check_point_path']
     max_batch_num_per_epoch_list = opt[('max_batch_num_per_epoch',(-1,-1,-1),"max batch number per epoch for train|val|debug")]
-    best_score = 0
+    best_score = -1
     start_epoch = 0
     best_epoch = -1
     phases =['train','val','debug']
@@ -86,13 +86,14 @@ def train_model(opt,model, dataloaders,writer, device):
 
                 elif phase =='val':
                     val_res= model.get_evaluation(input)
-                    score, detailed_scores= model.analyze_res(val_res)
-                    print('val loss of batch {} is {}:'.format(model.get_batch_names(),score))
-                    print('val detailed metric of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
+
+                    score, detailed_scores= model.analyze_res(val_res, cache_res=True)
+                    print('val score of batch {} is {}:'.format(model.get_batch_names(),score))
+                    print('val detailed scores of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
                     model.save_visual_res(input,val_res, phase)
                     model.update_loss(epoch,end_of_epoch)
                     update_res(detailed_scores,running_val_score)
-                    update_res({"val_score":score}, running_val_score)
+                    update_res({"val_score":[score]}, running_val_score)
                     loss = score
 
 
@@ -100,12 +101,12 @@ def train_model(opt,model, dataloaders,writer, device):
                 elif phase == 'debug':
                     print('debugging loss:')
                     debug_res = model.get_evaluation(input)
-                    score, detailed_scores = model.analyze_res(debug_res)
-                    print('debug loss of batch {} is {}:'.format(model.get_batch_names(),score))
-                    print('debug detailed metric of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
+                    score, detailed_scores= model.analyze_res(debug_res, cache_res=True)
+                    print('debug score of batch {} is {}:'.format(model.get_batch_names(),score))
+                    print('debug detailed scores of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
                     model.save_visual_res(input,debug_res, phase)
                     update_res(detailed_scores,running_debug_score)
-                    update_res({"debug_score":score}, running_debug_score)
+                    update_res({"debug_score":[score]}, running_debug_score)
                     loss = score
 
                 model.do_some_clean()
@@ -117,13 +118,13 @@ def train_model(opt,model, dataloaders,writer, device):
                 if global_step[phase] > 0 and global_step[phase] % tensorboard_print_period[phase] == 0:
                     if not is_train:
                         for metric in period_detailed_scores[phase]:
-                            period_avg_detailed_scores = period_detailed_scores[phase][metric] / tensorboard_print_period[phase]
+                            period_avg_detailed_scores = sum(period_detailed_scores[phase][metric]) / tensorboard_print_period[phase]
                             writer.add_scalar('{}_'+ phase.format(metric), period_avg_detailed_scores, global_step['train'])
-                            period_detailed_scores[phase][metric] = 0.
+                            period_detailed_scores[phase][metric] = []
 
                     period_avg_loss = period_loss[phase] / tensorboard_print_period[phase]
-                    writer.add_scalar('loss/' + phase, period_avg_loss, global_step['train'])
-                    print("global_step:{}, {} lossing is{}".format(global_step['train'], phase, period_avg_loss))
+                    writer.add_scalar('score/' + phase, period_avg_loss, global_step['train'])
+                    print("global_step:{}, {} score is{}".format(global_step['train'], phase, period_avg_loss))
                     period_loss[phase] = 0.
 
                 if end_of_epoch:
@@ -132,12 +133,10 @@ def train_model(opt,model, dataloaders,writer, device):
             if phase == 'val':
                 model.save_res(phase)
                 for metric in running_val_score:
-                    epoch_val_score_metric = running_val_score[metric] / min(max_batch_num_per_epoch['val'], dataloaders['data_size']['val'])
+                    epoch_val_score_metric = sum(running_val_score[metric]) / len(running_val_score[metric])
                     print('{} epoch_val_{}: {:.4f}'.format(epoch, metric,epoch_val_score_metric))
-                epoch_val_score = running_val_score["val_score"] / min(max_batch_num_per_epoch['val'], dataloaders['data_size']['val'])
-                if model.exp_lr_scheduler is not None:
-                    model.exp_lr_scheduler.step(epoch_val_score)
-                    print("debugging, the exp_lr_schedule works and update the step")
+                epoch_val_score = sum(running_val_score["val_score"]) / len(running_val_score["val_score"])
+
                 if epoch == 0:
                     best_score = epoch_val_score
 
@@ -155,9 +154,9 @@ def train_model(opt,model, dataloaders,writer, device):
             if phase == 'debug':
                 model.save_res(phase, saving=False)
                 for metric in running_debug_score:
-                    epoch_debug_score_metric = running_debug_score[metric] / min(max_batch_num_per_epoch['debug'], dataloaders['data_size']['debug'])
+                    epoch_debug_score_metric = sum(running_debug_score[metric]) / len(running_debug_score[metric])
                     print('{} epoch_debug_{}: {:.4f}'.format(epoch, metric,epoch_debug_score_metric))
-                epoch_debug_score = running_debug_score["debug_score"] / min(max_batch_num_per_epoch['debug'], dataloaders['data_size']['debug'])
+                epoch_debug_score = sum(running_debug_score["debug_score"]) / len(running_debug_score["debug_score"])
                 print('{} epoch_debug_score: {:.4f}'.format(epoch, epoch_debug_score))
 
 
@@ -171,15 +170,8 @@ def train_model(opt,model, dataloaders,writer, device):
 
 
 def save_model(model,check_point_path,epoch,global_step,name, is_best=False, best_score=-1):
-    if isinstance(model.optimizer, tuple):
-        # for multi-optimizer cases
-        optimizer_state = []
-        for term in model.optimizer:
-            optimizer_state.append(term.state_dict())
-        optimizer_state = tuple(optimizer_state)
-    else:
-        optimizer_state = model.optimizer.state_dict()
-    save_checkpoint({'epoch': epoch, 'state_dict': model._network.state_dict(), 'optimizer': optimizer_state,
+    optimizer_state = model.optimizer.state_dict()
+    save_checkpoint({'epoch': epoch, 'state_dict': model.get_model().state_dict(), 'optimizer': optimizer_state,
                      'best_score': best_score, 'global_step': global_step}, is_best, check_point_path,name, '')
 
 

@@ -250,7 +250,7 @@ if __name__ == "__main__":
     x = torch.rand(batch_sz,1500,3)
     b = torch.rand(batch_sz,1500,2)
     kernel1 = LazyKeopsKernel.aniso_sp_gauss_kernel()
-    kernel2 = LazyKeopsKernel.aniso_sp_gauss_interp_kernel()
+    #kernel2 = LazyKeopsKernel.aniso_sp_gauss_interp_kernel()
     z1 = kernel1(torch.cat([x,x],0),gamma, torch.cat([b,b],0))
     z2 = kernel2(torch.cat([x,x],0),torch.cat([x,x],0),gamma, gamma,torch.cat([b,b],0))
     print()

@@ -251,7 +251,7 @@ def compute_anisotropic_gamma_from_points(points,weights=None,cov_sigma_scale=0.
     combined_fea, mass = fea_extractor(points,weights)
     eigenvalue, eigenvector = combined_fea[:, :, :D], combined_fea[:, :, D:]
     eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], D, D)
-    print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eigenvalue <= 0)))
+    #print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eigenvalue <= 0)))
     if principle_weight is None:
         eigenvalue[eigenvalue <= 0.] = 1e-7
         eigenvalue = eigenvalue / torch.norm(eigenvalue, p=2, dim=2, keepdim=True)

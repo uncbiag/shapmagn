@@ -5,12 +5,17 @@ run shape registration
 import os, sys
 from distutils.dir_util import copy_tree
 sys.path.insert(0, os.path.abspath('..'))
+import pykeops
+print(pykeops.config.bin_folder)  # display default build_folder
+cache_path ="/playpen/zyshen/keops_cache"
+os.makedirs(cache_path,exist_ok=True)
+pykeops.set_bin_folder(cache_path)  # change the build folder
+print(pykeops.config.bin_folder)  # display new build_folder
 import torch
 torch.backends.cudnn.benchmark=True
 import shapmagn.utils.module_parameters as pars
 from abc import ABCMeta, abstractmethod
 from shapmagn.pipeline.run_pipeline import run_one_task
-torch.multiprocessing.set_start_method("spawn", force = True)
 
 
 class BaseTask():

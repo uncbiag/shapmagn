@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
-from shapmagn.utils.obj_factory import obj_factory,partial_obj_factory
+from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.utils import sigmoid_decay
 class DeepDiscreteFlow(nn.Module):
     """

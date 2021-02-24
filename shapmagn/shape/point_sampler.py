@@ -72,6 +72,8 @@ def point_grid_sampler(scale):
         sampled_points_list = []
         sampled_weights_list = []
         sampled_pointfea_list = []
+        D = input_shape.points.shape[-1]
+        device = input_shape.points.device
         for i in range(nbatch):
             points = input_shape.points[i]
             weights = input_shape.weights[i]
@@ -82,15 +84,30 @@ def point_grid_sampler(scale):
                 sampled_pointfea_list.append(sampled_pointfea)
             sampled_points_list.append(sampled_points)
             sampled_weights_list.append(sampled_weights)
-        sampled_batch_points = torch.stack(sampled_points_list,dim=0)
-        sampled_batch_weights = torch.stack(sampled_weights_list,dim=0)
+        max_len = max([sampled_points.shape[0] for sampled_points in sampled_points_list])
+        cleaned_sampled_points_list, cleaned_sampled_weights_list = [], []
+        for sampled_points, sampled_weights in zip(sampled_points_list, sampled_weights_list):
+            nsample = sampled_points.shape[0]
+            if nsample<max_len:
+                zeros_cat_points = torch.zeros(max_len-nsample,D, device=device)
+                zeros_cat_weights = torch.zeros(max_len-nsample,1, device=device)
+                cleaned_sampled_points_list.append(torch.cat([sampled_points,zeros_cat_points],0))
+                cleaned_sampled_weights_list.append(torch.cat([sampled_weights,zeros_cat_weights],0))
+        sampled_batch_points = torch.stack(cleaned_sampled_points_list,dim=0)
+        sampled_batch_weights = torch.stack(cleaned_sampled_weights_list,dim=0)
         # todo for polyline and mesh, edges sampling are not supported
         new_shape = Shape()
         new_shape.set_data_with_refer_to(sampled_batch_points, input_shape)
         new_shape.set_weights(sampled_batch_weights)
         new_shape.set_scale(scale)
         if input_shape.pointfea is not None:
-            sampled_batch_pointfea = torch.stack(sampled_pointfea_list,dim=0)
+            cleaned_sampled_pointfea_list = []
+            for sampled_pointfea in sampled_pointfea_list:
+                nsample, fea_dim = sampled_pointfea.shape[0], sampled_pointfea.shape[-1]
+                if nsample < max_len:
+                    zeros_cat_pointfea = torch.zeros(max_len - nsample, fea_dim, device=device)
+                    cleaned_sampled_pointfea_list.append(torch.cat([sampled_pointfea, zeros_cat_pointfea], 0))
+            sampled_batch_pointfea = torch.stack(cleaned_sampled_pointfea_list,dim=0)
             new_shape.set_pointfea(sampled_batch_pointfea)
         return new_shape
     return sampling

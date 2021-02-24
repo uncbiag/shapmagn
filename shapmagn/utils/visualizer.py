@@ -355,19 +355,20 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
     return p
 
 
-def capture_plotter():
+def capture_plotter(save_source=False):
     inner_count = 0
-    def save(record_path,name_suffix, shape_pair):
+    def save(record_path,name_suffix,pair_name_list, shape_pair):
         nonlocal  inner_count
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-        if inner_count==0:
-            path = os.path.join(record_path,"source_target"+"_"+name_suffix+".png")
-            visualize_point_pair_overlap(source.points, target.points,
-                                         source.weights, target.weights,
-                                         title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
-        path = os.path.join(record_path, "flowed_target" + "_" + name_suffix + ".png")
-        visualize_point_pair_overlap(flowed.points, target.points,
-                                     flowed.weights, target.weights,
-                                     title1="flowed",title2="target", rgb_on=False,saving_capture_path=path, show=False)
+        for sp, fp, tp,sw,fw,tw, pair_name in zip(source.points, flowed.points, target.points,source.weights, flowed.weights, target.weights, pair_name_list):
+            if inner_count==0 or save_source:
+                path = os.path.join(record_path,pair_name+"_source_target"+"_"+name_suffix+".png")
+                visualize_point_pair_overlap(sp, tp,
+                                             sw, tw,
+                                             title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
+            path = os.path.join(record_path, pair_name+"_flowed_target" + "_" + name_suffix + ".png")
+            visualize_point_pair_overlap(fp, tp,
+                                         fw, tw,
+                                         title1="flowed",title2="target", rgb_on=False,saving_capture_path=path, show=False)
         inner_count +=1
     return save

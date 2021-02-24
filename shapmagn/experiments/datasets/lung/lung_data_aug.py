@@ -28,7 +28,7 @@ def lung_synth_data(**args):
         spline_param)
     grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.1
+    grid_spline_aug["disp_scale"] = 0.08
     kernel_scale = 0.1
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
@@ -38,7 +38,7 @@ def lung_synth_data(**args):
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
     points_aug["remove_random_points_by_ratio"] = 0.01
-    points_aug["add_random_noise_by_ratio"] = 0.01
+    points_aug["add_random_point_noise_by_ratio"] = 0.01
     points_aug["random_noise_raidus"] = 0.1
     points_aug["normalize_weights"] = False
     points_aug["plot"] = False
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
     points_aug["remove_random_points_by_ratio"] = 0.01
-    points_aug["add_random_noise_by_ratio"] = 0.01
+    points_aug["add_random_point_noise_by_ratio"] = 0.01
     points_aug["random_noise_raidus"] = 0.1
     points_aug["normalize_weights"] = False
     points_aug["plot"] = True

@@ -1,5 +1,6 @@
 import os
 import torch
+from copy import deepcopy
 
 def resume_train(model_path, model, optimizer=None):
     """
@@ -88,18 +89,13 @@ def print_model(net):
 
 
 
-def update_res(metrics_res, recorder, mode="add"):
+def update_res(metrics_res, recorder):
     for metric in metrics_res:
-        if mode == "add":
-            if metric in recorder:
-                recorder[metric] += metrics_res[metric]
-            else:
-                recorder.update({metric: metrics_res[metric]})
-        elif mode == "append":
-            if metric in recorder:
-                recorder[metric] += [metrics_res[metric]]
-            else:
-                recorder.update({metric: [metrics_res[metric]]})
+        if metric in recorder:
+            recorder[metric] += deepcopy(metrics_res[metric])
+        else:
+            recorder.update({metric: deepcopy(metrics_res[metric])})
+
 
 class VisualWarpper(torch.nn.Module):
     def __init__(self, network):

@@ -39,8 +39,8 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     mode = gemloss_setting[("mode", 'hard',"soft, hard, trans_plan")]
     geomloss = obj_factory(geom_obj)
     attr = "pointfea"
-    attr1 = getattr(cur_source, attr).detach()
-    attr2 = getattr(target, attr).detach()
+    attr1 = getattr(cur_source, attr)
+    attr2 = getattr(target, attr)
     points1 = cur_source.points
     points2 = target.points
     device = points1.device
@@ -68,8 +68,16 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
         points2_flatten = points2.view(-1, D)
         mapped_position = points2_flatten[P_i_index]
         mapped_position = mapped_position.view(B,N,D)
+    elif mode=="mapped_index":
+        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N)  # over M,  return (B*N)
+        return P_i_index
+    elif mode=="soft_and_max_index":
+        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N) # over M,  return (B*N)
+        position_to_map = LazyTensor(points2.view(B, 1, M, -1))  # Bx1xMxD
+        mapped_position = log_P_ij.sumsoftmaxweight(position_to_map, dim=2)
+        return P_i_index , mapped_position
     elif mode=="trans_plan":
-        return log_P_ij.exp()
+        return log_P_ij.exp(), log_P_ij
     else:
         raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
     print("OT based forward mapping complete")

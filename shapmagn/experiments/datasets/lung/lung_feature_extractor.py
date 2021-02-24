@@ -50,10 +50,14 @@ class LungFeatureExtractor(object):
         self.buffer = {"flowed_gamma":None, "target_gamma":None}
         self.iter = 0
 
+    # def update_weight(self, weight_list, iter):
+    #     max_weight = 1
+    #     if iter > 2:
+    #         weight_list = [min(max(0.1 * iter + weight, max_weight), 0.5) for weight in weight_list]
+    #     return weight_list
+
+
     def update_weight(self, weight_list, iter):
-        max_weight = 1
-        if iter > 2:
-            weight_list = [min(max(0.1 * iter + weight, max_weight), 0.5) for weight in weight_list]
         return weight_list
 
     def __call__(self,flowed, target, iter=-1):
@@ -75,9 +79,6 @@ class LungFeatureExtractor(object):
         if self.include_pos:
             flowed_pointfea = torch.cat([flowed.points,flowed_pointfea],-1)
             target_pointfea = torch.cat([target.points,target_pointfea],-1)
-        if self.include_weight:
-            flowed_pointfea = torch.cat([flowed.weights,flowed_pointfea],-1)
-            target_pointfea = torch.cat([target.weights,target_pointfea],-1)
 
         flowed.pointfea = flowed_pointfea
         target.pointfea = target_pointfea

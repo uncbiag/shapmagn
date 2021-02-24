@@ -6,42 +6,45 @@
             "sampler" : "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=30000)",
             "normalizer": "lung_dataloader_utils.lung_normalizer(weight_scale=60000)",
             "pair_postprocess_obj": "lung_dataloader_utils.lung_pair_postprocess()",
-            "max_num_for_loading": [-1,-1,-1,-1],
-            "load_training_data_into_memory": false,
+            "max_num_for_loading": [100,20,20,-1],
+            "load_training_data_into_memory": true,
             "aug_data_via_inverse_reg_direction": false
         }
     },
     "tsk_set": {
         "batch_sz": [
+            4,
             2,
-            1,
-            1,
+            2,
             1
         ],
         "epoch": 100,
         "gpu_ids": 0,
         "max_batch_num_per_epoch": [
-            800,
-            600,
-            50
+            200,
+            10,
+            5
         ],
         "model": "deep_learning",
         "method_name": "feature_deep",
-        "loss_name": "geomloss",
+        "val_period": 5,
         "prepare_input_object": "lung_shape_pair.prepare_synth_input()",
         "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
         "feature_deep": {
             "debugging_visualize": false,
             "deep_extractor": "pointnet2_extractor",
             "pointnet2_extractor": {
-                "local_pair_feature_extractor_obj": "lung_feature_extractor.LungFeatureExtractor(fea_type_list=['cov','weights'],weight_list=[1.0,'1000.'], radius=0.06,std_normalize=True, include_pos=False, fixed=True)",
-                "include_position": true
+                "local_pair_feature_extractor_obj": "lung_feature_extractor.LungFeatureExtractor(fea_type_list=['cov','weights'],weight_list=[1.0,1.0], radius=0.06,std_normalize=False, include_pos=False, fixed=False)",
+                "include_position": true,
+                "input_channel": 10,
+                "initial_radius": 0.001
             },
             "deepfea_loss": {
                 "loss_type": "ot_corres",
                 "geomloss": {
                     "attr": "pointfea",
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,reach=reachplaceholder,debias=False)"
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, scaling=0.8,reach=None,debias=False, backend='online')",
+                    "mode": "trans_plan"
                 }
             },
             "interp_kernel_obj": "point_interpolator.nadwat_kernel_interpolator(exp_order=2)",
@@ -50,7 +53,7 @@
             "sim_loss_for_evaluation_only": {
                 "geomloss": {
                     "attr": "points",
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=1.0, debias=False)"
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.5,reach=1.0, debias=False, backend='online')"
                 },
                 "loss_activate_epoch_list": [
                     0
@@ -60,7 +63,7 @@
                 ],
                 "loss_weight_strategy": ""
             },
-            "spline_kernel_obj": "point_interpolator.NadWatAnisoSpline(exp_order=2,cov_sigma_scale=0.02,aniso_kernel_scale=0.12,principle_weight=(3.,1.,1.),eigenvalue_min=0.1,iter_twice=True)"
+            "spline_kernel_obj": "point_interpolator.NadWatAnisoSpline(exp_order=2,cov_sigma_scale=0.02,aniso_kernel_scale=0.06,eigenvalue_min=0.3,iter_twice=True,leaf_decay=True)"
         },
         "optim": {
             "type": "adam",

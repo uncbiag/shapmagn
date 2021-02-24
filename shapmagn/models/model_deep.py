@@ -27,7 +27,7 @@ class DeepModel(ModelBase):
 
         self.opt_optim = opt[('optim', {}, "setting for the optimizer")]
         self.opt_scheduler = opt[('scheduler', {}, "setting for the scheduler")]
-        self.criticUpdates = opt['tsk_set']['criticUpdates']
+        self.criticUpdates = opt['tsk_set'][('criticUpdates',1,"update parameter every # iter")]
         self.init_learning_env(self.opt,device)
         self.step_count = 0
         """ count of the step"""
@@ -38,11 +38,11 @@ class DeepModel(ModelBase):
             ("source_target_generator", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
         self.source_target_generator = obj_factory(source_target_generator)
         capture_plotter_obj = opt[
-            ("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
+            ("capture_plot_obj", "visualizer.capture_plotter(save_source=True)", "factory object for 2d capture plot")]
         self.capture_plotter = obj_factory(capture_plotter_obj)
         analyzer_obj = opt[
-            ("analyzer_obj", "utils.compute_jacobi_of_pointcloud()", "result analyzer")]
-        self.analyzer = obj_factory(analyzer_obj)
+            ("analyzer_obj", "", "result analyzer")]
+        self.external_analyzer = obj_factory(analyzer_obj) if analyzer_obj else None
 
 
     def init_learning_env(self, opt, device):
@@ -91,8 +91,11 @@ class DeepModel(ModelBase):
     def set_input(self, input_data, device, is_train=False):
         batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
-                           "target_info":input_data["target_info"]}
+                           "target_info":input_data["target_info"],
+                            "is_synth":False}
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
+        input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
+        input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
         return input_data
 
 
@@ -104,7 +107,7 @@ class DeepModel(ModelBase):
         return info
 
     def forward(self, shape_pair=None):
-        self._model.module.set_cur_epoch(self.cur_epoch)
+        self._model.set_cur_epoch(self.cur_epoch)
         loss, shape_pair = self._model(shape_pair)
         return loss, shape_pair
 
@@ -125,13 +128,16 @@ class DeepModel(ModelBase):
         loss = output[0].mean()
         self.backward_net(loss / self.criticUpdates)
         self.loss = loss.item()
-        update_lr, lr = self._model.module.check_if_update_lr()
+        update_lr, lr = self._model.check_if_update_lr()
         if update_lr:
             self.update_learning_rate(lr)
         if self.iter_count % self.criticUpdates == 0:
             self.optimizer.step()
             self.optimizer.zero_grad()
         return shape_pair
+
+    def get_current_errors(self):
+        return self.loss
 
     def update_scheduler(self,epoch):
         if self.lr_scheduler is not None:
@@ -142,28 +148,53 @@ class DeepModel(ModelBase):
 
 
     def get_evaluation(self,input_data):
-        loss, shape_pair = self.optimize_parameters(input_data)
-        return shape_pair
+        """
+        get
+        :param input_data:
+        :return:
+        """
+        source, target = self.source_target_generator(input_data)
+        shape_pair = create_shape_pair(source, target)
+        scores, shape_pair = self._model.model_eval(shape_pair, self.batch_info)
+        return scores, shape_pair
 
 
 
-    def save_visual_res(self, input_data, shape_pair, phase):
+    def save_visual_res(self, input_data, eval_res, phase):
+        scores, shape_pair = eval_res
         save_shape_pair_into_files(self.shape_folder_3d, "{}_epoch_{}".format(phase,self.cur_epoch), shape_pair)
-        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch), shape_pair)
+        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair)
 
 
 
 
 
-    def analyze_res(self, res):
-        self.analyzer(res, self.batch_info["pair_name"], self._model, self.record_path,)
+    def analyze_res(self, eval_res,cache_res=True):
+        import numpy as np
+        scores, shape_pair = eval_res
+        if self.external_analyzer:
+            self.external_analyzer(shape_pair, self.batch_info["pair_name"], self._model, self.record_path)
+        if cache_res:
+            if "acc" not in self.caches:
+                self.caches.update({"loss":scores["loss"],"acc":scores["acc"], "pair_name":self.batch_info["pair_name"]})
+            else:
+                self.caches['loss'] += scores["loss"]
+                self.caches['acc'] += scores["acc"]
+                self.caches['pair_name'] += self.batch_info["pair_name"]
 
+        if len(scores):
+            return np.array(scores["acc"]).mean(), scores
+        else:
+            return -1, np.array([-1])
 
+    def save_res(self, phase, saving=True):
+        import pandas as pd
 
-
-    def save_res(self,phase, saving=True):
-        pass
-
+        if saving:
+            saving_pred_path = os.path.join(self.record_path, "acc_{}_{}.csv".format(phase, self.cur_epoch))
+            submission_df = pd.DataFrame(self.caches)
+            submission_df.to_csv(saving_pred_path, index=False)
+        self.caches = {}
 
     def get_extra_to_plot(self):
         """

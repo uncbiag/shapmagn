@@ -37,9 +37,9 @@ class OptModel(ModelBase):
         self.cur_epoch = 0
         """visualize condition"""
         self.visualize_condition = {}
-        source_target_generator = opt[
-            ("source_target_generator", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
-        self.source_target_generator = obj_factory(source_target_generator)
+        create_shape_pair_from_data_dict = opt[
+            ("create_shape_pair_from_data_dict", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
+        self.create_shape_pair_from_data_dict = obj_factory(create_shape_pair_from_data_dict)
 
 
 
@@ -126,7 +126,7 @@ class OptModel(ModelBase):
         :param data: input_data(not used
         :return:
         """
-        source, target = self.source_target_generator(data)
+        source, target = self.create_shape_pair_from_data_dict(data)
         shape_pair = create_shape_pair(source, target)
         if self.run_prealign:
             multi_scale_opt = self.opt[("multi_scale_optimization_prealign",{},"settings for multi_scale_optimization_prealign")]

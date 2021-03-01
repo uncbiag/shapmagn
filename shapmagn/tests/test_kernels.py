@@ -32,9 +32,9 @@ class Test_Kernels(unittest.TestCase):
 
 
     def setUp(self):
-        B = 1
-        N = 10000
-        K = 8000
+        B = 2
+        N = 1000
+        K = 800
         D = 3
         device = torch.device("cuda:0") # cuda:0, cpu
         #device = torch.device("cpu") # cuda:0, cpu

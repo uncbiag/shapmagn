@@ -19,7 +19,6 @@ class ModelBase():
         self.record_path = opt['path']['record_path']
         self._model = None
         self.iter_count = 0
-        self.val_res_dic = {}
         self.batch_info = None
         self.caches = {}
 

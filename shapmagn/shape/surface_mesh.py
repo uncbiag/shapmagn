@@ -21,6 +21,7 @@ class SurfaceMesh(ShapeBase):
         self.type = 'surfacemesh'
         self.faces =None
         self.index = None
+        self.attr_list=["points","faces","index","label","landmarks","name_list","pointfea","weights","seg"]
         self.points_mode_on = False
         """the mesh sampling is not implemented, if the topology changed, only points related operators are allowed"""
 

@@ -346,8 +346,8 @@ if __name__ == "__main__":
     #plot_pair_weight_distribution(source_weight/source_weight.sum(), target_weight/target_weight.sum(), use_log=True)
 
     input_data = {"source": source, "target": target}
-    source_target_generator = obj_factory("shape_pair_utils.create_source_and_target_shape()")
-    source, target = source_target_generator(input_data)
+    create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
+    source, target = create_shape_pair_from_data_dict(input_data)
 
 
 

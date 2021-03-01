@@ -116,4 +116,4 @@ def run_by_name(test_name):
 
 
 if __name__ == '__main__':
-       run_by_name('test_lddmm_shooting')
+    run_by_name('test_lddmm_shooting')

@@ -40,6 +40,8 @@ def init_weights(m, init_type='normal', gain=0.02):
         init.constant_(m.bias.data, 0.0)
 
 
+
+
 def set_device(gpus=None, use_cuda=True):
     """ Sets computing device. Either the CPU or any of the available GPUs.
 
@@ -73,14 +75,18 @@ def set_seed(seed):
         torch.device: The selected computing device.
     """
     if seed is not None:
+        np.random.seed(seed)
         random.seed(seed)
         torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
         cudnn.deterministic = True
         warnings.warn('You have chosen to seed training. '
                       'This will turn on the CUDNN deterministic setting, '
                       'which can slow down your training considerably! '
                       'You may see unexpected behavior when restarting '
                       'from checkpoints.')
+    else:
+        cudnn.deterministic = False
 
 
 def save_checkpoint(exp_dir, base_name, state, is_best=False):

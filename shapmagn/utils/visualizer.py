@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 import pyvista as pv
+import subprocess
 
 def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
     if isinstance(points, torch.Tensor):
@@ -211,7 +212,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
             p.render()
 
         # Close movie and delete object
-        p.close()
+    p.close()
     return p
 
 
@@ -228,7 +229,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 2
 
-    p = pv.Plotter(window_size=[1920, 1280],notebook=0, shape=(1, 3), border=False, off_screen= not show)
+    p = pv.Plotter(window_size=[1920, 1280], shape=(1, 3), border=False, off_screen= not show)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
@@ -278,7 +279,8 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     if show:
         p.show(auto_close=False)
     if saving_capture_path:
-        p.show(screenshot=saving_capture_path)
+        #p.show(screenshot=saving_capture_path)
+        p.screenshot(saving_capture_path)
 
     if saving_gif_path:
         p.open_gif(saving_gif_path)
@@ -295,7 +297,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
             p.render()
 
         # Close movie and delete object
-        p.close()
+    p.close()
     return p
 
 
@@ -355,20 +357,34 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
     return p
 
 
-def capture_plotter(save_source=False):
-    inner_count = 0
-    def save(record_path,name_suffix,pair_name_list, shape_pair):
+def capture_plotter():
+    inner_count = 0 # trigger by the first iter of the optimization based model
+    def save(record_path,stage_suffix,pair_name_list, shape_pair, save_source=False):
         nonlocal  inner_count
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
+        #saving_two_at_most=1 # due to the bug of vtk 9.0, at most around 200+ plots can be saved, so this function would be safe if calling less than 50 times
+        #thread_safe_count = 0
+        stage_folder = os.path.join(record_path,stage_suffix)
+        os.makedirs(stage_folder,exist_ok=True)
         for sp, fp, tp,sw,fw,tw, pair_name in zip(source.points, flowed.points, target.points,source.weights, flowed.weights, target.weights, pair_name_list):
+            case_folder = os.path.join(record_path,pair_name)
+            os.makedirs(case_folder,exist_ok=True)
+
             if inner_count==0 or save_source:
-                path = os.path.join(record_path,pair_name+"_source_target"+"_"+name_suffix+".png")
+                path = os.path.join(case_folder,"source_target"+"_"+stage_suffix+".png")
                 visualize_point_pair_overlap(sp, tp,
                                              sw, tw,
                                              title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
-            path = os.path.join(record_path, pair_name+"_flowed_target" + "_" + name_suffix + ".png")
+                cp_command = "cp {} {}".format(path,os.path.join(stage_folder,pair_name+"_source_target.png"))
+                subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
+            path = os.path.join(case_folder, "flowed_target" + "_" + stage_suffix + ".png")
             visualize_point_pair_overlap(fp, tp,
                                          fw, tw,
                                          title1="flowed",title2="target", rgb_on=False,saving_capture_path=path, show=False)
+            cp_command = "cp {} {}".format(path, os.path.join(stage_folder, pair_name + "_flowed_target.png"))
+            subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
+            #thread_safe_count +=1
+            # if thread_safe_count==saving_two_at_most:
+            #     break
         inner_count +=1
     return save

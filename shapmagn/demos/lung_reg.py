@@ -83,8 +83,8 @@ source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
 min_interval = min(source_interval,target_interval)
 input_data = {"source":source_obj,"target":target_obj}
-source_target_generator = obj_factory("shape_pair_utils.create_source_and_target_shape()")
-source, target = source_target_generator(input_data)
+create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
+source, target = create_shape_pair_from_data_dict(input_data)
 source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
 
 source = get_half_lung(source,normalize_weight=False) if compute_on_half_lung else source

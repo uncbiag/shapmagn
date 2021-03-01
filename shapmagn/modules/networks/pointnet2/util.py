@@ -208,7 +208,7 @@ def sample_and_group_all(xyz, points):
     return new_xyz, new_points
 
 class PointNetSetAbstraction(nn.Module):
-    def __init__(self, npoint, radius, nsample, in_channel, mlp, mlp2 = [], group_all = False):
+    def __init__(self, npoint, radius, nsample, in_channel, mlp, mlp2 = [], group_all = False, include_xyz=True):
         super(PointNetSetAbstraction, self).__init__()
         self.npoint = npoint
         self.radius = radius
@@ -217,7 +217,7 @@ class PointNetSetAbstraction(nn.Module):
         self.mlp_convs = nn.ModuleList()
         self.mlp_bns = nn.ModuleList()
         self.mlp2_convs = nn.ModuleList()
-        last_channel = in_channel+3
+        last_channel = (in_channel+3) if include_xyz else in_channel
         for out_channel in mlp:
             self.mlp_convs.append(nn.Conv2d(last_channel, out_channel, 1, bias = False))
             self.mlp_bns.append(nn.BatchNorm2d(out_channel))
@@ -229,7 +229,7 @@ class PointNetSetAbstraction(nn.Module):
         if group_all:
             self.queryandgroup = pointutils.GroupAll()
         else:
-            self.queryandgroup = pointutils.QueryAndGroup(radius, nsample)
+            self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
 
     def forward(self, xyz, points):
         """

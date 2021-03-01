@@ -1,4 +1,5 @@
 import os
+import torch.nn as nn
 from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
 from shapmagn.utils.net_utils import print_model
@@ -28,33 +29,35 @@ class DeepModel(ModelBase):
         self.opt_optim = opt[('optim', {}, "setting for the optimizer")]
         self.opt_scheduler = opt[('scheduler', {}, "setting for the scheduler")]
         self.criticUpdates = opt['tsk_set'][('criticUpdates',1,"update parameter every # iter")]
-        self.init_learning_env(self.opt,device)
+        create_shape_pair_from_data_dict = opt[
+            ("create_shape_pair_from_data_dict", "shape_pair_utils.create_shape_pair_from_data_dict()",
+             "generator func")]
+        self.create_shape_pair_from_data_dict = obj_factory(create_shape_pair_from_data_dict)
+        self.init_learning_env(self.opt,device,gpus)
         self.step_count = 0
         """ count of the step"""
         self.cur_epoch = 0
         prepare_input_object = opt[("prepare_input_object", "", "input processing function")]
         self.prepare_input = obj_factory(prepare_input_object) if prepare_input_object else self._set_input
-        source_target_generator = opt[
-            ("source_target_generator", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
-        self.source_target_generator = obj_factory(source_target_generator)
         capture_plotter_obj = opt[
-            ("capture_plot_obj", "visualizer.capture_plotter(save_source=True)", "factory object for 2d capture plot")]
+            ("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
         self.capture_plotter = obj_factory(capture_plotter_obj)
         analyzer_obj = opt[
             ("analyzer_obj", "", "result analyzer")]
         self.external_analyzer = obj_factory(analyzer_obj) if analyzer_obj else None
 
 
-    def init_learning_env(self, opt, device):
+    def init_learning_env(self, opt, device,gpus):
         method_name = opt[('method_name', "discrete_flow_deep", "specific optimization method")]
-        if method_name in ["feature_deep","discrete_flow_deep"]:
+        if method_name in ["feature_deep","discrete_flow_deep","flow_deep"]:
             method_opt = opt[(method_name, {}, "method settings")]
-            self._model = MODEL_POOL[method_name](method_opt).to(device)
+            self._model = MODEL_POOL[method_name](method_opt)
         else:
             raise ValueError("method not supported")
 
-        # if gpus and len(gpus) >= 1:
-        #     self._model = nn.DataParallel(self._model, gpus)
+        if gpus and len(gpus) >= 1:
+            self._model = nn.DataParallel(self._model, gpus)
+        self._model.to(device)
         self.optimizer = optimizer_builder(self.opt_optim)(self._model.parameters())
         self.lr_scheduler = scheduler_builder(self.opt_scheduler)(self.optimizer)
         self.shape_folder_3d = os.path.join(self.record_path, "3d")
@@ -88,17 +91,19 @@ class DeepModel(ModelBase):
     def _set_input(self, input_data, batch_info):
         return input_data, batch_info
 
-    def set_input(self, input_data, device, is_train=False):
+    def set_input(self, input_data, device, phase=None):
         batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"],
-                            "is_synth":False}
-        input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
+                            "is_synth":False, "phase":phase}
         input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
         input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
+        input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
         return input_data
 
 
+    def get_batch_names(self):
+        return self.batch_info["pair_name"]
 
 
     def get_debug_info(self):
@@ -106,10 +111,10 @@ class DeepModel(ModelBase):
         info = {'file_name': self.batch_info["fname_list"]}
         return info
 
-    def forward(self, shape_pair=None):
-        self._model.set_cur_epoch(self.cur_epoch)
-        loss, shape_pair = self._model(shape_pair)
-        return loss, shape_pair
+    def forward(self, input_data=None):
+        self._model.module.set_cur_epoch(self.cur_epoch)
+        loss, shape_data_dict = self._model(input_data)
+        return loss, shape_data_dict
 
 
     def backward_net(self, loss):
@@ -120,21 +125,19 @@ class DeepModel(ModelBase):
         forward and backward the model, optimize parameters and manage the learning rate
         :return:
         """
-        source, target = self.source_target_generator(input_data)
-        shape_pair = create_shape_pair(source, target)
         if self.is_train:
             self.iter_count += 1
-        output = self.forward(shape_pair)
-        loss = output[0].mean()
+        loss, shape_data_dict = self.forward(input_data)
+        loss = loss.mean()
         self.backward_net(loss / self.criticUpdates)
         self.loss = loss.item()
-        update_lr, lr = self._model.check_if_update_lr()
+        update_lr, lr = self._model.module.check_if_update_lr()
         if update_lr:
             self.update_learning_rate(lr)
         if self.iter_count % self.criticUpdates == 0:
             self.optimizer.step()
             self.optimizer.zero_grad()
-        return shape_pair
+        return shape_data_dict
 
     def get_current_errors(self):
         return self.loss
@@ -153,9 +156,9 @@ class DeepModel(ModelBase):
         :param input_data:
         :return:
         """
-        source, target = self.source_target_generator(input_data)
-        shape_pair = create_shape_pair(source, target)
-        scores, shape_pair = self._model.model_eval(shape_pair, self.batch_info)
+
+        scores, shape_data_dict = self._model.module.model_eval(input_data, self.batch_info)
+        shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
         return scores, shape_pair
 
 
@@ -163,7 +166,10 @@ class DeepModel(ModelBase):
     def save_visual_res(self, input_data, eval_res, phase):
         scores, shape_pair = eval_res
         save_shape_pair_into_files(self.shape_folder_3d, "{}_epoch_{}".format(phase,self.cur_epoch), shape_pair)
-        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair)
+        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair, save_source=self.cur_epoch==0)
+
+
+
 
 
 
@@ -171,19 +177,21 @@ class DeepModel(ModelBase):
 
     def analyze_res(self, eval_res,cache_res=True):
         import numpy as np
-        scores, shape_pair = eval_res
+        eval_metrics, shape_pair = eval_res
+        assert "score" in eval_metrics,"at least there should be one metric named 'score'"
         if self.external_analyzer:
             self.external_analyzer(shape_pair, self.batch_info["pair_name"], self._model, self.record_path)
         if cache_res:
-            if "acc" not in self.caches:
-                self.caches.update({"loss":scores["loss"],"acc":scores["acc"], "pair_name":self.batch_info["pair_name"]})
+            if len(self.caches)==0:
+                self.caches.update(eval_metrics)
+                self.caches.update({"pair_name":self.batch_info["pair_name"]})
             else:
-                self.caches['loss'] += scores["loss"]
-                self.caches['acc'] += scores["acc"]
+                for metric in eval_metrics:
+                    self.caches[metric] += eval_metrics[metric]
                 self.caches['pair_name'] += self.batch_info["pair_name"]
 
-        if len(scores):
-            return np.array(scores["acc"]).mean(), scores
+        if len(eval_metrics):
+            return np.array(eval_metrics["score"]).mean(), eval_metrics
         else:
             return -1, np.array([-1])
 
@@ -191,7 +199,7 @@ class DeepModel(ModelBase):
         import pandas as pd
 
         if saving:
-            saving_pred_path = os.path.join(self.record_path, "acc_{}_{}.csv".format(phase, self.cur_epoch))
+            saving_pred_path = os.path.join(self.record_path, "score_{}_{}.csv".format(phase, self.cur_epoch))
             submission_df = pd.DataFrame(self.caches)
             submission_df.to_csv(saving_pred_path, index=False)
         self.caches = {}
@@ -202,7 +210,7 @@ class DeepModel(ModelBase):
 
         :return: image (BxCxXxYxZ), name
         """
-        return self._model.get_extra_to_plot()
+        return self._model.module.get_extra_to_plot()
 
 
     def set_train(self):

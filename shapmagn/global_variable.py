@@ -25,7 +25,7 @@ from shapmagn.models.model_prealign import PrealignOPT
 from shapmagn.models.model_deep_feature import DeepFeature
 from shapmagn.models.model_deep_flow import DeepDiscreteFlow
 MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prealign_opt": PrealignOPT,"gradient_flow_opt":GradientFlowOPT,
-              "feature_deep":DeepFeature, "discrete_flow_deep": DeepDiscreteFlow}
+              "feature_deep":DeepFeature, "flow_deep":DeepDiscreteFlow,"discrete_flow_deep": DeepDiscreteFlow}
 
 
 from shapmagn.shape.point_sampler import point_grid_sampler, point_uniform_sampler

@@ -8,6 +8,8 @@ based approaches. Currently, we are at the early stage of the development.
 git clone https://github.com/uncbiag/shapmagn.git
 cd shapmagn/shapmagn
 pip install -r requirement.txt
+cd modules/networks/pointnet2/lib
+python setup.py install
 ```
 Addtionally, torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
 e.g. for cuda 10.2, 
@@ -25,3 +27,6 @@ cd ..
 python lung_reg.py
 python toy_reg.py
 ```
+
+## TODO
+4. reimplement multi-kernel

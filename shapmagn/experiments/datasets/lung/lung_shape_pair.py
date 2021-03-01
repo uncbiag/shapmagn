@@ -26,6 +26,9 @@ def init_shape_pair(input_data):
     return shape_pair
 
 
+
+
+
 def prepare_synth_input():
     synthsizer = lung_synth_data()
     def prepare(input_data, batch_info):

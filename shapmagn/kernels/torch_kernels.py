@@ -20,8 +20,6 @@ class TorchKernel(object):
         :param sigma: scalar
         :return:
         """
-        gamma = 1 / (sigma * sigma)
-
         def reduce(x, y, b):
             """
 
@@ -33,8 +31,8 @@ class TorchKernel(object):
             x = x[:,:,None]
             y = y[:, None]
             b = b[:,None] #Bx1xKxd
-            dist2 = ((x - y) ** 2).sum(-1, keepdim=True) #BxNxKx1
-            kernel = (-dist2 * gamma).exp()
+            dist2 = ((x/sigma - y/sigma) ** 2).sum(-1, keepdim=True) #BxNxKx1
+            kernel = (-dist2).exp()
             return (kernel * b).sum(axis=2)
         return reduce
 

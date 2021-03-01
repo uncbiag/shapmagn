@@ -1,6 +1,6 @@
 from time import time
 from shapmagn.utils.net_utils import resume_train, save_checkpoint, update_res
-
+from shapmagn.utils.utils import set_seed
 
 
 def train_model(opt,model, dataloaders,writer, device):
@@ -59,11 +59,14 @@ def train_model(opt,model, dataloaders,writer, device):
             if not max_batch_num_per_epoch[phase]:
                 break
             if phase == 'train':
+                set_seed(seed=None)
                 model.update_scheduler(epoch)
                 model.set_train()
             elif phase == 'val':
+                set_seed(0)
                 model.set_val()
             else:
+                set_seed(0)
                 model.set_debug()
 
             running_val_score ={}
@@ -74,7 +77,7 @@ def train_model(opt,model, dataloaders,writer, device):
                 global_step[phase] += 1
                 end_of_epoch = global_step[phase] % min(max_batch_num_per_epoch[phase], len(dataloaders[phase])) == 0
                 is_train = True if phase == 'train' else False
-                input = model.set_input(data,device=device, is_train=is_train)
+                input = model.set_input(data,device=device, phase=phase)
                 loss = 0.
                 detailed_scores = 0.
 
@@ -89,7 +92,7 @@ def train_model(opt,model, dataloaders,writer, device):
 
                     score, detailed_scores= model.analyze_res(val_res, cache_res=True)
                     print('val score of batch {} is {}:'.format(model.get_batch_names(),score))
-                    print('val detailed scores of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
+                    print('val detailed scores are {}:'.format(detailed_scores))
                     model.save_visual_res(input,val_res, phase)
                     model.update_loss(epoch,end_of_epoch)
                     update_res(detailed_scores,running_val_score)
@@ -103,7 +106,7 @@ def train_model(opt,model, dataloaders,writer, device):
                     debug_res = model.get_evaluation(input)
                     score, detailed_scores= model.analyze_res(debug_res, cache_res=True)
                     print('debug score of batch {} is {}:'.format(model.get_batch_names(),score))
-                    print('debug detailed scores of batch {} is {}:'.format(model.get_batch_names(),detailed_scores))
+                    print('debug detailed scores are {}:'.format(detailed_scores))
                     model.save_visual_res(input,debug_res, phase)
                     update_res(detailed_scores,running_debug_score)
                     update_res({"debug_score":[score]}, running_debug_score)

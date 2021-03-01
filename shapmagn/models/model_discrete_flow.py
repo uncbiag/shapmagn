@@ -76,6 +76,7 @@ class DiscreteFlowOPT(nn.Module):
     def flow(self, shape_pair):
         """
         todo  for the rigid kernel regression, anistropic kernel interpolation is not supported yet
+        the flow approach is designed for two proposes: interpolate the flowed points from control points / ambient space interpolation
         Attention:
         the flow function only get reasonable result if the source and target has similar topology
         If the topology difference between the source to target is large, this flow function is not recommended,
@@ -103,7 +104,7 @@ class DiscreteFlowOPT(nn.Module):
 
     def regularization(self,sm_flow, flow):
         dist = sm_flow * flow
-        dist = dist.mean()
+        dist = dist.mean(2).mean(1)
         return dist
 
 

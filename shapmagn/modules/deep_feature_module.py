@@ -1,3 +1,4 @@
+from copy import deepcopy
 import torch
 import torch.nn as nn
 from pykeops.torch import LazyTensor
@@ -17,17 +18,18 @@ class PointNet2FeaExtractor(nn.Module):
         self.local_pair_feature_extractor = obj_factory(self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")])
         self.input_channel = self.opt[("input_channel",10,"input channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos")]
+        self.include_pos_info_network = self.opt[("include_pos_info_network",True,"include_pos")]
         self.init_deep_feature_extractor()
-        self.include_pos =  self.opt[("include_pos",True,"include_pos")]
         self.buffer = {}
         self.iter = 0
 
 
     def init_deep_feature_extractor(self):
         self.sa1 = PointNetSetAbstraction(npoint=4096, radius=self.initial_radius*8, nsample=16, in_channel=self.input_channel, mlp=[16,32],
-                                          group_all=False)
+                                          group_all=False, include_xyz=self.include_pos_info_network)
         self.sa2 = PointNetSetAbstraction(npoint=1024, radius=self.initial_radius*16, nsample=16, in_channel=32, mlp=[32, 64],
-                                          group_all=False)
+                                          group_all=False, include_xyz=self.include_pos_info_network)
         self.su1 = PointNetSetUpConv(nsample=8, radius=self.initial_radius*12, f1_channel=32, f2_channel=64, mlp=[32], mlp2=[32])
         self.fp = PointNetFeaturePropogation(in_channel=32+self.input_channel, mlp=[32])
         self.bn1 = nn.BatchNorm1d(32)
@@ -59,7 +61,7 @@ class PointNet2FeaExtractor(nn.Module):
         sf, tf = sf.transpose(2,1).contiguous(), tf.transpose(2,1).contiguous()
 
 
-        if self.include_pos:
+        if self.include_pos_in_final_feature:
             sf = torch.cat([cur_source.points,sf],2)
             tf = torch.cat([target.points,tf],2)
 
@@ -86,10 +88,13 @@ class DeepFeatureLoss(nn.Module):
     def __init__(self, opt):
         super(DeepFeatureLoss,self).__init__()
         self.opt = opt
-        self.loss_type = self.opt[("loss_type", "ot_corres","naive_corres / ot_corres /ot_ce/ ot_distance")]
-        self.geomloss_setting = self.opt["geomloss"]
+        self.loss_type = self.opt[("loss_type", "ot_corres","naive_corres / ot_corres /ot_ce/ot_soften_ce/ ot_distance")]
+        self.geomloss_setting = deepcopy(self.opt["geomloss"])
+        self.geomloss_setting.print_settings_off()
         self.geom_loss = GeomDistance(self.geomloss_setting)
-        self.buffer = {"gt_one_hot":None, "gt_plan":None}
+
+        self.soften_gt_sigma  =  self.opt[("soften_gt_sigma",0.005,"sigma to soften the one-hot gt")]
+        self.buffer = {"gt_one_hot":None, "gt_plan":None,"soften_gt_one_hot":None}
 
 
 
@@ -120,7 +125,6 @@ class DeepFeatureLoss(nn.Module):
             return self.buffer["gt_one_hot"]
         else:
             self.buffer["gt_one_hot"] = None
-
         if self.buffer["gt_one_hot"] is None:
             B, N = refer_points.shape[0], refer_points.shape[1]
             device = refer_points.device
@@ -132,6 +136,22 @@ class DeepFeatureLoss(nn.Module):
             id_matrix = (.5 - (i - j)**2).step() # BxNxN
             self.buffer["gt_one_hot"] = id_matrix
         return self.buffer["gt_one_hot"]
+
+    def compute_soften_gt_one_hot(self, refer_points):
+        from shapmagn.kernels.keops_kernels import LazyKeopsKernel
+        if self.buffer["soften_gt_one_hot"] is not None and self.buffer["soften_gt_one_hot"].shape[0] == refer_points.shape[0]:
+            return self.buffer["soften_gt_one_hot"]
+        else:
+            self.buffer["soften_gt_one_hot"] = None
+        sigma = 0.005 * 1.4142135623730951
+        if self.buffer["soften_gt_one_hot"] is None:
+            x_i = LazyTensor(refer_points[:, :, None] / sigma)  # BxNx1xD
+            x_j = LazyTensor(refer_points[:, None] / sigma)  # Bx1xNxD
+            point_dist2 = -x_i.sqdist(x_j)  # BxNxNx1
+            point_loggauss = point_dist2 - LazyTensor(point_dist2.logsumexp(dim=2)[..., None])  # BxNxN
+            self.buffer["soften_gt_one_hot"] = point_loggauss.exp()
+        return self.buffer["soften_gt_one_hot"]
+
 
     def compute_gt_plan(self,refer_points, refer_weights):
         if self.buffer["gt_plan"] is not None and self.buffer["gt_plan"].shape[0] == refer_points.shape[0]:
@@ -149,21 +169,11 @@ class DeepFeatureLoss(nn.Module):
 
 
 
-    # def ot_corres(self,cur_source, target):
-    #     points = cur_source.points
-    #     weights = cur_source.weights # BxNx1
-    #     gt_corres = self.compute_gt_plan(points, weights)
-    #     lazy_transport_plan, _ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  #BxNxM
-    #     l2_loss =  ((gt_corres - lazy_transport_plan)** 2).sum(2) # BxN
-    #     l2_loss = torch.dot(l2_loss.view(-1), torch.ones_like(l2_loss).view(-1))
-    #     factor = 10000
-    #     B =  points.shape[0]
-    #     return torch.stack([l2_loss * factor/B]*B,0)
-
     def ot_corres(self, cur_source, target):
         points = cur_source.points
         weights = cur_source.weights  # BxNx1
         gt_corres = self.compute_gt_plan(points, weights)
+        self.geomloss_setting["mode"] = "trans_plan"
         lazy_transport_plan, _ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
         factor = 1000
         l2_loss = ((factor*(gt_corres - lazy_transport_plan)) ** 2).sum(2)  # BxN
@@ -175,9 +185,10 @@ class DeepFeatureLoss(nn.Module):
     def ot_ce(self,cur_source, target):
         points = cur_source.points
         weights = cur_source.weights # BxNx1
-        gt_one_hot = self.compute_gt_one_hot(points)
-        _, lazy_log_transport_plan = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  #BxNxM
-        ce_loss =  -(gt_one_hot* lazy_log_transport_plan).sum(2)*weights # BxN
+        lazy_gt_one_hot = self.compute_gt_one_hot(points) if self.loss_type=="ot_ce" else self.compute_soften_gt_one_hot(points)
+        self.geomloss_setting["mode"] = "prob"
+        _,lazy_log_prob = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  #BxNxM
+        ce_loss =  -(lazy_gt_one_hot* lazy_log_prob).sum(2)*weights # BxN
         ce_loss = torch.dot(ce_loss.view(-1), torch.ones_like(ce_loss).view(-1))
         B =  points.shape[0]
         factor =0.001
@@ -193,7 +204,7 @@ class DeepFeatureLoss(nn.Module):
             return self.ot_distance(cur_source, target)
         elif self.loss_type == "ot_corres":
             return self.ot_corres(cur_source, target)
-        elif self.loss_type=="ot_ce":
+        elif self.loss_type=="ot_ce" or self.loss_type=="ot_soften_ce":
             return self.ot_ce(cur_source, target)
         else:
             return self.naive_corres(cur_source, target)

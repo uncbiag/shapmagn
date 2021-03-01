@@ -122,7 +122,7 @@ class SplineAug(object):
         local_deform_aug_settings = self.aug_settings["local_deform_aug"]
         num_sample = local_deform_aug_settings["num_sample"]
         scale = local_deform_aug_settings["disp_scale"]
-        sampler = uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=False)
+        sampler = uniform_sampler(num_sample,fixed_random_seed=False,sampled_by_weight=False)
         sampling_control_points,sampling_control_weights, _ = sampler(points, point_weights)
         sampling_control_disp = torch.ones_like(sampling_control_points).uniform_(-1,1)*scale
         points_disp = self.local_deform_spline_kernel(points[None], sampling_control_points[None], sampling_control_disp[None],sampling_control_weights[None])

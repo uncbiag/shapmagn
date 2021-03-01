@@ -35,16 +35,16 @@ def resume_train(model_path, model, optimizer=None):
             print("=> succeed load model '{}'".format(model_path))
         except:
             print("Warning !!! Meet error is reading the whole model, now try to read the part")
-            model.load_state_dict(checkpoint['state_dict'], strict=False)
+            model.load_state_dict(checkpoint['state_dict'], strict=True)
             print(" The incomplelet model is succeed load from '{}'".format(model_path))
         if 'optimizer' in checkpoint:
             if not isinstance(optimizer, tuple):
                 try:
                     optimizer.load_state_dict(checkpoint['optimizer'])
-                    for state in optimizer.state.values():
-                        for k, v in state.items():
-                            if isinstance(v, torch.Tensor):
-                                state[k] = v.cuda()
+                    # for state in optimizer.state.values():
+                    #     for k, v in state.items():
+                    #         if isinstance(v, torch.Tensor):
+                    #             state[k] = v.cuda()
                     print("=> succeed load optimizer '{}'".format(model_path))
                     optimizer.zero_grad()
                 except:

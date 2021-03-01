@@ -39,15 +39,17 @@ def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
         """
         if fixed_random_seed:
             np.random.seed(0)
-        else:
-            np.random.seed(int(time.time()))
-
         if weights is None:
             weights = torch.ones(points.shape[0],1).to(points.device)
         npoints = points.shape[0]
         if sampled_by_weight:
             weights_np = weights.squeeze().detach().cpu().numpy()
-            rand_ind = np.random.choice(np.arange(npoints),num_sample,replace=False,p=weights_np/weights_np.sum())
+            try:
+                rand_ind = np.random.choice(np.arange(npoints),num_sample,replace=False,p=weights_np/weights_np.sum())
+            except:
+                print("failed to sample {} from {} points".format(num_sample,npoints))
+                rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True,
+                                            p=weights_np / weights_np.sum())
         else:
             rand_ind = list(range(npoints))
             np.random.shuffle(rand_ind)

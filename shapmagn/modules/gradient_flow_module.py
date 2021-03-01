@@ -36,9 +36,9 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
     blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
     p = gemloss_setting[("p", 2,"cost order")]  # though can be generalized to arbitrary order, here we assume the order is 2
-    mode = gemloss_setting[("mode", 'hard',"soft, hard, trans_plan")]
+    mode = gemloss_setting[("mode", 'hard',"soft, hard, mapped_index,analysis,trans_plan")]
     geomloss = obj_factory(geom_obj)
-    attr = "pointfea"
+    attr =gemloss_setting[("attr", 'pointfea',"points/pointfea/landmarks")]
     attr1 = getattr(cur_source, attr)
     attr2 = getattr(target, attr)
     points1 = cur_source.points
@@ -60,6 +60,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     g_j = b_j.log() + G_j/ blur ** 2  #Bx1xMx1
     C_ij = ((xx_i - yy_j) ** 2).sum(-1) #BxNxMx1
     log_P_ij = (f_i + g_j - C_ij)  # BxNxMx1 P_ij = A_i * B_j * exp((F_i + G_j - .5 * |x_i-y_j|^2) / blur**2)
+    log_prob_i = (log_P_ij - a_i.log())  # BxNxM
     if mode=="soft":
         position_to_map = LazyTensor(points2.view(B,1, M, -1))  # Bx1xMxD
         mapped_position = log_P_ij.sumsoftmaxweight(position_to_map,dim=2)
@@ -69,15 +70,20 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
         mapped_position = points2_flatten[P_i_index]
         mapped_position = mapped_position.view(B,N,D)
     elif mode=="mapped_index":
-        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N)  # over M,  return (B*N)
+        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N)  # over M,  return (B,N)
         return P_i_index
-    elif mode=="soft_and_max_index":
-        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N) # over M,  return (B*N)
+    elif mode=="analysis":
+        K=5
+        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N) # over M,  return (B,N)
+        P_Ki_index = (-log_P_ij).argKmin(K=K,dim=2).long().view(B,N, K) # over M,  return (B,N,K)
         position_to_map = LazyTensor(points2.view(B, 1, M, -1))  # Bx1xMxD
         mapped_position = log_P_ij.sumsoftmaxweight(position_to_map, dim=2)
-        return P_i_index , mapped_position
+
+        return P_i_index ,P_Ki_index, mapped_position
     elif mode=="trans_plan":
         return log_P_ij.exp(), log_P_ij
+    elif mode=="prob":
+        return log_prob_i.exp(), log_prob_i
     else:
         raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
     print("OT based forward mapping complete")

@@ -1,7 +1,10 @@
 from __future__ import print_function, division
 import os
+import time
 import blosc
 import torch
+import random
+import numpy as np
 from shapmagn.datasets.data_utils import read_json_into_list, split_dict
 from torch.utils.data import Dataset
 from shapmagn.utils.obj_factory import obj_factory
@@ -120,7 +123,9 @@ class RegistrationPairDataset(Dataset):
         """
         case_dict = self.reader(file_info)
         case_dict = self.normalizer(case_dict)
-        case_dict = self.sampler(case_dict, fixed_random_seed=self.phase!="train")
+        if not self.load_into_memory:
+            case_dict = self.sampler(case_dict, fixed_random_seed=self.phase!="train")
+        """if the data are loaded into memory, the random sampling only conducted once; if not, random sampling takes place for every loading"""
 
         return case_dict
 
@@ -148,11 +153,22 @@ class RegistrationPairDataset(Dataset):
 
 
 
+
+    def setup_random_seed(self):
+        """due to the property of the dataloader, we manually set the random seed here"""
+        if self.phase != "train":
+            torch.manual_seed(0)
+            np.random.seed(0)
+            random.seed(0)
+        else:
+            torch.manual_seed(int(time.time()))
+            np.random.seed(int(time.time()))
+            random.seed(int(time.time()))
+
+
     def __len__(self):
         # to make the epoch size always meet the setting, we scale the dataset when training dataset size is too small
-        return len(self.pair_name_list)*500 if len(self.pair_name_list)<200 and self.phase=='train' else len(self.pair_name_list)
-
-
+        return len(self.pair_name_list)*50 if len(self.pair_name_list)<200 and self.phase=='train' else len(self.pair_name_list)
 
     def __getitem__(self, idx):
         """
@@ -166,6 +182,7 @@ class RegistrationPairDataset(Dataset):
 
         """
         # print(idx)
+        self.setup_random_seed()
         idx = idx %len(self.pair_name_list)
         pair_info = self.pair_info_list[idx]
         pair_name = self.pair_name_list[idx]
@@ -179,6 +196,9 @@ class RegistrationPairDataset(Dataset):
             unzip_shape_fn = lambda shape_dict: {key: unzip_fn(fea) for key, fea in shape_dict.items()}
             source_dict = unzip_shape_fn(zip_source_dict)
             target_dict = unzip_shape_fn(zip_target_dict)
+            # to introduce the randomness during the training, we put the sampling here
+            source_dict = self.sampler(source_dict, fixed_random_seed=self.phase != "train")
+            target_dict = self.sampler(target_dict, fixed_random_seed=self.phase != "train")
 
         if self.pair_postprocess is not None:
             source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)

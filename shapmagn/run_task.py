@@ -3,11 +3,19 @@ run shape registration
 """
 
 import os, sys
+import subprocess
 from distutils.dir_util import copy_tree
+os.environ['DISPLAY'] = ':99.0'
+os.environ['PYVISTA_OFF_SCREEN'] = 'true'
+os.environ['PYVISTA_USE_IPYVTK'] = 'true'
+bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
+process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+process.wait()
+
 sys.path.insert(0, os.path.abspath('..'))
 import pykeops
 print(pykeops.config.bin_folder)  # display default build_folder
-cache_path ="/playpen/zyshen/keops_cache"
+cache_path ="/playpen/zyshen/keops_cachev2"
 os.makedirs(cache_path,exist_ok=True)
 pykeops.set_bin_folder(cache_path)  # change the build folder
 print(pykeops.config.bin_folder)  # display new build_folder

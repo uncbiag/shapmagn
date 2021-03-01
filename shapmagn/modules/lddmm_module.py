@@ -12,7 +12,7 @@ class LDDMMHamilton(nn.Module):
     def __init__(self, opt):
         super(LDDMMHamilton,self).__init__()
         self.opt = opt
-        kernel = opt[("kernel","torch_kernels.TorchKernel('gauss',sigma=0.1)","kernel object")]
+        kernel = opt[("kernel","keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)","kernel object")]
         self.kernel = obj_factory(kernel)
         self.mode = "shooting"
 
@@ -49,7 +49,7 @@ class LDDMMVariational(nn.Module):
     def __init__(self, opt):
         super(LDDMMVariational, self).__init__()
         self.opt = opt
-        kernel = opt[("kernel", "torch_kernels.TorchKernel('gauss',sigma=0.1)", "kernel object")]
+        kernel = opt[("kernel", "keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)", "kernel object")]
         self.kernel = obj_factory(kernel)
         grad_kernel = kernel.replace("gauss","gauss_grad")
         self.grad_kernel = obj_factory(grad_kernel)

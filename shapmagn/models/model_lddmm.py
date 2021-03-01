@@ -95,7 +95,7 @@ class LDDMMOPT(nn.Module):
     def geodesic_distance(self,momentum, control_points):
         momentum = momentum.clamp(-1,1)
         dist = momentum * self.lddmm_kernel(control_points, control_points, momentum)
-        dist = dist.mean()
+        dist = dist.mean(2).mean(1)
         return dist
 
     def get_factor(self):

@@ -74,7 +74,7 @@ class Initializer():
         """
         get task related setttings for data manager
         """
-        batch_size = self.task_opt[('batch_sz', 1,'list of batch size, refers to train, val, debug, test, respectively')]
+        batch_size = self.task_opt[('batch_sz', 1,'list of batch size, refers to train, val, test,debug respectively')]
         is_train = self.task_opt[('is_train',False,'train the model')]
         return self.data_manager.build_data_loaders(batch_size=batch_size,is_train=is_train)
 

@@ -3,9 +3,10 @@ from __future__ import absolute_import
 import torch
 import torch.nn as nn
 import torchdiffeq
-
+from shapmagn.utils.module_parameters import ParameterDict
 class ODEBlock(nn.Module):
     """
+
     A interface class for torchdiffeq, https://github.com/rtqichen/torchdiffeq
     we add some constrains in torchdiffeq package to avoid collapse or traps, so this local version is recommended
     the solvers supported by the torchdiffeq are listed as following
@@ -22,7 +23,7 @@ class ODEBlock(nn.Module):
 
     """
 
-    def __init__(self, param=None):
+    def __init__(self, param=ParameterDict()):
         super(ODEBlock, self).__init__()
         self.odefunc = None
         """the ode problem to be solved"""

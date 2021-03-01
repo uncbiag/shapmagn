@@ -28,7 +28,7 @@ def lung_synth_data(**args):
         spline_param)
     grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.08
+    grid_spline_aug["disp_scale"] = 0.15
     kernel_scale = 0.1
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(

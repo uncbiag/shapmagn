@@ -21,6 +21,7 @@ class PointCloud(ShapeBase):
         """
         super(PointCloud,self).__init__()
         self.type = 'pointcloud'
+        self.attr_list=["points","label","landmarks","pointfea","weights","seg"]
         self.points_mode_on = True
 
 

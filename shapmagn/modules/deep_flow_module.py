@@ -189,8 +189,8 @@ class DeepFlowLoss(nn.Module):
         tp = target.points
         fw = flowed.weights
 
-        l2_loss = (((fp-tp)**2).mean(2,keepdim=True) * fw).sum() #todo test
-        return l2_loss
+        l2_loss = (((fp-tp)**2).mean(2,keepdim=True) * fw).sum(1) #todo test
+        return l2_loss[...,0] # remove the last 1 dim
 
 
     def ot_distance(self,flowed, target):

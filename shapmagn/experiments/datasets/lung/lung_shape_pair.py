@@ -32,16 +32,20 @@ def init_shape_pair(input_data):
 def prepare_synth_input():
     synthsizer = lung_synth_data()
     def prepare(input_data, batch_info):
-        synth_on_source = random.random() > 0.5
-        source_dict = input_data["source"] if synth_on_source else input_data["target"]
-        input_data["target"], synth_info = synthsizer(deepcopy(source_dict))
-        input_data["source"] = source_dict
-        batch_info["source_info"] = batch_info["source_info"] if synth_on_source else batch_info["target_info"]
-        batch_info["target_info"] = batch_info["source_info"]
-        batch_info["pair_name"] = [name +"_and_synth" for name in batch_info["source_info"]["name"]]
-        batch_info["synth_info"] = synth_info
-        batch_info["is_synth"] = True
-        return input_data, batch_info
+        phase = batch_info["phase"]
+        if phase in ["train","val"]:
+            synth_on_source = random.random() > 0.5
+            source_dict = input_data["source"] if synth_on_source else input_data["target"]
+            input_data["target"], synth_info = synthsizer(deepcopy(source_dict))
+            input_data["source"] = source_dict
+            batch_info["source_info"] = batch_info["source_info"] if synth_on_source else batch_info["target_info"]
+            batch_info["target_info"] = batch_info["source_info"]
+            batch_info["pair_name"] = [name +"_and_synth" for name in batch_info["source_info"]["name"]]
+            batch_info["synth_info"] = synth_info
+            batch_info["is_synth"] = True
+            return input_data, batch_info
+        else:
+            return input_data, batch_info
     return prepare
 
 

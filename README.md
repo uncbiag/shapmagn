@@ -29,4 +29,6 @@ python toy_reg.py
 ```
 
 ## TODO
-4. reimplement multi-kernel
+3. add weight aug
+4. real data needs unbalanced ot metric
+5. synth experiment

@@ -303,6 +303,110 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
 
 
+
+
+def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+    if isinstance(points1, torch.Tensor):
+        points1 = points1.squeeze().detach().cpu().numpy()
+    if isinstance(points2, torch.Tensor):
+        points2 = points2.squeeze().detach().cpu().numpy()
+    if isinstance(points3, torch.Tensor):
+        points3 = points3.squeeze().detach().cpu().numpy()
+    if isinstance(feas1, torch.Tensor):
+        feas1 = feas1.squeeze().detach().cpu().numpy()
+    if isinstance(feas2, torch.Tensor):
+        feas2 = feas2.squeeze().detach().cpu().numpy()
+    if isinstance(feas3, torch.Tensor):
+        feas3 = feas3.squeeze().detach().cpu().numpy()
+
+    if isinstance(rgb_on,bool):
+        rgb_on = [rgb_on]* 3
+
+    p = pv.Plotter(window_size=[1400, 2000], shape=(1, 4), border=False, off_screen= not show)
+    p.subplot(0, 0)
+    p.add_text(title1, font_size=18)
+    p.add_mesh(pv.PolyData(points1),
+                     scalars=feas1,
+                     cmap="viridis", point_size=10,
+                     render_points_as_spheres=True,
+                     rgb=rgb_on[0],
+                     opacity="linear",
+                     lighting=True,
+                     style="points", show_scalar_bar=True)
+    p.subplot(0, 1)
+    p.add_text(title2, font_size=18)
+    p.add_mesh(pv.PolyData(points2),
+                     scalars=feas2,
+                     cmap="magma", point_size=10,
+                     render_points_as_spheres=True,
+                     rgb=rgb_on[1],
+                     opacity="linear",
+                     lighting=True,
+                     style="points", show_scalar_bar=True)
+    p.subplot(0, 2)
+    p.add_text(title3, font_size=18)
+    p.add_mesh(pv.PolyData(points3),
+               scalars=feas3,
+               cmap="magma", point_size=10,
+               render_points_as_spheres=True,
+               rgb=rgb_on[2],
+               opacity="linear",
+               lighting=True,
+               style="points", show_scalar_bar=True)
+    p.subplot(0, 3)
+    p.add_text(title2+"_overlap_"+title3, font_size=18)
+    p.add_mesh(pv.PolyData(points2),
+               scalars=feas2,
+               cmap="viridis", point_size=10,
+               render_points_as_spheres=True,
+               rgb=rgb_on[1],
+               opacity="linear",
+               lighting=True,
+               style="points", show_scalar_bar=True)
+    p.add_mesh(pv.PolyData(points3),
+               scalars=feas3,
+               cmap="magma", point_size=10,
+               render_points_as_spheres=True,
+               rgb=rgb_on[2],
+               opacity="linear",
+               lighting=True,
+               style="points", show_scalar_bar=True)
+
+    p.link_views()  # link all the views
+    # Set a camera position to all linked views
+    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
+ (0.0, 0.0, 0.0),
+ (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+
+
+    if show:
+        p.show(auto_close=False)
+    if saving_capture_path:
+        #p.show(screenshot=saving_capture_path)
+        p.screenshot(saving_capture_path)
+
+    if saving_gif_path:
+        p.open_gif(saving_gif_path)
+
+        # Update camera and write a frame for each updated position
+        nframe = 360
+        for i in range(nframe):
+            p.camera_position = [
+                (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
+                (0, 0, 0),
+                (0, 1, 0),
+            ]
+            p.write_frame()
+            p.render()
+
+        # Close movie and delete object
+    p.close()
+    return p
+
+
+
+
+
 def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
     num_views = len(points_list)
     for i,points in enumerate(points_list):
@@ -358,9 +462,7 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
 
 
 def capture_plotter():
-    inner_count = 0 # trigger by the first iter of the optimization based model
-    def save(record_path,stage_suffix,pair_name_list, shape_pair, save_source=False):
-        nonlocal  inner_count
+    def save(record_path,stage_suffix,pair_name_list, shape_pair):
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
         #saving_two_at_most=1 # due to the bug of vtk 9.0, at most around 200+ plots can be saved, so this function would be safe if calling less than 50 times
         #thread_safe_count = 0
@@ -369,22 +471,13 @@ def capture_plotter():
         for sp, fp, tp,sw,fw,tw, pair_name in zip(source.points, flowed.points, target.points,source.weights, flowed.weights, target.weights, pair_name_list):
             case_folder = os.path.join(record_path,pair_name)
             os.makedirs(case_folder,exist_ok=True)
-
-            if inner_count==0 or save_source:
-                path = os.path.join(case_folder,"source_target"+"_"+stage_suffix+".png")
-                visualize_point_pair_overlap(sp, tp,
-                                             sw, tw,
-                                             title1="source", title2="target", rgb_on=False,saving_capture_path=path, show=False)
-                cp_command = "cp {} {}".format(path,os.path.join(stage_folder,pair_name+"_source_target.png"))
-                subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
             path = os.path.join(case_folder, "flowed_target" + "_" + stage_suffix + ".png")
-            visualize_point_pair_overlap(fp, tp,
-                                         fw, tw,
-                                         title1="flowed",title2="target", rgb_on=False,saving_capture_path=path, show=False)
+            visualize_source_flowed_target_overlap(sp,fp, tp,
+                                         sw, fw, tw,
+                                         title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path, show=False)
             cp_command = "cp {} {}".format(path, os.path.join(stage_folder, pair_name + "_flowed_target.png"))
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
             #thread_safe_count +=1
             # if thread_safe_count==saving_two_at_most:
             #     break
-        inner_count +=1
     return save

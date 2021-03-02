@@ -84,7 +84,7 @@ class DeepDiscreteFlow(nn.Module):
         geomloss_setting["attr"] = "points"
         mapped_target_index,mapped_topK_target_index, mapped_position = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target,
                                                                            geomloss_setting)  # BxN
-
+        wasserstein_dist = self.loss.geom_loss(shape_pair.flowed, shape_pair.target)
         source_points = shape_pair.source.points
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
@@ -95,9 +95,11 @@ class DeepDiscreteFlow(nn.Module):
             acc = (mapped_target_index == gt_index).sum(1) / N
             topk_acc = ((mapped_topK_target_index == (gt_index[...,None])).sum(2) >0).sum(1)/N
             metrics = {"score": [_acc.item() for _acc in acc], "loss": [_loss.item() for _loss in loss],
-                       "_acc":[_acc.item() for _acc in acc], "topk_acc":[_topk_acc.item() for _topk_acc in topk_acc]}
+                       "_acc":[_acc.item() for _acc in acc], "topk_acc":[_topk_acc.item() for _topk_acc in topk_acc],
+                       "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         else:
-            metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss]}
+            metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
+                       "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 

@@ -101,6 +101,10 @@ class DeepModel(ModelBase):
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
         return input_data
 
+    def do_some_clean(self):
+        self.batch_info={}
+
+
 
     def get_batch_names(self):
         return self.batch_info["pair_name"]
@@ -156,7 +160,6 @@ class DeepModel(ModelBase):
         :param input_data:
         :return:
         """
-
         scores, shape_data_dict = self._model.module.model_eval(input_data, self.batch_info)
         shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
         return scores, shape_pair
@@ -166,7 +169,7 @@ class DeepModel(ModelBase):
     def save_visual_res(self, input_data, eval_res, phase):
         scores, shape_pair = eval_res
         save_shape_pair_into_files(self.shape_folder_3d, "{}_epoch_{}".format(phase,self.cur_epoch), shape_pair)
-        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair, save_source=self.cur_epoch==0)
+        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair)
 
 
 

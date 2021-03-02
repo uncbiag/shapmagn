@@ -98,6 +98,7 @@ def train_model(opt,model, dataloaders,writer, device):
                     update_res(detailed_scores,running_val_score)
                     update_res({"val_score":[score]}, running_val_score)
                     loss = score
+                    val_res, input = None, None
 
 
 
@@ -111,6 +112,8 @@ def train_model(opt,model, dataloaders,writer, device):
                     update_res(detailed_scores,running_debug_score)
                     update_res({"debug_score":[score]}, running_debug_score)
                     loss = score
+                    debug_res, input = None, None
+
 
                 model.do_some_clean()
 

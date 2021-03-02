@@ -4,7 +4,9 @@ from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_fro
 
 
 
-def compute_nadwat_kernel(scale=0.1, exp_order=2,iso=True):
+
+
+def compute_nadwat_kernel(scale=0.1, exp_order=2,iso=True, self_center=False):
     """
     Nadaraya-Watson kernel interpolation
 
@@ -32,9 +34,15 @@ def compute_nadwat_kernel(scale=0.1, exp_order=2,iso=True):
             control_points_j = LazyTensor(control_points[:, None, :, :])  # (B,1, M, D)  "line"
             dist2 = ((points_i - control_points_j) ** 2).sum(-1)  # (N, M) squared distances (B,N,M,1)
         else:
+            #assert scale ==1, "debugging, make sure this is only triggered when you are playing on multi-scale anisotropic"
+            if scale != 1:
+                gamma = gamma * (1 / scale ** 2)
             points_i = LazyTensor(points[:, :, None, :])  # (B,N, 1, D)  "column"
             control_points_j = LazyTensor(control_points[:, None, :, :])  # (B,1, M, D)  "line"
-            gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xMxD*D
+            if not self_center:
+                gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xMxD*D
+            else:
+                gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, :, None])  # BxNx1xD*D
             dist2 = (points_i - control_points_j) | gamma.matvecmult(points_i - control_points_j)
 
         if exp_order == 1:
@@ -59,23 +67,34 @@ def compute_nadwat_kernel(scale=0.1, exp_order=2,iso=True):
 
 
 
-def nadwat_kernel_interpolator(scale=0.1, exp_order=2,iso=True):
+
+
+def nadwat_kernel_interpolator(scale=0.1,weight=1.0, exp_order=2,iso=True, self_center=False):
     """
     Nadaraya-Watson kernel interpolation
 
-    :param scale: kernel width of isotropic kernel, disabled if the iso is False
+    :param scale: kernel width of isotropic kernel, if iso, scale can be viewed as sigma,
+     if aniso, scale is use to scale the gamma, the equvialient kernel size is aniso_kernel_scale*scale
     :param exp_order: float, 1,2,0.5
     :param iso: bool, use isotropic kernel, sigma equals to scale
     """
     #todo write plot-test on this function
-    compute_kernel = compute_nadwat_kernel(scale=scale, exp_order=exp_order,iso=iso)
+    multi_scale = isinstance(scale, list)
+    if not multi_scale:
+        compute_kernel = compute_nadwat_kernel(scale=scale, exp_order=exp_order,iso=iso, self_center=self_center)
+    else:
+        assert sum(weight)==1, "sum of weight should be 1"
+        assert len(weight) == len(scale), "weight and scale list should be of the same length"
+        compute_kernel_list = [compute_nadwat_kernel(scale=_scale, exp_order=exp_order,iso=iso, self_center=self_center) for _scale in scale]
     def interp(points,control_points,control_value,control_weights, gamma=None):
-        kernel = compute_kernel(points,control_points,control_weights, gamma=gamma)
+        if not multi_scale:
+            kernel = compute_kernel(points,control_points,control_weights, gamma=gamma)
+        else:
+            kernel = sum([_weight*_compute_kernel(points,control_points,control_weights, gamma=gamma) for _weight, _compute_kernel in zip(weight,compute_kernel_list)])
         value_weight_j = LazyTensor((control_value)[:,None, :, :])  # (B,1, M, D)
-        points_value = (kernel * value_weight_j).sum(dim=2)
+        points_value = (kernel * value_weight_j).sum(dim=2)  #BxNxd
         return points_value
     return interp
-
 
 
 
@@ -168,8 +187,8 @@ def ridge_kernel_intepolator(scale=0.1, kernel="gauss"):
 
 
 
-def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False):
-    interp = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
+def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, self_center=False):
+    interp = nadwat_kernel_interpolator(scale=1.0,exp_order=exp_order, iso=False, self_center=self_center)
 
     def compute(points,control_points,control_value,control_weights, gamma=None):
         Gamma_control_points = gamma
@@ -189,7 +208,7 @@ def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sig
 
 
 class NadWatAnisoSpline(object):
-    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False):
+    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,aniso_kernel_weight=1.,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False, self_center=False):
         self.exp_order = exp_order
         self.cov_sigma_scale = cov_sigma_scale
         self.aniso_kernel_scale = aniso_kernel_scale
@@ -197,7 +216,13 @@ class NadWatAnisoSpline(object):
         self.eigenvalue_min = eigenvalue_min
         self.iter_twice = iter_twice
         self.leaf_decay = leaf_decay
-        self.spline = nadwat_kernel_interpolator(exp_order=exp_order, iso=False)
+        self.self_center = self_center
+        self.relative_scale = 1.
+        self.aniso_kernel_weight = aniso_kernel_weight
+        if isinstance(aniso_kernel_scale,list):
+            self.relative_scale = [scale/aniso_kernel_scale[0] for scale in aniso_kernel_scale]
+            self.aniso_kernel_scale = aniso_kernel_scale[0]
+        self.spline = nadwat_kernel_interpolator(scale=self.relative_scale,weight=aniso_kernel_weight,exp_order=exp_order, iso=False, self_center=self_center)
         self.fixed = fixed
         self.is_interp = is_interp
         self.iter = 0
@@ -211,8 +236,15 @@ class NadWatAnisoSpline(object):
                                                         iter_twice=self.iter_twice,
                                                         leaf_decay = self.leaf_decay)
         if self.fixed and self.iter== 0:
-            compute_kernel = compute_nadwat_kernel(exp_order=self.exp_order, iso=False)
-            self.kernel = compute_kernel(points,points,weights, gamma=self.Gamma)
+            if not isinstance(self.relative_scale,list):
+                compute_kernel = compute_nadwat_kernel(exp_order=self.exp_order, iso=False, self_center=self.self_center)
+                self.kernel = compute_kernel(points,points,weights, gamma=self.Gamma)
+            else:
+                compute_kernel_list = [ compute_nadwat_kernel(scale=_scale, exp_order=self.exp_order, iso=False,
+                                          self_center=self.self_center) for _scale in self.relative_scale]
+                self.kernel = sum([_weight*_compute_kernel(points,points,weights, gamma=self.Gamma)
+                                   for _weight, _compute_kernel in zip(self.aniso_kernel_weight, compute_kernel_list)])
+
         return self
 
     def set_interp(self, is_interp=True):
@@ -234,12 +266,13 @@ class NadWatAnisoSpline(object):
 
     def __call__(self,points, control_points, control_value, control_weights):
         if not self.fixed or self.is_interp:
-            self.initialize(control_points)
-            Gamma_control_points = self.Gamma
-            spline_value = self.spline(points, control_points, control_value, control_weights, Gamma_control_points)
+            kernel_points = control_points if not self.self_center else points
+            self.initialize(kernel_points)
+            Gamma = self.Gamma
+            spline_value = self.spline(points, control_points, control_value, control_weights, Gamma)
         else:
             if self.iter==0:
-                self.initialize(control_points,control_weights)
+                self.initialize(control_points,control_weights) # here control points are the same as the points, so self.self_center doesn't affect
             value_weight_j = LazyTensor((control_value)[:, None, :, :])  # (B,1, M, D)
             spline_value = (self.kernel * value_weight_j).sum(dim=2)
         self.iter += 1
@@ -249,10 +282,10 @@ class NadWatAnisoSpline(object):
 
 
 class NadWatIsoSpline(object):
-    def __init__(self, exp_order=2,kernel_scale=0.05):
+    def __init__(self, exp_order=2,kernel_scale=0.05,kernel_weight=1.0):
         self.exp_order = exp_order
         self.kernel_scale = kernel_scale
-        self.spline = nadwat_kernel_interpolator(scale=kernel_scale,exp_order=exp_order, iso=True)
+        self.spline = nadwat_kernel_interpolator(scale=kernel_scale,weight=kernel_weight,exp_order=exp_order, iso=True)
         self.is_interp = False
         self.iter = 0
 

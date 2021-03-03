@@ -30,3 +30,4 @@ python toy_reg.py
 
 ## TODO
 5. synth toy experiment
+7. test small kernel lddmm

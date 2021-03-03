@@ -97,7 +97,6 @@ class FlowModel(nn.Module):
         super(FlowModel, self).__init__()
         self.opt = opt
         self.model_type = opt[("model_type","spline","model type 'spline'/'lddmm'")]
-        self.n_step = opt[("n_step",1,"number of iteration step")]
         if self.model_type=="spline":
             self.init_spline(opt["spline"])
             self.flow_model = self.spline_forward
@@ -121,7 +120,7 @@ class FlowModel(nn.Module):
         :return:
         """
         points, weights = toflow.points, toflow.weights
-        sm_disp = self.spline_kernel(points,points,reg_param,weights)
+        sm_disp = self.spline_kernel(points,points,reg_param,weights) #todo check if detach the points
         flowed_points = points + sm_disp
         return flowed_points, sm_disp
 
@@ -153,7 +152,7 @@ class FlowModel(nn.Module):
 
     def lddmm_reg(self,momentum, toflow_points):
         momentum = momentum.clamp(-0.5, 0.5)
-        dist = momentum * self.lddmm_kernel(toflow_points, toflow_points, momentum)
+        dist = momentum * self.lddmm_kernel(toflow_points, toflow_points, momentum) #todo check if detach the points
         dist = dist.mean(2).mean(1)
         return dist
 
@@ -163,6 +162,7 @@ class FlowModel(nn.Module):
         reg_loss = self.reguralization(reg_param, reg_additional_input)
         flowed = Shape().set_data_with_refer_to(flowed_points,source)
         return flowed , reg_loss
+
 
 
 

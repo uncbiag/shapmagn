@@ -29,6 +29,7 @@ class DeepDiscreteFlow(nn.Module):
         # self.sim_loss_fn = Loss(sim_loss_opt)
         # self.reg_loss_fn = self.regularization
         self.register_buffer("local_iter", torch.Tensor([0]))
+        self.n_step = opt[("n_step",1,"number of iteration step")]
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
         self.buffer = {}
 
@@ -125,25 +126,33 @@ class DeepDiscreteFlow(nn.Module):
        :param shape_pair:
        :return:
            """
-        shape_pair = self.create_shape_pair_from_data_dict(input_data)
-        reg_param = self.deep_regparam_generator(shape_pair.source, shape_pair.target)
         sim_factor, reg_factor,reg_param_scale = self.get_factor()
-        debug_reg_param = reg_param.abs().mean()
-        reg_param = reg_param*reg_param_scale
-        shape_pair.source.points = shape_pair.source.points.detach()
-        flowed, reg_loss = self.flow_model(shape_pair.source, reg_param)
+        shape_pair = self.create_shape_pair_from_data_dict(input_data)
+        moving = shape_pair.source
+        target = shape_pair.target
+        sim_loss, reg_loss = 0, 0
+        debug_reg_param_list = []
+        for _ in range(self.n_step):
+            reg_param = self.deep_regparam_generator(moving, target)
+            debug_reg_param_list.append(reg_param.abs().mean())
+            reg_param = reg_param*reg_param_scale
+            # moving.points = moving.points.detach()
+            flowed, _reg_loss = self.flow_model(moving, reg_param)
+            sim_loss += self.loss(flowed, shape_pair.target,is_synth=batch_info["is_synth"])
+            reg_loss += _reg_loss
+            flowed.points.detach_()
+            moving = flowed
         shape_pair.flowed = flowed
-        sim_loss = self.loss(flowed, shape_pair.target,is_synth=batch_info["is_synth"])
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()
         sim_loss = sim_loss * sim_factor
         reg_loss = reg_loss * reg_factor
         if self.local_iter % self.print_step == 0:
-            if debug_reg_param<-5 or debug_reg_param>5:
-                print("the  average abs mean of the  average abs mean of the reg_param is {}, please adjust the 'reg_param_scale', best make it in [-1,1]".format(debug_reg_param))
-            else:
-                print("the average abs mean of the reg_param is {}, best in [-1,1]".format(debug_reg_param))
-
+            # if debug_reg_param<-5 or debug_reg_param>5:
+            #     print("the  average abs mean of the  average abs mean of the reg_param is {}, please adjust the 'reg_param_scale', best make it in [-1,1]".format(debug_reg_param))
+            # else:
+            #     print("the average abs mean of the reg_param is {}, best in [-1,1]".format(debug_reg_param))
+            print("the average abs mean of the reg_param is {}, best in range [-1,1]".format(debug_reg_param_list))
             print("{} th step, {} sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(),"synth_data" if batch_info["is_synth"] else "real_data", sim_loss.mean().item(), reg_loss.mean().item(), sim_factor, reg_factor))
         loss = sim_loss + reg_loss

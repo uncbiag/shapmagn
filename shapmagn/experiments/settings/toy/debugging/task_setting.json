@@ -21,12 +21,12 @@
         "model": "optimization",
         "method_name": "lddmm_opt",
         "loss_name": "geomloss",
-        "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
+        "create_shape_pair_from_data_dict": "shape_pair_utils.create_source_and_target_shape()",
         "lddmm_opt": {
             "module":"hamiltonian",
             "print_step":10,
             "hamiltonian": {
-                "kernel": "torch_kernels.TorchKernel(kernel_type='multi_gauss', sigma_list=[0.005, 0.01,0.02],weight_list=[0.3,0.3,0.4])"
+                "kernel": "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.005, 0.01,0.02],weight_list=[0.3,0.3,0.4])"
             },
             "variational": {
                 "kernel": "keops_kernels.LazyKeopsKernel('gauss',sigma=0.05)",

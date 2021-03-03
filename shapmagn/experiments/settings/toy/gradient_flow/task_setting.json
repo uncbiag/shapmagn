@@ -21,7 +21,7 @@
         "model": "optimization",
         "method_name": "gradient_flow_opt",
         "loss_name": "geomloss",
-        "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
+        "create_shape_pair_from_data_dict": "shape_pair_utils.create_source_and_target_shape()",
         "gradient_flow_opt": {
             "print_step":10,
             "interpolator_obj": "point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)",

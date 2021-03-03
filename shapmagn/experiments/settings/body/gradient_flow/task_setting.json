@@ -21,7 +21,7 @@
         "model": "optimization",
         "method_name": "discrete_flow_opt_and_prealign_opt",
         "loss_name": "geomloss",
-        "source_target_generator": "shape_pair_utils.create_source_and_target_shape()",
+        "create_shape_pair_from_data_dict": "shape_pair_utils.create_source_and_target_shape()",
         "prealign_opt": {
             "module_type": "probreg",
             "print_step": 10,

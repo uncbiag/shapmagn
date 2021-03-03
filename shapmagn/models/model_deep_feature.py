@@ -62,7 +62,7 @@ class DeepFeature(nn.Module):
         :return:
         """
         if batch_info["is_synth"]:
-            loss, shape_data_dict = self.forward(input_data)
+            loss, shape_data_dict = self.forward(input_data, batch_info)
             shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
 
         else:
@@ -97,7 +97,7 @@ class DeepFeature(nn.Module):
 
 
 
-    def forward(self, input_data):
+    def forward(self, input_data, batch_info=None):
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
         moving, shape_pair.target = self.pair_feature_extractor(shape_pair.source, shape_pair.target)
         loss = self.loss(moving, shape_pair.target)

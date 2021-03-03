@@ -240,16 +240,18 @@ def compute_interval(vertices):
 
 
 
-def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand_bch_dim=True):
+def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postprocess_obj=None, device=None, expand_bch_dim=True):
     def _get_obj(file_path):
         name = get_file_name(file_path)
         file_info = {"name":name,"data_path":file_path}
         reader = obj_factory(reader_obj)
-        normalizer = obj_factory(normalizer_obj) if normalizer_obj else None
-        sampler = obj_factory(sampler_obj) if sampler_obj else None
         raw_data_dict  = reader(file_info)
+        normalizer = obj_factory(normalizer_obj) if normalizer_obj else None
         data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
         min_interval = compute_interval(data_dict["points"])
+        pair_postprocess =obj_factory(pair_postprocess_obj) if pair_postprocess_obj else None
+        data_dict = pair_postprocess(data_dict) if pair_postprocess_obj else data_dict
+        sampler = obj_factory(sampler_obj) if sampler_obj else None
         data_dict = sampler(data_dict) if sampler_obj else data_dict
         obj = {key: torch.from_numpy(fea).to(device) for key, fea in data_dict.items()}
         if expand_bch_dim:

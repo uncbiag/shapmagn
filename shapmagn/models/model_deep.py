@@ -95,7 +95,7 @@ class DeepModel(ModelBase):
         batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"],
-                            "is_synth":False, "phase":phase}
+                            "is_synth":False, "phase":phase, "epoch":self.cur_epoch}
         input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
         input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
@@ -117,7 +117,7 @@ class DeepModel(ModelBase):
 
     def forward(self, input_data=None):
         self._model.module.set_cur_epoch(self.cur_epoch)
-        loss, shape_data_dict = self._model(input_data)
+        loss, shape_data_dict = self._model(input_data, self.batch_info)
         return loss, shape_data_dict
 
 

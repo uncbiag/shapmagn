@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import random
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.global_variable import Shape
 from shapmagn.utils.utils import get_grid_wrap_points
@@ -25,14 +26,15 @@ def visualize(points, deformed_points, point_weights=None, deformed_point_weight
 
 class PointAug(object):
     def __init__(self, aug_settings):
-        self.remove_random_points = aug_settings["remove_random_points"]
-        self.add_random_point_noise = aug_settings["add_random_point_noise"]
-        self.add_random_weight_noise = aug_settings["add_random_weight_noise"]
-        self.remove_random_points_by_ratio = aug_settings["remove_random_points_by_ratio"]
-        self.add_random_point_noise_by_ratio = aug_settings["add_random_point_noise_by_ratio"]
-        self.random_noise_raidus = aug_settings["random_noise_raidus"]
-        self.normalize_weights = aug_settings["normalize_weights"]
-        self.plot = aug_settings["plot"]
+        self.remove_random_points = aug_settings[("remove_random_points", False,"randomly remove points from the uniform distribution")]
+        self.add_random_point_noise = aug_settings[("add_random_point_noise",False,"randomly add points from the uniform distribution")]
+        self.add_random_weight_noise = aug_settings[("add_random_weight_noise",False,"randomly add weight noise from normal distribution")]
+        self.remove_random_points_by_ratio = aug_settings[("remove_random_points_by_ratio", 0.01,"")]
+        self.add_random_point_noise_by_ratio = aug_settings[("add_random_point_noise_by_ratio", 0.01,"")]
+        self.random_noise_raidus = aug_settings[("random_noise_raidus",0.1,"")]
+        self.random_weight_noise_scale = aug_settings[("random_weight_noise_scale",0.05,"scale factor on the average weight value")]
+        self.normalize_weights = aug_settings[("normalize_weights",False,"normalized the weight make it sum to 1")]
+        self.plot = aug_settings[("plot",False,"plot the shape")]
 
     def remove_random_points(self, points, point_weights, index):
         npoints = points.shape[0]
@@ -53,8 +55,8 @@ class PointAug(object):
         return points, weights, torch.cat([index,added_index])
 
     def add_random_noise_to_weights(self, points, point_weights, index=None):
-        noise_std = (torch.min(point_weights) / 5).item()
-        weights_noise = torch.ones_like(point_weights).normal_(0, noise_std)
+        noise_std = self.random_weight_noise_scale
+        weights_noise = torch.ones_like(point_weights).normal_(0, noise_std)*point_weights
         point_weights = point_weights+ weights_noise
         return points, point_weights, index
 
@@ -104,6 +106,7 @@ class SplineAug(object):
         grid_aug_settings = self.aug_settings["grid_spline_aug"]
         grid_spacing = grid_aug_settings["grid_spacing"]
         scale = grid_aug_settings["disp_scale"]
+        scale = 1/3*scale*random.random()+scale*2/3
 
         # grid_control_points, _ = get_grid_wrap_points(points, np.array([grid_spacing]*3).astype(np.float32))
         # grid_control_disp = torch.ones_like(grid_control_points).uniform_(-1,1)*scale

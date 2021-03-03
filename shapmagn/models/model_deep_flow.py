@@ -76,7 +76,7 @@ class DeepDiscreteFlow(nn.Module):
         :param batch_info:
         :return:
         """
-        loss, shape_data_dict = self.forward(input_data)
+        loss, shape_data_dict = self.forward(input_data, batch_info)
         shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
         geomloss_setting = deepcopy(self.opt["deepflow_loss"]["geomloss"])
         geomloss_setting.print_settings_off()
@@ -120,7 +120,7 @@ class DeepDiscreteFlow(nn.Module):
             max(sigmoid_decay(self.cur_epoch, static=static_epoch, k=reg_factor_decay) * reg_factor_init, min_threshold))
         return sim_factor, reg_factor, reg_param_scale
 
-    def forward(self, input_data):
+    def forward(self, input_data, batch_info=None):
         """
        :param shape_pair:
        :return:
@@ -133,7 +133,7 @@ class DeepDiscreteFlow(nn.Module):
         shape_pair.source.points = shape_pair.source.points.detach()
         flowed, reg_loss = self.flow_model(shape_pair.source, reg_param)
         shape_pair.flowed = flowed
-        sim_loss = self.loss(flowed, shape_pair.target)
+        sim_loss = self.loss(flowed, shape_pair.target,is_synth=batch_info["is_synth"])
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()
         sim_loss = sim_loss * sim_factor
@@ -144,8 +144,8 @@ class DeepDiscreteFlow(nn.Module):
             else:
                 print("the average abs mean of the reg_param is {}, best in [-1,1]".format(debug_reg_param))
 
-            print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
-                  .format(self.local_iter.item(), sim_loss.mean().item(), reg_loss.mean().item(), sim_factor, reg_factor))
+            print("{} th step, {} sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
+                  .format(self.local_iter.item(),"synth_data" if batch_info["is_synth"] else "real_data", sim_loss.mean().item(), reg_loss.mean().item(), sim_factor, reg_factor))
         loss = sim_loss + reg_loss
         self.local_iter += 1
         return loss, self.decompose_shape_pair_into_dict(shape_pair)

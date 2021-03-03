@@ -15,7 +15,7 @@ def lung_synth_data(**args):
     aug_settings = ParameterDict()
     aug_settings["do_local_deform_aug"] = True
     aug_settings["do_grid_aug"] = True
-    aug_settings["do_point_aug"] = False
+    aug_settings["do_point_aug"] = True
     aug_settings["plot"] = False
     local_deform_aug = aug_settings[
         ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
@@ -28,7 +28,7 @@ def lung_synth_data(**args):
         spline_param)
     grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.15
+    grid_spline_aug["disp_scale"] = 0.12
     kernel_scale = 0.1
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
@@ -37,8 +37,64 @@ def lung_synth_data(**args):
 
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
+    points_aug["remove_random_points"] = False
+    points_aug["add_random_point_noise"] = False
+    points_aug["add_random_weight_noise"] = True
     points_aug["remove_random_points_by_ratio"] = 0.01
     points_aug["add_random_point_noise_by_ratio"] = 0.01
+    points_aug["random_weight_noise_scale"] = 0.1
+    points_aug["random_noise_raidus"] = 0.1
+    points_aug["normalize_weights"] = False
+    points_aug["plot"] = False
+    point_aug = PointAug(points_aug)
+
+    def _synth(data_dict):
+        synth_info = {"aug_settings":aug_settings}
+        points, weights = data_dict["points"],data_dict["weights"]
+        if aug_settings["do_point_aug"]:
+            points, weights, corr_index = point_aug(points, weights)
+            synth_info["corr_index"] = corr_index
+
+        if aug_settings["do_local_deform_aug"] or aug_settings["do_spline_aug"]:
+            points, weights = spline_aug(points, weights)
+        data_dict["points"], data_dict["weights"] = points, weights
+        return data_dict, synth_info
+    return _synth
+
+
+
+def lung_aug_data(**args):
+    aug_settings = ParameterDict()
+    aug_settings["do_local_deform_aug"] = True
+    aug_settings["do_grid_aug"] = True
+    aug_settings["do_point_aug"] = True
+    aug_settings["plot"] = False
+    local_deform_aug = aug_settings[
+        ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
+    local_deform_aug["num_sample"] = 1000
+    local_deform_aug["disp_scale"] = 0.05
+    kernel_scale = 0.12
+    spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+        kernel_scale)
+    local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
+        spline_param)
+    grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
+    grid_spline_aug["grid_spacing"] = 0.9
+    grid_spline_aug["disp_scale"] = 0.05
+    kernel_scale = 0.1
+    grid_spline_aug[
+        "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
+        kernel_scale)
+    spline_aug = SplineAug(aug_settings)
+
+    points_aug = aug_settings[
+        ("points_aug", {}, "settings for remove or add noise points")]
+    points_aug["remove_random_points"] = False
+    points_aug["add_random_point_noise"] = False
+    points_aug["add_random_weight_noise"] = True
+    points_aug["remove_random_points_by_ratio"] = 0.01
+    points_aug["add_random_point_noise_by_ratio"] = 0.01
+    points_aug["random_weight_noise_scale"] = 0.1
     points_aug["random_noise_raidus"] = 0.1
     points_aug["normalize_weights"] = False
     points_aug["plot"] = False
@@ -111,8 +167,12 @@ if __name__ == "__main__":
 
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
+    points_aug["remove_random_points"] = True
+    points_aug["add_random_point_noise"] = True
+    points_aug["add_random_weight_noise"] = True
     points_aug["remove_random_points_by_ratio"] = 0.01
     points_aug["add_random_point_noise_by_ratio"] = 0.01
+    points_aug["random_weight_noise_scale"] = 0.05
     points_aug["random_noise_raidus"] = 0.1
     points_aug["normalize_weights"] = False
     points_aug["plot"] = True

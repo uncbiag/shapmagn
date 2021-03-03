@@ -116,17 +116,13 @@ class RegistrationPairDataset(Dataset):
         """
         preprocess the data :
         1. read the data into dict, and return the shape_type (pointcloud, polyline, surfacemesh)
-        2. sampling on the data dict
-        3. normalize the data dict
+        2. normalize the data dict (pyhiscal properties are better normalized before sampling)
+        3. sample the data
         :param path: data_path
         :return: data_dict, shape_type
         """
         case_dict = self.reader(file_info)
         case_dict = self.normalizer(case_dict)
-        if not self.load_into_memory:
-            case_dict = self.sampler(case_dict, fixed_random_seed=self.phase!="train")
-        """if the data are loaded into memory, the random sampling only conducted once; if not, random sampling takes place for every loading"""
-
         return case_dict
 
 
@@ -196,12 +192,13 @@ class RegistrationPairDataset(Dataset):
             unzip_shape_fn = lambda shape_dict: {key: unzip_fn(fea) for key, fea in shape_dict.items()}
             source_dict = unzip_shape_fn(zip_source_dict)
             target_dict = unzip_shape_fn(zip_target_dict)
-            # to introduce the randomness during the training, we put the sampling here
-            source_dict = self.sampler(source_dict, fixed_random_seed=self.phase != "train")
-            target_dict = self.sampler(target_dict, fixed_random_seed=self.phase != "train")
-
         if self.pair_postprocess is not None:
             source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
+        # to introduce the randomness during the training, we put the sampling here
+        source_dict = self.sampler(source_dict, fixed_random_seed=self.phase != "train")
+        target_dict = self.sampler(target_dict, fixed_random_seed=self.phase != "train")
+
+
 
         if self.transform:
             source_dict = {key:self.transform(fea) for key,fea in source_dict.items()}

@@ -29,6 +29,4 @@ python toy_reg.py
 ```
 
 ## TODO
-3. add weight aug
-4. real data needs unbalanced ot metric
-5. synth experiment
+5. synth toy experiment

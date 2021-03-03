@@ -77,15 +77,16 @@ scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto
 # sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000)"
 sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=30000)"
+pair_postprocess_obj = "lung_dataloader_utils.lung_pair_postprocess()"
 
-get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
+get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj,pair_postprocess_obj, device) #reader-> normalized-> pair_post-> sampler
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
 min_interval = min(source_interval,target_interval)
 input_data = {"source":source_obj,"target":target_obj}
 create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
 source, target = create_shape_pair_from_data_dict(input_data)
-source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
+# source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
 
 source = get_half_lung(source,normalize_weight=False) if compute_on_half_lung else source
 target = get_half_lung(target,normalize_weight=False) if compute_on_half_lung else target

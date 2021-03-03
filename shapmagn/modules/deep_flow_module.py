@@ -203,7 +203,9 @@ class DeepFlowLoss(nn.Module):
         return self.geom_loss(flowed, target)
 
 
-    def forward(self,flowed, target):
+    def forward(self,flowed, target, is_synth=True):
+        if not is_synth:
+            return self.ot_distance(flowed, target)
         if self.loss_type == "disp_l2":
             return self.disp_l2(flowed, target)
         elif self.loss_type == "ot_corres":

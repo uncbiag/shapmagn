@@ -1,8 +1,8 @@
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.deep_flow_module import *
-from shapmagn.shape.shape_pair_utils import create_shape_pair
 
-DEEP_REGPARAM_GENERATOR= {"flownet_regparam": DeepRegParm}
+DEEP_REGPARAM_GENERATOR= {"flownet_regparam": DeepFlowNetRegParam, "pwcnet_regparam":PointConvSceneFlowPWCRegParam}
+Deep_Loss = {"deepflow_loss":DeepFlowLoss, "pwc_loss":PWCLoss}
 
 
 class DeepDiscreteFlow(nn.Module):
@@ -21,15 +21,17 @@ class DeepDiscreteFlow(nn.Module):
              "decompose shape pair into dict")]
         self.decompose_shape_pair_into_dict = obj_factory(decompose_shape_pair_into_dict)
         generator_name = self.opt[("deep_regparam_generator", "flownet_regparam", "name of deep deep_regparam_generator")]
+        loss_name = self.opt[("deep_loss", "deepflow_loss", "name of deep loss")]
         self.deep_regparam_generator = DEEP_REGPARAM_GENERATOR[generator_name](
             self.opt[generator_name, {}, "settings for the deep registration parameter generator"])
         self.flow_model = FlowModel(self.opt["flow_model",{},"settings for the flow model"])
-        self.loss = DeepFlowLoss(self.opt[("deepflow_loss", {}, "settings for deep flow loss")])
+        self.loss = Deep_Loss[loss_name](self.opt[loss_name, {}, "settings for the deep registration parameter generator"])
         # sim_loss_opt = opt[("sim_loss_for_evaluation_only", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
         # self.sim_loss_fn = Loss(sim_loss_opt)
         # self.reg_loss_fn = self.regularization
         self.register_buffer("local_iter", torch.Tensor([0]))
         self.n_step = opt[("n_step",1,"number of iteration step")]
+        self.step_weight_list = opt[("step_weight_list",[1/self.n_step]*self.n_step,"weight for each step")]
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
         self.buffer = {}
 
@@ -95,7 +97,7 @@ class DeepDiscreteFlow(nn.Module):
             gt_index = torch.arange(N, device=device).repeat(B, 1)  #B,N
             acc = (mapped_target_index == gt_index).sum(1) / N
             topk_acc = ((mapped_topK_target_index == (gt_index[...,None])).sum(2) >0).sum(1)/N
-            metrics = {"score": [_acc.item() for _acc in acc], "loss": [_loss.item() for _loss in loss],
+            metrics = {"score": [_topk_acc.item() for _topk_acc in topk_acc], "loss": [_loss.item() for _loss in loss],
                        "_acc":[_acc.item() for _acc in acc], "topk_acc":[_topk_acc.item() for _topk_acc in topk_acc],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         else:
@@ -132,16 +134,15 @@ class DeepDiscreteFlow(nn.Module):
         target = shape_pair.target
         sim_loss, reg_loss = 0, 0
         debug_reg_param_list = []
-        for _ in range(self.n_step):
-            reg_param = self.deep_regparam_generator(moving, target)
+        for s in range(self.n_step):
+            reg_param, additional_param = self.deep_regparam_generator(moving, target)
             debug_reg_param_list.append(reg_param.abs().mean())
             reg_param = reg_param*reg_param_scale
             # moving.points = moving.points.detach()
             flowed, _reg_loss = self.flow_model(moving, reg_param)
-            sim_loss += self.loss(flowed, shape_pair.target,is_synth=batch_info["is_synth"])
-            reg_loss += _reg_loss
-            flowed.points.detach_()
-            moving = flowed
+            sim_loss += self.step_weight_list[s]*self.loss(flowed, shape_pair.target,is_synth=batch_info["is_synth"],additional_param=additional_param)
+            reg_loss += self.step_weight_list[s]*_reg_loss
+            moving = Shape().set_data_with_refer_to(flowed.points.clone().detach(), flowed)
         shape_pair.flowed = flowed
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()

@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from pykeops.torch import Vi, Vj, Pm, LazyTensor
 
 ##################  Lazy Tensor  #######################
@@ -72,6 +73,24 @@ class LazyKeopsKernel(object):
         :return:
         """
         log_weight_list =[float(np.log(weight)) for weight in weight_list]
+        gamma_list= [sigma**2  for sigma in sigma_list]
+
+        # def conv(x, y, b):
+        #     """
+        #
+        #     :param x: torch.Tensor, BxNxD,  input position1
+        #     :param y: torch.Tensor, BxMxD input position2
+        #     :param b: torch.Tensor, BxMxd, input val
+        #     :return:torch.Tensor, BxNxd, output
+        #     """
+        #
+        #     kernel = 0
+        #     x = LazyTensor(x[:, :, None])
+        #     y = LazyTensor(y[:, None])
+        #     b = LazyTensor(b[:, None])
+        #     for sigma, log_w in zip(sigma_list, log_weight_list):
+        #         kernel += (log_w-(x/sigma).sqdist(y/sigma)).exp()
+        #     return (kernel * b).sum_reduction(axis=2)
 
         def conv(x, y, b):
             """
@@ -81,13 +100,16 @@ class LazyKeopsKernel(object):
             :param b: torch.Tensor, BxMxd, input val
             :return:torch.Tensor, BxNxd, output
             """
-
-            kernel = 0
+            B,device = x.shape[0], x.device
+            K = len(sigma_list)
+            gammas = torch.tensor(gamma_list,device=device).view(1,1,1,K)
+            log_ws = LazyTensor(torch.tensor(log_weight_list, device=device).view(1,1,1,K))
             x = LazyTensor(x[:, :, None])
             y = LazyTensor(y[:, None])
             b = LazyTensor(b[:, None])
-            for sigma, log_w in zip(sigma_list, log_weight_list):
-                kernel += (log_w-(x/sigma).sqdist(y/sigma)).exp()
+            dist2 = x.sqdist(y)
+            dist2 = dist2/gammas
+            kernel = (log_ws-dist2).exp().sum(3)
             return (kernel * b).sum_reduction(axis=2)
         return conv
 
@@ -270,12 +292,11 @@ class LazyKeopsKernel(object):
 
 if __name__ == "__main__":
     from shapmagn.kernels.keops_kernels import *
-    import torch
-    batch_sz = 1
+    batch_sz = 2
     gamma = torch.rand(3,3).repeat(batch_sz,1500,1,1)
     x = torch.rand(batch_sz,1500,3)
     b = torch.rand(batch_sz,1500,2)
-    kernel1 = LazyKeopsKernel.multi_gauss_kernel(sigma_list=[0.1,0.2,0.3,0.4,0.5], weight_list=[0.1,0.2,0.2,0.2,0.3])
+    kernel1, kernel2 = LazyKeopsKernel.multi_gauss_kernel(sigma_list=[0.1,0.2,0.3,0.4,0.5], weight_list=[0.1,0.2,0.2,0.2,0.3])
     z1 = kernel1(x,x, b)
     z2 =  kernel2(x,x, b)
     print()

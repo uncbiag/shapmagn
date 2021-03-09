@@ -358,7 +358,7 @@ def memory_sort(points):
         x_labels = grid_cluster(points, eps)
         # Compute the memory footprint and centroid of each of those non-empty "cubic" clusters:
         points, x_labels = sort_clusters(points, x_labels)
-        return points
+        return points, x_labels
 
     is_tensor = isinstance(points, torch.tensor)
     has_batch = len(points.shape) == 3
@@ -367,10 +367,17 @@ def memory_sort(points):
     else:
         points_np = points
     if has_batch:
-        points_np_list = [_sort(_points_np) for _points_np in points_np]
+        points_np_list = []
+        ind_np_list = []
+        for _points_np in points_np:
+            _points_np, _ind= _sort(_points_np)
+            points_np_list.append(_points_np)
+            ind_np_list.append(_ind)
         points_np = np.concatenate(points_np_list,0)
+        ind_np = np.concatenate(ind_np_list,0)
     else:
-        points_np = _sort(points_np)
+        points_np, ind_np = _sort(points_np)
     if is_tensor:
         points = torch.tensor(points_np).to(points.device)
-    return points
+        ind_np = torch.tensor(ind_np).to(points.device)
+    return points, ind_np

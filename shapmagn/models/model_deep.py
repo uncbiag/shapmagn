@@ -70,7 +70,9 @@ class DeepModel(ModelBase):
             print_model(self._model)
             print('-----------------------------------------------')
 
-
+    def rebuild_lr_scheduler(self, base_epoch=0.):
+        self.lr_scheduler_base_epoch = base_epoch
+        self.lr_scheduler = scheduler_builder(self.opt_scheduler)(self.optimizer)
 
     def update_learning_rate(self, new_lr=-1):
         """
@@ -148,7 +150,7 @@ class DeepModel(ModelBase):
 
     def update_scheduler(self,epoch):
         if self.lr_scheduler is not None:
-            self.lr_scheduler.step(epoch)
+            self.lr_scheduler.step(epoch-self.lr_scheduler_base_epoch)
 
         for param_group in self.optimizer.param_groups:
             print("the current epoch is {} with learining rate set at {}".format(epoch,param_group['lr']))

@@ -11,11 +11,12 @@ from shapmagn.utils.module_parameters import ParameterDict
 
 
 
-def lung_synth_data(**args):
+def lung_synth_data(**kwargs):
     aug_settings = ParameterDict()
-    aug_settings["do_local_deform_aug"] = True
-    aug_settings["do_grid_aug"] = True
-    aug_settings["do_point_aug"] = True
+    aug_settings["do_local_deform_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_grid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_point_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_rigid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else False
     aug_settings["plot"] = False
     local_deform_aug = aug_settings[
         ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
@@ -33,7 +34,16 @@ def lung_synth_data(**args):
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
         kernel_scale)
+    rigid_aug_settings = aug_settings[
+        ("rigid_aug", {}, "settings for rigid augmentation")]
+    rigid_aug_settings["rotation_range"] = [-50,50]
+    rigid_aug_settings["scale_range"] = [0.8, 1.2]
+    rigid_aug_settings["translation_range"] = [-0.3,0.3]
+
+
     spline_aug = SplineAug(aug_settings)
+
+
 
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
@@ -63,11 +73,12 @@ def lung_synth_data(**args):
 
 
 
-def lung_aug_data(**args):
+def lung_aug_data(**kwargs):
     aug_settings = ParameterDict()
-    aug_settings["do_local_deform_aug"] = True
-    aug_settings["do_grid_aug"] = True
-    aug_settings["do_point_aug"] = True
+    aug_settings["do_local_deform_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_grid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_point_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_rigid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else False
     aug_settings["plot"] = False
     local_deform_aug = aug_settings[
         ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
@@ -85,6 +96,13 @@ def lung_aug_data(**args):
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
         kernel_scale)
+
+    rigid_aug_settings = aug_settings[
+        ("rigid_aug", {}, "settings for rigid augmentation")]
+    rigid_aug_settings["rotation_range"] = [-30, 30]
+    rigid_aug_settings["scale_range"] = [0.8, 1.2]
+    rigid_aug_settings["translation_range"] = [-0.1, 0.1]
+
     spline_aug = SplineAug(aug_settings)
 
     points_aug = aug_settings[

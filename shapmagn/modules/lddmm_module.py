@@ -56,9 +56,11 @@ class LDDMMVariational(nn.Module):
         self.mode = "shooting"
 
     def variational_evolve(self,mom, control_points):
+        mom = mom.clamp(-1,1)
         return -self.grad_kernel(mom, control_points), self.kernel(control_points, control_points, mom)
 
     def variational_flow(self, mom, control_points, flow_points):
+        mom = mom.clamp(-1, 1)
         return self.variational_evolve(mom, control_points)+(self.kernel(flow_points,control_points,mom),)
 
 

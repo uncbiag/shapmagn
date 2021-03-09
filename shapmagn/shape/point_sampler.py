@@ -56,8 +56,11 @@ def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
             rand_ind = rand_ind[: num_sample]
         rand_ind.sort()
         points = points[rand_ind]
-        weights = weights[rand_ind]
-        return points, weights, rand_ind
+        if weights is not None:
+            weights = weights[rand_ind]
+            return points, weights, rand_ind
+        else:
+            return points, rand_ind
     return sampling
 
 

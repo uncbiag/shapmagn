@@ -76,17 +76,17 @@ scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto
 # normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
 # sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000)"
-sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=30000)"
+sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=3000)"
 pair_postprocess_obj = "lung_dataloader_utils.lung_pair_postprocess()"
 
-get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj,pair_postprocess_obj, device) #reader-> normalized-> pair_post-> sampler
+get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device) #reader-> normalized-> pair_post-> sampler
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
 min_interval = min(source_interval,target_interval)
 input_data = {"source":source_obj,"target":target_obj}
 create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
 source, target = create_shape_pair_from_data_dict(input_data)
-# source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
+source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
 
 source = get_half_lung(source,normalize_weight=False) if compute_on_half_lung else source
 target = get_half_lung(target,normalize_weight=False) if compute_on_half_lung else target
@@ -162,7 +162,7 @@ record_path = server_path+"output/lung_demo/{}".format(task_name)
 os.makedirs(record_path,exist_ok=True)
 solver_opt["record_path"] = record_path
 solver_opt["save_2d_capture_every_n_iter"] = 1
-solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
+#solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
 model_name = "gradient_flow_opt"
 model_opt =ParameterDict()
 model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
@@ -172,7 +172,7 @@ model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
 
 blur = 0.01
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=1,debias=True)".format(blur)
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=None,debias=True,backend='online')".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)

@@ -5,15 +5,19 @@ from pykeops.torch import LazyTensor
 import torch.nn.functional as F
 from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, PointNetFeaturePropogation,FlowEmbedding
+from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, \
+    PointNetFeaturePropogation, FlowEmbedding, index_points
+from shapmagn.modules.networks.pointpwcnet_original import multiScaleChamferSmoothCurvature, PointConvSceneFlowPWC8192selfglobalPointConv
+from shapmagn.modules.networks.scene_flow import FLOT
 from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.networks.pointpwcnet import PointConvSceneFlowPWC
 
 
 
-class DeepRegParm(nn.Module):
+class DeepFlowNetRegParam(nn.Module):
     def __init__(self,opt):
-        super(DeepRegParm,self).__init__()
+        super(DeepFlowNetRegParam,self).__init__()
         self.opt = opt
         local_pair_feature_extractor_obj = self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")]
         self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(local_pair_feature_extractor_obj) else self.default_local_pair_feature_extractor
@@ -82,15 +86,80 @@ class DeepRegParm(nn.Module):
         nonp_param = self.conv2(x)
         nonp_param = nonp_param.transpose(2,1).contiguous()
 
-        return nonp_param
+        return nonp_param, None
 
     def normalize_fea(self):
         pass
 
     def forward(self,cur_source, target, iter=-1):
         cur_source, target = self.local_pair_feature_extractor(cur_source, target)
-        nonp_param = self.deep_flow(cur_source, target)
-        return nonp_param
+        nonp_param,additional_param = self.deep_flow(cur_source, target)
+        return nonp_param, additional_param
+
+
+class PointConvSceneFlowPWCRegParam(nn.Module):
+    def __init__(self, opt):
+        super(PointConvSceneFlowPWCRegParam, self).__init__()
+        self.opt = opt
+        local_pair_feature_extractor_obj = self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")]
+        self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(local_pair_feature_extractor_obj) else self.default_local_pair_feature_extractor
+        # todo test the case that the pointfea is initialized by the dataloader
+        self.input_channel = self.opt[("input_channel",1,"input channel")]
+        self.initial_npoints = self.opt[("initial_npoints",2048,"num of initial sampling points")]
+        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")] * 5  # factor by 5
+        self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
+        self.init_deep_feature_extractor()
+        self.buffer = {}
+        self.iter = 0
+
+    def default_local_pair_feature_extractor(self, cur_source, target):
+        cur_source.pointfea = cur_source.weights
+        target.pointfea = target.weights
+        return cur_source, target
+
+    def init_deep_feature_extractor(self):
+        if not self.delploy_original_model:
+            self.flow_predictor = PointConvSceneFlowPWC(input_channel=self.input_channel, initial_radius=self.initial_radius, initial_npoints=self.initial_npoints)
+        else:
+            self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints)
+    def deep_flow(self, cur_source, target):
+        pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
+        nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
+        return nonp_param, additional_param
+
+    def forward(self, cur_source, target, iter=-1):
+        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
+        nonp_param, additional_param = self.deep_flow(cur_source, target)
+        return nonp_param, additional_param
+
+
+
+class FLOTRegParam(nn.Module):
+    def __init__(self, opt):
+        super(FLOTRegParam, self).__init__()
+        self.opt = opt
+        self.input_channel = self.opt[("input_channel",1,"input channel")]
+        self.nb_iter = self.opt[("nb_iter",1,"# iter for solving the ot problem")]
+        self.init_deep_feature_extractor()
+        self.buffer = {}
+        self.iter = 0
+
+
+    def init_deep_feature_extractor(self):
+        self.flow_predictor = FLOT(nb_iter=self.nb_iter, initial_channel=self.input_channel)
+
+    def deep_flow(self, cur_source, target):
+        pc1, pc2 = cur_source.points, target.points
+        nonp_param,additional_param = self.flow_predictor(pc1, pc2)
+        return nonp_param, additional_param
+
+    def forward(self, cur_source, target, iter=-1):
+        nonp_param, additional_param = self.deep_flow(cur_source, target)
+        return nonp_param, additional_param
+
+
+
+
 
 class FlowModel(nn.Module):
     def __init__(self, opt):
@@ -100,12 +169,24 @@ class FlowModel(nn.Module):
         if self.model_type=="spline":
             self.init_spline(opt["spline"])
             self.flow_model = self.spline_forward
-            self.reguralization = self.spline_reg
-        else:
+            self.regularization = self.spline_reg
+        elif self.model_type=="lddmm":
             self.init_lddmm(opt["lddmm"])
             self.flow_model = self.lddmm_forward
-            self.reguralization = self.lddmm_reg
+            self.regularization = self.lddmm_reg
+        elif self.model_type == "disp":
+            self.flow_model = self.disp_forward
+            self.regularization = self.disp_reg
 
+    def disp_forward(self,toflow, reg_param):
+        points, weights = toflow.points, toflow.weights
+        flowed_points = points + reg_param
+        return flowed_points, None
+
+    def disp_reg(self,reg_param, reg_additional_input=None):
+        dist = reg_param ** 2
+        dist = dist.sum(2).mean(1)
+        return dist
 
 
     def init_spline(self,spline_opt):
@@ -126,7 +207,7 @@ class FlowModel(nn.Module):
 
     def spline_reg(self,disp, sm_disp):
         dist = sm_disp * disp
-        dist = dist.mean(2).mean(1)
+        dist = dist.sum(2).mean(1)
         return dist
 
     def init_lddmm(self, lddmm_opt):
@@ -153,13 +234,13 @@ class FlowModel(nn.Module):
     def lddmm_reg(self,momentum, toflow_points):
         momentum = momentum.clamp(-0.5, 0.5)
         dist = momentum * self.lddmm_kernel(toflow_points, toflow_points, momentum) #todo check if detach the points
-        dist = dist.mean(2).mean(1)
+        dist = dist.sum(2).mean(1)
         return dist
 
 
     def forward(self, source, reg_param):
         flowed_points, reg_additional_input = self.flow_model(source,reg_param)
-        reg_loss = self.reguralization(reg_param, reg_additional_input)
+        reg_loss = self.regularization(reg_param, reg_additional_input)
         flowed = Shape().set_data_with_refer_to(flowed_points,source)
         return flowed , reg_loss
 
@@ -189,7 +270,7 @@ class DeepFlowLoss(nn.Module):
         tp = target.points
         fw = flowed.weights
 
-        l2_loss = (((fp-tp)**2).mean(2,keepdim=True) * fw).sum(1) #todo test
+        l2_loss = (((fp-tp)**2).sum(2,keepdim=True) * fw).sum(1) #todo test
         return l2_loss[...,0] # remove the last 1 dim
 
 
@@ -203,14 +284,60 @@ class DeepFlowLoss(nn.Module):
         return self.geom_loss(flowed, target)
 
 
-    def forward(self,flowed, target, is_synth=True):
+    def forward(self,flowed, target, additional_param=None, is_synth=True):
         if not is_synth:
             return self.ot_distance(flowed, target)
         if self.loss_type == "disp_l2":
             return self.disp_l2(flowed, target)
-        elif self.loss_type == "ot_corres":
-            return self.ot_distance(flowed, target)
 
+
+
+
+
+
+
+class PWCLoss(nn.Module):
+    def __init__(self,opt):
+        super(PWCLoss,self).__init__()
+        self.multi_scale_weight = opt[("multi_scale_weight",[0.02, 0.04, 0.08, 0.16],"weight for each scale")]
+        self.loss_type = self.opt[("loss_type", "multi_scale","multi_scale / chamfer_self")]
+
+
+    def multiScaleLoss(self,flowed, target, additional_param):
+        weights = flowed.weights
+        alpha = self.multi_scale_weight
+        floweds, fps_idxs = additional_param["floweds"], additional_param["fps_pc1_idxs"]#todo to be fixed
+        num_scale = len(floweds)
+        offset = len(fps_idxs) - num_scale + 1
+        num_scale = len(floweds)
+        #generate GT list and mask1s
+        gt = [target.points]
+        w = [weights]
+        for i in range(len(fps_idxs)):
+            fps_idx = fps_idxs[i]
+            sub_gt_flow = index_points(gt[-1], fps_idx)
+            sub_w = index_points(w[-1],fps_idx)
+            gt.append(sub_gt_flow)
+            w.append(sub_w/sub_w.sum(1,keepdim=True))
+        total_loss = 0
+        for i in range(num_scale):
+            diff_flow = floweds[i] - gt[i+offset]
+            total_loss += alpha[i] * ((diff_flow**2).sum(dim = 2,keepdim=True)*w[i]).sum(1)
+        return total_loss
+
+
+    def chamfer_self_loss(self,flowed, target, additional_param):
+        pred_flows, pc1, pc2 = additional_param["flows"],additional_param["pc1"], additional_param["pc2"]
+        total_loss, chamfer_loss, curvature_loss, smoothness_loss = multiScaleChamferSmoothCurvature(pc1, pc2, pred_flows)
+        return total_loss
+
+
+
+    def forward(self,flowed, target, additional_param=None, is_synth=True):
+        if is_synth:
+            return self.multiScaleLoss(flowed, target, additional_param)
+        else:
+            return self.chamfer_self_loss(flowed, target, additional_param)
 
 
 

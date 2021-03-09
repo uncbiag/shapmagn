@@ -21,6 +21,7 @@ class ModelBase():
         self.iter_count = 0
         self.batch_info = None
         self.caches = {}
+        self.lr_scheduler_base_epoch = 0
 
 
 

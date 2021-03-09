@@ -87,6 +87,11 @@ def nadwat_kernel_interpolator(scale=0.1,weight=1.0, exp_order=2,iso=True, self_
         assert len(weight) == len(scale), "weight and scale list should be of the same length"
         compute_kernel_list = [compute_nadwat_kernel(scale=_scale, exp_order=exp_order,iso=iso, self_center=self_center) for _scale in scale]
     def interp(points,control_points,control_value,control_weights, gamma=None):
+        points = points.contiguous()
+        control_points = control_points.contiguous()
+        control_value = control_value.contiguous()
+        control_weights = control_weights.contiguous()
+
         if not multi_scale:
             kernel = compute_kernel(points,control_points,control_weights, gamma=gamma)
         else:
@@ -309,7 +314,11 @@ class NadWatIsoSpline(object):
 
 
 
-
+#
+# if __name__ == "__main__":
+#     a=torch.rand(1,10000,3).cuda()
+#     b=torch.rand(1,10000,3).cuda()
+#     d = torch.rand(1,10000,200).cuda()
 
 
 

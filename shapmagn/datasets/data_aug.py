@@ -93,6 +93,7 @@ class SplineAug(object):
         self.aug_settings = aug_settings
         self.do_grid_aug = aug_settings["do_grid_aug"]
         self.do_local_deform_aug = aug_settings["do_local_deform_aug"]
+        self.do_rigid_aug = aug_settings["do_rigid_aug"]
         grid_aug_settings = self.aug_settings["grid_spline_aug"]
         local_deform_aug_settings = self.aug_settings["local_deform_aug"]
         grid_spline_kernel_obj = grid_aug_settings[("grid_spline_kernel_obj","","grid spline kernel object")]
@@ -133,6 +134,26 @@ class SplineAug(object):
         return deformed_points, point_weights
 
 
+    def rigid_deform(self, points, point_weights=None):
+        from scipy.spatial.transform import Rotation as R
+        rigid_aug_settings = self.aug_settings["rigid_aug"]
+        rotation_range = rigid_aug_settings["rotation_range"]
+        scale_range = rigid_aug_settings["scale_range"]
+        translation_range = rigid_aug_settings["translation_range"]
+        scale = random.random()*(scale_range[1]-scale_range[0])+ scale_range[0]
+        translation = random.random()*(translation_range[1]-translation_range[0])+ translation_range[0]
+        r = R.from_euler('zyx', [random.random()*(rotation_range[1]-rotation_range[0]) + rotation_range[0],
+                                 random.random()*(rotation_range[1]-rotation_range[0]) + rotation_range[0],
+                                 random.random()*(rotation_range[1]-rotation_range[0]) + rotation_range[0]],
+                         degrees = True)
+        r_matrix = r.as_matrix()*scale
+        r_matrix = torch.tensor(r_matrix,dtype=torch.float, device=points.device)
+        deformed_points = points@r_matrix+translation
+        return deformed_points, point_weights
+
+
+
+
 
 
 
@@ -152,6 +173,8 @@ class SplineAug(object):
                 visualize(points,deformed_points,point_weights,deformed_weights)
             if self.do_grid_aug:
                 deformed_points, deformed_weights = self.grid_spline_deform(deformed_points,deformed_weights)
+            if self.do_rigid_aug:
+                deformed_points, deformed_weights = self.rigid_deform(deformed_points, deformed_weights)
             if self.plot:
                 visualize(points,deformed_points,point_weights,deformed_weights)
             deformed_points_list.append(deformed_points)

@@ -3,9 +3,10 @@ from torch.autograd import Variable
 from torch.autograd import Function
 import torch.nn as nn
 from typing import Tuple
-
-import pointnet2_cuda as pointnet2
-
+try:
+    import pointnet2_cuda as pointnet2
+except:
+    print("pointnet2 load failed, please compile it first: python pointnet2/lib/setup.py install")
 class FurthestPointSampling(Function):
     @staticmethod
     def forward(ctx, xyz: torch.Tensor, npoint: int) -> torch.Tensor:

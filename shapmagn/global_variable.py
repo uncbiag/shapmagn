@@ -7,7 +7,7 @@ Shape = SHAPE_POOL[shape_type]
 
 
 from shapmagn.metrics.losses import *
-LOSS_POOL = {"current": CurrentDistance, "varifold": VarifoldDistance, "geomloss": GeomDistance, "l2": L2Distance}
+LOSS_POOL = {"current": CurrentDistance, "varifold": VarifoldDistance, "geomloss": GeomDistance, "l2": L2Distance, "localreg":LocalReg,"gmm":GMMLoss}
 
 
 from shapmagn.datasets.reg_pair_dataset import RegistrationPairDataset

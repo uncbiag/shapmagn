@@ -53,7 +53,7 @@ def lung_reader():
 
 
 
-def lung_sampler(method="uniform", **args):
+def lung_sampler(method="uniform", sampled_by_weight=True, **args):
     """
 
     :param num_sample: num of points after sampling
@@ -61,20 +61,21 @@ def lung_sampler(method="uniform", **args):
     :param args:
     :return:
     """
-    def uniform_sample(data_dict,fixed_random_seed=True):
+    def uniform_sample(data_dict,index=None, fixed_random_seed=True):
         num_sample = args["num_sample"]
         if num_sample !=-1:
             points = data_dict["points"]
             weights = data_dict["weights"]
             pointfea = data_dict["pointfea"]
-            sampler= uniform_sampler(num_sample, fixed_random_seed)
-            sampled_points, sampled_weights, ind = sampler(torch.tensor(points),torch.tensor(weights))
+            sampler= uniform_sampler(num_sample, fixed_random_seed, sampled_by_weight=sampled_by_weight)
+            sampled_points, sampled_weights, index = sampler(torch.tensor(points),torch.tensor(weights))
+            index = index.numpy()
             data_dict["points"] = sampled_points.numpy()
             data_dict["weights"] = sampled_weights.numpy()
-            data_dict["pointfea"] = pointfea[ind]
-        return data_dict
+            data_dict["pointfea"] = pointfea[index]
+        return data_dict, index
 
-    def voxelgrid_sample(data_dict,fixed_random_seed=None):
+    def voxelgrid_sample(data_dict,index=None, fixed_random_seed=None):
         scale = args["scale"]
         if scale != -1:
             points = torch.Tensor(data_dict["points"])
@@ -90,10 +91,10 @@ def lung_sampler(method="uniform", **args):
             data_dict["points"] = points.numpy()
             data_dict["weights"] = cluster_weights.numpy()
             data_dict["pointfea"] = pointfea.numpy()
-        return data_dict
+        return data_dict, index
 
     def combine_sample(data_dict,fixed_random_seed):
-        data_dict = voxelgrid_sample(data_dict,fixed_random_seed)
+        data_dict, _ = voxelgrid_sample(data_dict,fixed_random_seed)
         return uniform_sample(data_dict,fixed_random_seed)
 
 
@@ -157,5 +158,7 @@ if __name__ == "__main__":
     normalized_data_dict = normalizer(raw_data_dict)
     sampled_data_dict = sampler(normalized_data_dict)
     compute_interval(sampled_data_dict["points"])
+
+
 
 

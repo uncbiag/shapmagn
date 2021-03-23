@@ -51,6 +51,7 @@ class ShapePair():
         self.dense_mode = dense_mode
         self.extra_info = None
         self.shape_type = None
+        self.dimension = None
         self.nbatch = -1
 
     def set_source_and_target(self, source, target):
@@ -59,6 +60,7 @@ class ShapePair():
         self.toflow = source
         self.shape_type = self.source.type
         self.nbatch = source.nbatch
+        self.dimension = source.dimension
 
     def set_toflow(self, toflow):
         self.toflow = toflow
@@ -70,6 +72,9 @@ class ShapePair():
     def set_reg_param(self, reg_param):
         self.reg_param = reg_param
 
+
+    def set_extra_info(self, value, name):
+        self.extra_info[name] = value
 
     def set_flowed_control_points(self, flowed_control_points):
         self.flowed_control_points = flowed_control_points

@@ -86,6 +86,7 @@ def train_model(opt,model, dataloaders,writer, device):
                 if phase == 'train':
                     model.optimize_parameters(input)
                     loss = model.get_current_errors()
+                    input = None
 
 
 

@@ -11,7 +11,12 @@ from shapmagn.modules.networks.pointpwcnet_original import multiScaleChamferSmoo
 from shapmagn.modules.networks.scene_flow import FLOT
 from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.networks.flownet3d import FlowNet3D
 from shapmagn.modules.networks.pointpwcnet import PointConvSceneFlowPWC
+from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
+
+
+
 
 
 
@@ -22,8 +27,10 @@ class DeepFlowNetRegParam(nn.Module):
         local_pair_feature_extractor_obj = self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")]
         self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(local_pair_feature_extractor_obj) else self.default_local_pair_feature_extractor
         # todo test the case that the pointfea is initialized by the dataloader
+        self.initial_npoints = self.opt[("initial_npoints",4096,"num of initial sampling points")]
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.param_factor = self.opt[("param_factor",2,"control the number of factor, #params/param_factor")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
@@ -34,58 +41,14 @@ class DeepFlowNetRegParam(nn.Module):
         target.pointfea = target.weights
         return cur_source, target
 
-
-
-
     def init_deep_feature_extractor(self):
-        self.sa1 = PointNetSetAbstraction(npoint=4096, radius=20*self.initial_radius, nsample=16, in_channel=self.input_channel, mlp=[16, 16, 32],
-                                          group_all=False)
-        self.sa2 = PointNetSetAbstraction(npoint=1024, radius=40*self.initial_radius, nsample=16, in_channel=32, mlp=[32, 32, 64],
-                                          group_all=False)
-        self.sa3 = PointNetSetAbstraction(npoint=256, radius=80*self.initial_radius, nsample=8, in_channel=64, mlp=[64, 64, 128],
-                                          group_all=False)
-        self.sa4 = PointNetSetAbstraction(npoint=64, radius=160*self.initial_radius, nsample=8, in_channel=128, mlp=[128, 128, 256],
-                                          group_all=False)
-
-        self.fe_layer = FlowEmbedding(radius=500*self.initial_radius, nsample=64, in_channel=64, mlp=[64, 64, 64], pooling='max',
-                                      corr_func='concat')
-
-        self.su1 = PointNetSetUpConv(nsample=8, radius=96*self.initial_radius, f1_channel=128, f2_channel=256, mlp=[], mlp2=[128, 128])
-        self.su2 = PointNetSetUpConv(nsample=8, radius=48*self.initial_radius, f1_channel=64 + 64, f2_channel=128, mlp=[64, 64, 128],
-                                     mlp2=[128])
-        self.su3 = PointNetSetUpConv(nsample=8, radius=24*self.initial_radius, f1_channel=32, f2_channel=128, mlp=[64, 64, 128],
-                                     mlp2=[128])
-        self.fp = PointNetFeaturePropogation(in_channel=128 + self.input_channel, mlp=[128, 128])
-
-        self.conv1 = nn.Conv1d(128, 64, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.conv2 = nn.Conv1d(64, 3, kernel_size=1, bias=True)
+        self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor)
 
 
     def deep_flow(self,cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         pc1, pc2, feature1, feature2 = pc1.transpose(2,1).contiguous(),pc2.transpose(2,1).contiguous(), feature1.transpose(2,1).contiguous(), feature2.transpose(2,1).contiguous()
-
-        l1_pc1, l1_feature1 = self.sa1(pc1, feature1)
-        l2_pc1, l2_feature1 = self.sa2(l1_pc1, l1_feature1)
-
-        l1_pc2, l1_feature2 = self.sa1(pc2, feature2)
-        l2_pc2, l2_feature2 = self.sa2(l1_pc2, l1_feature2)
-
-        _, l2_feature1_new = self.fe_layer(l2_pc1, l2_pc2, l2_feature1, l2_feature2)
-
-        l3_pc1, l3_feature1 = self.sa3(l2_pc1, l2_feature1_new)
-        l4_pc1, l4_feature1 = self.sa4(l3_pc1, l3_feature1)
-
-        l3_fnew1 = self.su1(l3_pc1, l4_pc1, l3_feature1, l4_feature1)
-        l2_fnew1 = self.su2(l2_pc1, l3_pc1, torch.cat([l2_feature1, l2_feature1_new], dim=1), l3_fnew1)
-        l1_fnew1 = self.su3(l1_pc1, l2_pc1, l1_feature1, l2_fnew1)
-        l0_fnew1 = self.fp(pc1, l1_pc1, feature1, l1_fnew1)
-
-        x = F.relu(self.bn1(self.conv1(l0_fnew1)))
-        nonp_param = self.conv2(x)
-        nonp_param = nonp_param.transpose(2,1).contiguous()
-
+        nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
         return nonp_param, None
 
     def normalize_fea(self):
@@ -97,6 +60,49 @@ class DeepFlowNetRegParam(nn.Module):
         return nonp_param, additional_param
 
 
+
+
+
+class DeepGeoNetRegParam(nn.Module):
+    def __init__(self,opt):
+        super(DeepGeoNetRegParam,self).__init__()
+        self.opt = opt
+        local_pair_feature_extractor_obj = self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")]
+        self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(local_pair_feature_extractor_obj) else self.default_local_pair_feature_extractor
+        # todo test the case that the pointfea is initialized by the dataloader
+        self.initial_npoints = self.opt[("initial_npoints",4096,"num of initial sampling points")]
+        self.input_channel = self.opt[("input_channel",1,"input channel")]
+        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.init_deep_feature_extractor()
+        self.buffer = {}
+        self.iter = 0
+
+
+    def default_local_pair_feature_extractor(self,cur_source, target):
+        cur_source.pointfea = torch.cat([cur_source.points,cur_source.weights],2)
+        target.pointfea =torch.cat([target.points,target.weights],2)
+        return cur_source, target
+
+    def init_deep_feature_extractor(self):
+        self.flow_predictor =GeoFlowNet(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints)
+
+    def deep_flow(self,cur_source, target):
+        pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
+        nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
+        return nonp_param, None
+
+    def normalize_fea(self):
+        pass
+
+    def forward(self,cur_source, target, iter=-1):
+        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
+        nonp_param,additional_param = self.deep_flow(cur_source, target)
+        return nonp_param, additional_param
+
+
+
+
+
 class PointConvSceneFlowPWCRegParam(nn.Module):
     def __init__(self, opt):
         super(PointConvSceneFlowPWCRegParam, self).__init__()
@@ -106,22 +112,27 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         # todo test the case that the pointfea is initialized by the dataloader
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_npoints = self.opt[("initial_npoints",2048,"num of initial sampling points")]
-        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")] * 5  # factor by 5
+        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")]
         self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
 
     def default_local_pair_feature_extractor(self, cur_source, target):
-        cur_source.pointfea = cur_source.weights
-        target.pointfea = target.weights
+        cur_source.pointfea = cur_source.points.clone()#torch.cat([cur_source.points, cur_source.weights], 2)
+        target.pointfea = target.points.clone() #torch.cat([target.points, target.weights], 2)
         return cur_source, target
 
     def init_deep_feature_extractor(self):
+        self.load_pretrained_model = self.opt[("load_pretrained_model",False,"load_pretrained_model")]
+        self.pretrained_model_path = self.opt[("pretrained_model_path","","path of pretrained model")]
         if not self.delploy_original_model:
             self.flow_predictor = PointConvSceneFlowPWC(input_channel=self.input_channel, initial_radius=self.initial_radius, initial_npoints=self.initial_npoints)
         else:
             self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints)
+        if self.load_pretrained_model:
+            checkpoint = torch.load(self.pretrained_model_path, map_location='cpu')
+            self.flow_predictor.load_state_dict(checkpoint)
     def deep_flow(self, cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
@@ -134,6 +145,11 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
 
 
 
+
+
+
+
+
 class FLOTRegParam(nn.Module):
     def __init__(self, opt):
         super(FLOTRegParam, self).__init__()
@@ -143,7 +159,6 @@ class FLOTRegParam(nn.Module):
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
-
 
     def init_deep_feature_extractor(self):
         self.flow_predictor = FLOT(nb_iter=self.nb_iter, initial_channel=self.input_channel)
@@ -185,7 +200,7 @@ class FlowModel(nn.Module):
 
     def disp_reg(self,reg_param, reg_additional_input=None):
         dist = reg_param ** 2
-        dist = dist.sum(2).mean(1)
+        dist = dist.sum(2).mean(1,keepdim=True)
         return dist
 
 
@@ -252,11 +267,18 @@ class DeepFlowLoss(nn.Module):
         super(DeepFlowLoss,self).__init__()
         self.opt = opt
         self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_loss")]
+        self.include_local_geo_constrain = self.opt[("include_local_geo_constrain", False,"include_local_geo_constrain")]
+        if self.include_local_geo_constrain:
+            local_pair_feature_extractor_obj = self.opt[
+                ("local_pair_feature_extractor_obj", "", "function object for local_feature_extractor")]
+            self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(
+                local_pair_feature_extractor_obj) else None
+            self.geo_loss_factor = self.opt[
+                ("geo_loss_factor", 1., "factor of geo loss")]
         geomloss_setting = deepcopy(self.opt["geomloss"])
         geomloss_setting["attr"] = "points"
         self.geom_loss = GeomDistance(geomloss_setting)
         self.buffer = {"gt_one_hot":None, "gt_plan":None}
-
 
 
     def disp_l2(self, flowed, target):
@@ -284,11 +306,28 @@ class DeepFlowLoss(nn.Module):
         return self.geom_loss(flowed, target)
 
 
-    def forward(self,flowed, target, additional_param=None, is_synth=True):
-        if not is_synth:
-            return self.ot_distance(flowed, target)
+    def geo_distance(self,flowed,target):
+        """
+        compute the local feature of  the flowed and the target, compare there l2 difference
+        :param flowed:
+        :param target:
+        :return:
+        """
+        flowed, target = self.local_pair_feature_extractor(flowed, target)
+        fp = flowed.pointfea
+        tp = target.pointfea
+        fw = flowed.weights
+        l2_loss = (((fp - tp) ** 2).sum(2, keepdim=True) * fw).sum(1)  # todo test
+        return l2_loss[..., 0] * self.geo_loss_factor # remove the last 1 dim
+
+
+    def forward(self,flowed, target, additional_param=None, corr_source_target=True):
+
+        geo_loss=0. if not self.include_local_geo_constrain else self.geo_distance(flowed, target)
+        if not corr_source_target:
+            return self.ot_distance(flowed, target) + geo_loss
         if self.loss_type == "disp_l2":
-            return self.disp_l2(flowed, target)
+            return self.disp_l2(flowed, target) + geo_loss
 
 
 
@@ -299,8 +338,10 @@ class DeepFlowLoss(nn.Module):
 class PWCLoss(nn.Module):
     def __init__(self,opt):
         super(PWCLoss,self).__init__()
+        self.opt = opt
         self.multi_scale_weight = opt[("multi_scale_weight",[0.02, 0.04, 0.08, 0.16],"weight for each scale")]
-        self.loss_type = self.opt[("loss_type", "multi_scale","multi_scale / chamfer_self")]
+        self.loss_type = opt[("loss_type", "multi_scale","multi_scale / chamfer_self")]
+        self.use_self_supervised_loss = opt[("use_self_supervised_loss", False,"use_self_supervised_loss")]
 
 
     def multiScaleLoss(self,flowed, target, additional_param):
@@ -333,11 +374,13 @@ class PWCLoss(nn.Module):
 
 
 
-    def forward(self,flowed, target, additional_param=None, is_synth=True):
-        if is_synth:
+    def forward(self,flowed, target, additional_param=None, corr_source_target=True):
+        if self.use_self_supervised_loss:
+            return self.chamfer_self_loss(flowed, target, additional_param)
+        elif corr_source_target:
             return self.multiScaleLoss(flowed, target, additional_param)
         else:
-            return self.chamfer_self_loss(flowed, target, additional_param)
+            raise NotImplemented
 
 
 

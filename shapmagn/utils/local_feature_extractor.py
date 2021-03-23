@@ -3,6 +3,8 @@ import math
 import numpy as np
 import torch
 from pykeops.torch import LazyTensor
+from shapmagn.utils.compute_2d_eigen import compute_2d_eigen
+from shapmagn.utils.obj_factory import partial_obj_factory
 from shapmagn.utils.visualizer import visualize_point_fea,visualize_point_fea_with_arrow, visualize_point_overlap
 from torchvectorized.vlinalg import vSymEig
 # import pykeops
@@ -86,12 +88,17 @@ def compute_local_fea_from_moments(fea_type,weights, mass,dev,cov):
         fea = cov.view(B,N,-1)
     elif 'eigen' in fea_type:
         compute_eigen_vector = fea_type in ["eigenvector","eigenvector_main"]
-        cov = cov.view(B, N, -1, 1, 1).permute(0, 2, 1, 3, 4)
-        vals, vectors = vSymEig(cov, eigenvectors=compute_eigen_vector, flatten_output=True,descending_eigenvals=True)
+        if D ==2:
+            cov = cov.view(B, N, -1, 1).permute(0, 2, 1, 3)
+            vals, vectors = compute_2d_eigen(cov, eigenvectors=compute_eigen_vector, flatten_output=True)
+        elif D==3:
+            cov = cov.view(B, N, -1, 1, 1).permute(0, 2, 1, 3, 4)
+            vals, vectors = vSymEig(cov, eigenvectors=compute_eigen_vector, flatten_output=True,descending_eigenvals=True)
+        else:
+            raise NotImplemented("high dimension >3 eigen decomposition is not implemented")
         vals = vals.view(B, N, -1)
         if vectors is not None:
-            vectors = vectors+1e-9 # avoid divide by 0
-            vectors = vectors/torch.norm(vectors,p=2,dim=1,keepdim=True)  # BxNx1
+            vectors = vectors/(torch.norm(vectors,p=2,dim=1,keepdim=True)+1e-9)  # B*NxDxD
             assert not torch.any(torch.isnan(vectors)) and not torch.any(torch.isinf(vectors))
         if fea_type == "eigenvalue_prod":
             if D==2:
@@ -157,12 +164,30 @@ def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=F
 
 
 def pair_feature_extractor(fea_type_list,weight_list=None, radius=0.01, std_normalize=True, include_pos=False):
+    # fea_extractor = feature_extractor(fea_type_list, radius, std_normalize, include_pos)
+    # def extract(flowed, target,iter=None,flowed_gamma=None, target_gamma=None):
+    #     flowed.pointfea, mean, std, _ = fea_extractor(flowed.points, flowed.weights, weight_list=weight_list,gamma=flowed_gamma,
+    #                                                   return_stats=True)
+    #     target.pointfea, _ = fea_extractor(target.points, target.weights, weight_list=weight_list,gamma=target_gamma, mean=mean, std=std)
+    #     return flowed, target
+    # return extract
     fea_extractor = feature_extractor(fea_type_list, radius, std_normalize, include_pos)
-    def extract(flowed, target,iter=None,flowed_gamma=None, target_gamma=None):
-        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points, flowed.weights, weight_list=weight_list,gamma=flowed_gamma,
+    aniso_kernel_scale = 0.05
+    get_anistropic_gamma_obj = "local_feature_extractor.compute_anisotropic_gamma_from_points(cov_sigma_scale=0.02,aniso_kernel_scale={},principle_weight=(2.,1.),eigenvalue_min=0.1,iter_twice=True)".format(
+        aniso_kernel_scale)
+    get_anistropic_gamma = partial_obj_factory(get_anistropic_gamma_obj)
+
+    def extract(flowed, target, iter=-1, flowed_gamma=None, target_gamma=None):
+        if flowed_gamma is None:
+            flowed_gamma = get_anistropic_gamma(flowed.points)
+        if target_gamma is None:
+            target_gamma = get_anistropic_gamma(target.points)
+        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points,flowed.weights, weight_list=weight_list, gamma=flowed_gamma,
                                                       return_stats=True)
-        target.pointfea, _ = fea_extractor(target.points, target.weights, weight_list=weight_list,gamma=target_gamma, mean=mean, std=std)
+        target.pointfea, _ = fea_extractor(target.points,target.weights, weight_list=weight_list, gamma=target_gamma, mean=mean,
+                                           std=std)
         return flowed, target
+
     return extract
 
 
@@ -206,33 +231,22 @@ def pair_feature_FPFH_extractor(radius_normal=0.1, radius_feature=0.5):
 
 
 
-def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=None,):
+def get_Gamma(sigma_scale, principle_weight= None,eigenvector=None,):
     """
 
     :param sigma_scale: scale the sigma
-    :param principle_weight: a list of sigma of D size, e.g.[1,1,1]
-    :param eigenvalue: torch.Tensor, BXNxD, optional if the eigenvalue is not None, then the principle vector = normalized(eigenvale)*sigma_scale
+    :param principle_weight: BxNxD
     :param eigenvector: torch.Tensor, BXNxDxD, denote as U
     :return: Gamma: torch.Tensor, BxNxDxD  U{\Lambda}^{-2}U^T
     """
-    device = eigenvector.device
-    nbatch, npoints = eigenvector.shape[0], eigenvector.shape[1]
-    if eigenvalue is not None:
-        principle_weight = eigenvalue/torch.norm(eigenvalue,p=2,dim=2,keepdim=True)*sigma_scale
-        principle_weight_inv_sq = 1/(principle_weight**2)
-        principle_diag = torch.diag_embed(principle_weight_inv_sq)
-    else:
-
-        principle_weight = np.array(principle_weight)/np.linalg.norm(principle_weight)*sigma_scale
-        principle_weight = principle_weight.astype(np.float32)
-        principle_weight_inv_sq = 1/(principle_weight**2)
-        principle_diag = torch.diag(torch.tensor(principle_weight_inv_sq).to(device)).repeat(nbatch,npoints,1,1) # BxNxDxD
-        principle_weight =torch.tensor(principle_weight).to(device).repeat(1,npoints,1)
+    principle_weight = principle_weight*sigma_scale
+    principle_weight_inv_sq = 1/(principle_weight**2)
+    principle_diag = torch.diag_embed(principle_weight_inv_sq)
     Gamma = eigenvector @ principle_diag @ (eigenvector.permute(0,1,3,2))
     return Gamma,principle_weight
 
 
-def compute_anisotropic_gamma_from_points(points,weights=None,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, leaf_decay=False, return_details=False):
+def compute_anisotropic_gamma_from_points(points,weights=None,cov_sigma_scale=0.05,aniso_kernel_scale=None,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, leaf_decay=False, mass_thres=2.5, return_details=False):
     """
     compute inverse covariance matrix for anisotropic kernel
     this function doesn't support auto-grad
@@ -245,37 +259,38 @@ def compute_anisotropic_gamma_from_points(points,weights=None,cov_sigma_scale=0.
     :return: Gamma, torch.Tensor, BxNxDxD  U{\Lambda}^{-2}U^T,  where U is the eigenvector of the local covariance matrix
     """
     aniso_kernel_scale = aniso_kernel_scale if aniso_kernel_scale is not None else cov_sigma_scale
-    B,N, D = points.shape[0], points.shape[1],points.shape[2]
+    B,N, D, device = points.shape[0], points.shape[1],points.shape[2], points.device
     fea_type_list = ["eigenvalue", "eigenvector"]
     fea_extractor = feature_extractor(fea_type_list, radius=cov_sigma_scale, std_normalize=False, include_pos=False)
     combined_fea, mass = fea_extractor(points,weights)
     eigenvalue, eigenvector = combined_fea[:, :, :D], combined_fea[:, :, D:]
     eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], D, D)
     #print("detect there is {} eigenvalue smaller or equal to 0, set to 1e-7".format(torch.sum(eigenvalue <= 0)))
-    if principle_weight is None:
-        eigenvalue[eigenvalue <= 0.] = 1e-7
+    use_predefined_principle_weight = principle_weight is not None
+    if not use_predefined_principle_weight:
+        eigenvalue[eigenvalue <= 0.] = 1e-9
         eigenvalue = eigenvalue / torch.norm(eigenvalue, p=2, dim=2, keepdim=True)
         eigenvalue[eigenvalue < eigenvalue_min] = eigenvalue_min
+        principle_weight = eigenvalue/(torch.norm(eigenvalue, p=2, dim=2, keepdim=True)) *(D**0.5)
     else:
-        eigenvalue = None
-    Gamma, principle_weight_ouput = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight, eigenvalue=eigenvalue,
-                                        eigenvector=eigenvector)
+        principle_weight = np.array(principle_weight) / np.linalg.norm(principle_weight)
+        principle_weight = principle_weight.astype(np.float32)
+        principle_weight = torch.from_numpy(principle_weight).to(device).repeat(B,N,1)*(D**0.5)
+    Gamma, principle_weight_ouput = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight,  eigenvector=eigenvector)
     if iter_twice:
         mass, dev, cov = compute_aniso_local_moments(points, Gamma)
         eigenvector = compute_local_fea_from_moments("eigenvector",weights, mass, dev, cov)
         eigenvalue = compute_local_fea_from_moments("eigenvalue",weights, mass, dev, cov)
         eigenvector = eigenvector.view(eigenvector.shape[0], eigenvector.shape[1], D, D)
-        if principle_weight is None:
-            eigenvalue[eigenvalue <= 0.] = 1e-7
-            eigenvalue = eigenvalue / torch.norm(eigenvalue, p=2, dim=2, keepdim=True)
+        if not use_predefined_principle_weight:
+            eigenvalue[eigenvalue <= 0.] = 1e-9
+            eigenvalue = eigenvalue / (torch.norm(eigenvalue, p=2, dim=2, keepdim=True)+ 1e-9)
             eigenvalue[eigenvalue < eigenvalue_min] = eigenvalue_min
-        else:
-            eigenvalue = None
+            principle_weight = eigenvalue/(torch.norm(eigenvalue, p=2, dim=2, keepdim=True))*(D**0.5)
         Gamma, principle_weight_ouput = get_Gamma(aniso_kernel_scale, principle_weight=principle_weight,
-                                            eigenvalue=eigenvalue,
                                             eigenvector=eigenvector)
     if leaf_decay:
-        mass_thres = 2.5
+        mass_thres = mass_thres
         decay_factor = 3
         mass_falttern = mass.view(-1)
         gamma_mask = torch.ones_like(mass_falttern)

@@ -345,7 +345,23 @@ def compute_jacobi_of_pointcloud():
     return compute_jacobi
 
 
-def memory_sort(points):
+def shrink_by_factor(param, factor):
+    if isinstance(param, list):
+        param = [int(_param/factor) for _param in param]
+    else:
+        param = int(param/factor)
+    return param
+
+
+def enlarge_by_factor(param, factor):
+    if isinstance(param, list):
+        param = [int(_param*factor) for _param in param]
+    else:
+        param = int(param*factor)
+    return param
+
+
+def memory_sort(points, eps=0.0):
     """
     sort neighboring points close to each other in memory
     :param points: BxNxD or NxD  tenosr /array
@@ -353,14 +369,13 @@ def memory_sort(points):
     """
 
 
-    def _sort(points):
-        eps = 0.0
+    def _sort(points,eps):
         x_labels = grid_cluster(points, eps)
         # Compute the memory footprint and centroid of each of those non-empty "cubic" clusters:
-        points, x_labels = sort_clusters(points, x_labels)
+        points, x_labels_sorted = sort_clusters(points, x_labels)
         return points, x_labels
 
-    is_tensor = isinstance(points, torch.tensor)
+    is_tensor = isinstance(points, torch.Tensor)
     has_batch = len(points.shape) == 3
     if is_tensor:
         points_np = points.detach().cpu().numpy()
@@ -370,14 +385,71 @@ def memory_sort(points):
         points_np_list = []
         ind_np_list = []
         for _points_np in points_np:
-            _points_np, _ind= _sort(_points_np)
+            _points_np, _ind= _sort(_points_np,eps)
             points_np_list.append(_points_np)
             ind_np_list.append(_ind)
         points_np = np.concatenate(points_np_list,0)
         ind_np = np.concatenate(ind_np_list,0)
     else:
-        points_np, ind_np = _sort(points_np)
+        points_np, ind_np = _sort(points_np,eps)
     if is_tensor:
         points = torch.tensor(points_np).to(points.device)
-        ind_np = torch.tensor(ind_np).to(points.device)
-    return points, ind_np
+        ind = torch.tensor(ind_np).to(points.device)
+        return points, ind
+    else:
+        return points_np, ind_np
+
+
+def memory_sort_helper(x,x_labels):
+    is_tensor = isinstance(x, torch.Tensor)
+    has_batch = len(x.shape) == 3
+    if is_tensor:
+        x_np = x.detach().cpu().numpy()
+    else:
+        x_np = x
+    if has_batch:
+        x_np_list = []
+        for _x in x_np:
+            _x, _ = sort_clusters(_x, x_labels)
+            x_np_list.append(_x)
+        x_np = np.concatenate(x_np_list, 0)
+    else:
+        x_np, _ = sort_clusters(x_np, x_labels)
+    if is_tensor:
+        x = torch.tensor(x_np).to(x.device)
+        return x
+    else:
+        return x_np
+
+
+def add_zero_last_dim(points):
+    if isinstance(points, torch.Tensor):
+        shape = list(points.shape)
+        shape[-1] = 1
+        zero_dim = torch.zeros(shape)
+        return torch.cat([points,zero_dim],-1)
+    else:
+        shape = list(points.shape)
+        shape[-1] = 1
+        zero_dim = np.zeros(shape)
+        return np.concatenate([points, zero_dim], -1)
+
+
+def index_points(points, idx):
+    """
+
+    Input:
+        points: input points data, [B, N, C]
+        idx: sample index data, [B, S]
+    Return:
+        new_points:, indexed points data, [B, S, C]
+    """
+    device = points.device
+    B = points.shape[0]
+    view_shape = list(idx.shape)
+    view_shape[1:] = [1] * (len(view_shape) - 1)
+    repeat_shape = list(idx.shape)
+    repeat_shape[0] = 1
+    batch_indices = torch.arange(B, dtype=torch.long).to(device).view(view_shape).repeat(repeat_shape)
+    new_points = points[batch_indices, idx, :]
+    return new_points

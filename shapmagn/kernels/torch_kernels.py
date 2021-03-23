@@ -20,6 +20,7 @@ class TorchKernel(object):
         :param sigma: scalar
         :return:
         """
+        sig2 = sigma * (2 ** (1 / 2))
         def reduce(x, y, b):
             """
 
@@ -31,7 +32,7 @@ class TorchKernel(object):
             x = x[:,:,None]
             y = y[:, None]
             b = b[:,None] #Bx1xKxd
-            dist2 = ((x/sigma - y/sigma) ** 2).sum(-1, keepdim=True) #BxNxKx1
+            dist2 = ((x/sig2 - y/sig2) ** 2).sum(-1, keepdim=True) #BxNxKx1
             kernel = (-dist2).exp()
             return (kernel * b).sum(axis=2)
         return reduce
@@ -43,7 +44,7 @@ class TorchKernel(object):
         :param weight_list: corresponding list of weight, sum(weight_list)=1
         :return:
         """
-        gamma_list = [1 / (sigma * sigma) for sigma in sigma_list]
+        gamma_list= [1/(2*sigma*sigma)  for sigma in sigma_list]
 
         def reduce(x, y, b):
             """
@@ -59,34 +60,33 @@ class TorchKernel(object):
             b = b[:, None]  # Bx1xKxd
             dist2 = ((x - y) ** 2).sum(-1, keepdim=True)  # BxNxKx1
             for gamma, weight in zip(gamma_list, weight_list):
-                kernel += (-dist2 * gamma).exp()*weight
+                kernel += (-dist2 *gamma).exp()*weight
             return (kernel * b).sum(axis=2)
 
         return reduce
 
     @staticmethod
     def gaussian_gradient(sigma=0.1):
-        gamma = 1 / (sigma * sigma)
         def reduce(px, x, py=None, y=None):
             if y is None:
                 y = x
             if py is None:
                 py = px
-            x = x[:, :, None]
-            y = y[:, None]
+            x = x[:, :, None]/sigma
+            y = y[:, None]/sigma
             px = px[:,:, None]  # BxNx1xD
             py = py[:, None]  # Bx1xKxD
             dist2 = ((x - y) ** 2).sum(-1, keepdim=True)  # BxNxKx1
-            kernel = (-dist2 * gamma).exp()  # BxNxKx1
+            kernel = (-dist2 * 0.5).exp()  # BxNxKx1
             diff_kernel = (x-y) * kernel # BxNxKxD
             B, N, K, D = diff_kernel.shape
             pyx = (px*py).sum(-1) # BxNxK
-            return (-2*gamma) * torch.bmm(pyx.view(-1,1,K),diff_kernel.view(-1,K,D)).view(B,N,D)
+            return (-1/sigma) * torch.bmm(pyx.view(-1,1,K),diff_kernel.view(-1,K,D)).view(B,N,D)
         return reduce
 
     @staticmethod
     def multi_gaussian_gradient(sigma_list=None,weight_list=None):
-        gamma_list = [1 / (sigma * sigma) for sigma in sigma_list]
+        gamma_list = [1 / (2*sigma * sigma) for sigma in sigma_list]
 
         def reduce(px, x, py=None, y=None):
             if y is None:
@@ -114,7 +114,7 @@ class TorchKernel(object):
          :param sigma: scalar
          :return:
          """
-        gamma = 1 / (sigma * sigma)
+        sig2 = sigma * (2 ** (1 / 2))
         def reduce(x,y,u,v,b):
             """
             :param x: torch.Tensor, BxNxD,  input position1
@@ -124,13 +124,13 @@ class TorchKernel(object):
             :param b: torch.Tensor, BxKxd, input scalar vector
             :return: torch.Tensor, BxNxd, output
             """
-            x = x[:,:, None]
-            y = y[:, None]
+            x = x[:,:, None]/sig2
+            y = y[:, None]/sig2
             u = u[:,:,None]
             v = v[:,None]
             b = b[:,None] # Bx1xKxD
             dist2 = ((x - y) ** 2).sum(-1, keepdim=True) # BxNxKx1
-            kernel = (-dist2 * gamma).exp() * ((u * v).sum(-1,keepdim=True) ** 2) # BxNxKx1
+            kernel = (-dist2).exp() * ((u * v).sum(-1,keepdim=True) ** 2) # BxNxKx1
             return (kernel * b).sum(axis=2)
         return reduce
 

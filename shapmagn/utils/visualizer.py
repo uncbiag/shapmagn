@@ -1,19 +1,33 @@
 import os
+import random
 import numpy as np
 import torch
 import pyvista as pv
 import subprocess
+from  shapmagn.utils.utils import add_zero_last_dim
+
+def format_input(input):
+    dim = input.shape[-1]
+    if dim==2:
+        input = add_zero_last_dim(input)
+    if isinstance(input, torch.Tensor):
+        input = input.squeeze().detach().cpu().numpy()
+    return input
+
+def color_adaptive(color):
+    if len(color)>3:
+        color = (color-color.min())/(color.max()-color.min()+1e-7)*10-10
+    return color
+
 
 def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
-    if isinstance(points, torch.Tensor):
-        points = points.squeeze().detach().cpu().numpy()
-    if isinstance(fea, torch.Tensor):
-        fea = fea.squeeze().detach().cpu().numpy()
+    points = format_input(points)
+    fea = format_input(fea)
     p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
     # install pyvistaqt for background plotting that plots without pause the program
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     p.add_mesh(pv.PolyData(points),
-                     scalars=fea,
+                     scalars=color_adaptive(fea),
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on,
@@ -48,12 +62,9 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
 
 
 def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
-    if isinstance(points, torch.Tensor):
-        points = points.squeeze().detach().cpu().numpy()
-    if isinstance(fea, torch.Tensor):
-        fea = fea.squeeze().detach().cpu().numpy()
-    if isinstance(vectors,torch.Tensor):
-        vectors = vectors.squeeze().detach().cpu().numpy()
+    points = format_input(points)
+    fea = format_input(fea)
+    vectors = format_input(vectors)
     p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
     # install pyvistaqt for background plotting that plots without pause the program
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
@@ -61,7 +72,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
     point_obj.vectors = vectors
     p.add_mesh(point_obj.arrows, scalars='GlyphScale', lighting=False, stitle="Vector Magnitude")
     p.add_mesh(point_obj,
-                     scalars=fea,
+                     scalars=color_adaptive(fea),
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on,
@@ -95,14 +106,10 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
 
 
 def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
-    if isinstance(points1, torch.Tensor):
-        points1 = points1.squeeze().detach().cpu().numpy()
-    if isinstance(points2, torch.Tensor):
-        points2 = points2.squeeze().detach().cpu().numpy()
-    if isinstance(feas1, torch.Tensor):
-        feas1 = feas1.squeeze().detach().cpu().numpy()
-    if isinstance(feas2, torch.Tensor):
-        feas2 = feas2.squeeze().detach().cpu().numpy()
+    points1 = format_input (points1)
+    points2 = format_input(points2)
+    feas1 = format_input(feas1)
+    feas2 = format_input(feas2)
 
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 2
@@ -111,7 +118,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
-                     scalars=feas1,
+                     scalars=color_adaptive(feas1),
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on[0],
@@ -160,14 +167,10 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
 
 
 def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(10,10), rgb_on=True,opacity=("linear","linear"), saving_gif_path=None, saving_capture_path=None, show=True):
-    if isinstance(points1, torch.Tensor):
-        points1 = points1.squeeze().detach().cpu().numpy()
-    if isinstance(points2, torch.Tensor):
-        points2 = points2.squeeze().detach().cpu().numpy()
-    if isinstance(feas1, torch.Tensor):
-        feas1 = feas1.squeeze().detach().cpu().numpy()
-    if isinstance(feas2, torch.Tensor):
-        feas2 = feas2.squeeze().detach().cpu().numpy()
+    points1 = format_input(points1)
+    points2 = format_input(points2)
+    feas1 = format_input(feas1)
+    feas2 = format_input(feas2)
 
     if isinstance(rgb_on, bool):
         rgb_on = [rgb_on] * 2
@@ -176,7 +179,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     p.add_text(title, font_size=18)
     p.add_mesh(pv.PolyData(points1),
-               scalars=feas1,
+               scalars=color_adaptive(feas1),
                cmap="viridis", point_size=point_size[0],
                render_points_as_spheres=True,
                rgb=rgb_on[0],
@@ -184,7 +187,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
                lighting=True,
                style="points", show_scalar_bar=True)
     p.add_mesh(pv.PolyData(points2),
-               scalars=feas2,
+               scalars=color_adaptive(feas2),
                cmap="magma", point_size=point_size[1],
                render_points_as_spheres=True,
                rgb=rgb_on[1],
@@ -217,14 +220,10 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
 
 
 def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
-    if isinstance(points1, torch.Tensor):
-        points1 = points1.squeeze().detach().cpu().numpy()
-    if isinstance(points2, torch.Tensor):
-        points2 = points2.squeeze().detach().cpu().numpy()
-    if isinstance(feas1, torch.Tensor):
-        feas1 = feas1.squeeze().detach().cpu().numpy()
-    if isinstance(feas2, torch.Tensor):
-        feas2 = feas2.squeeze().detach().cpu().numpy()
+    points1 = format_input(points1)
+    points2 = format_input(points2)
+    feas1 = format_input(feas1)
+    feas2 = format_input(feas2)
 
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 2
@@ -233,7 +232,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
-                     scalars=feas1,
+                     scalars=color_adaptive(feas1),
                      cmap="viridis", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on[0],
@@ -243,7 +242,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     p.subplot(0, 1)
     p.add_text(title2, font_size=18)
     p.add_mesh(pv.PolyData(points2),
-                     scalars=feas2,
+                     scalars=color_adaptive(feas2),
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on[1],
@@ -253,7 +252,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     p.subplot(0, 2)
     p.add_text(title1+"_overlap_"+title2, font_size=18)
     p.add_mesh(pv.PolyData(points1),
-               scalars=feas1,
+               scalars=color_adaptive(feas1),
                cmap="viridis", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[0],
@@ -261,7 +260,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                lighting=True,
                style="points", show_scalar_bar=True)
     p.add_mesh(pv.PolyData(points2),
-               scalars=feas2,
+               scalars=color_adaptive(feas2),
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
@@ -271,10 +270,10 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
- (0.0, 0.0, 0.0),
- (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
-
+ #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
+ # (0.0, 0.0, 0.0),
+ # (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+ #
 
     if show:
         p.show(auto_close=False)
@@ -305,28 +304,27 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
 
 
-def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
-    if isinstance(points1, torch.Tensor):
-        points1 = points1.squeeze().detach().cpu().numpy()
-    if isinstance(points2, torch.Tensor):
-        points2 = points2.squeeze().detach().cpu().numpy()
-    if isinstance(points3, torch.Tensor):
-        points3 = points3.squeeze().detach().cpu().numpy()
-    if isinstance(feas1, torch.Tensor):
-        feas1 = feas1.squeeze().detach().cpu().numpy()
-    if isinstance(feas2, torch.Tensor):
-        feas2 = feas2.squeeze().detach().cpu().numpy()
-    if isinstance(feas3, torch.Tensor):
-        feas3 = feas3.squeeze().detach().cpu().numpy()
+def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+    points1 = format_input(points1)
+    points2 = format_input(points2)
+    points3 = format_input(points3)
+    feas1 = format_input(feas1)
+    feas2 = format_input(feas2)
+    feas3 = format_input(feas3)
+    if flow is not None:
+        flow = format_input(flow)
+
 
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 3
 
-    p = pv.Plotter(window_size=[2420, 1280], shape=(1, 4), border=False, off_screen= not show)
+    p = pv.Plotter(window_size=[3000, 1024], shape=(1, 4), border=False, off_screen= not show)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
-    p.add_mesh(pv.PolyData(points1),
-                     scalars=feas1,
+
+    obj1 = pv.PolyData(points1)
+    p.add_mesh(obj1,
+                     scalars=color_adaptive(feas1),
                      cmap="viridis", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on[0],
@@ -335,36 +333,46 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
                      style="points", show_scalar_bar=True)
     p.subplot(0, 1)
     p.add_text(title2, font_size=18)
-    p.add_mesh(pv.PolyData(points2),
-                     scalars=feas2,
-                     cmap="magma", point_size=10,
-                     render_points_as_spheres=True,
-                     rgb=rgb_on[1],
-                     opacity="linear",
-                     lighting=True,
-                     style="points", show_scalar_bar=True)
-    p.subplot(0, 2)
-    p.add_text(title3, font_size=18)
-    p.add_mesh(pv.PolyData(points3),
-               scalars=feas3,
-               cmap="magma", point_size=10,
+
+    obj1 = pv.PolyData(points1)
+    if flow is not None:
+        npoints = flow.shape[0]
+        flow_ = np.zeros_like(flow)
+        index = list(range(0,npoints, 30))
+        flow_[index,:]= flow[index]
+        obj1.point_arrays['flow'] = flow_
+        geom = pv.Arrow(tip_radius=0.03, shaft_radius=0.015)
+        arrows =  obj1.glyph( orient="flow",geom=geom)
+        p.add_mesh(arrows,color="black",opacity=0.3)
+    p.add_mesh(obj1,
+               color="gray",
+               point_size=10,
                render_points_as_spheres=True,
-               rgb=rgb_on[2],
-               opacity="linear",
-               lighting=True,
+               opacity=0.05,
                style="points", show_scalar_bar=True)
-    p.subplot(0, 3)
-    p.add_text(title2+"_overlap_"+title3, font_size=18)
+
     p.add_mesh(pv.PolyData(points2),
-               scalars=feas2,
-               cmap="viridis", point_size=10,
+               scalars=color_adaptive(feas2),
+               cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
                opacity="linear",
                lighting=True,
                style="points", show_scalar_bar=True)
+
+
+
+    p.subplot(0, 2)
+    p.add_text(title3, font_size=18)
+    p.add_mesh(pv.PolyData(points1),
+               color="gray",
+               point_size=10,
+               render_points_as_spheres=True,
+               opacity=0.05,
+               style="points", show_scalar_bar=True)
+
     p.add_mesh(pv.PolyData(points3),
-               scalars=feas3,
+               scalars=color_adaptive(feas3),
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[2],
@@ -372,11 +380,32 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
                lighting=True,
                style="points", show_scalar_bar=True)
 
+
+    p.subplot(0, 3)
+    p.add_text(title2+"_overlap_"+title3, font_size=18)
+    p.add_mesh(pv.PolyData(points2),
+               scalars=color_adaptive(feas2),
+               cmap="viridis", point_size=10,
+               render_points_as_spheres=True,
+               rgb=rgb_on[1],
+               opacity="linear",
+               lighting=True,
+               style="points", show_scalar_bar=True)
+    p.add_mesh(pv.PolyData(points3),
+               scalars=color_adaptive(feas3),
+               cmap="magma", point_size=10,
+               render_points_as_spheres=True,
+               rgb=rgb_on[2],
+               opacity="linear",
+               lighting=True,
+               style="points", show_scalar_bar=True)
+
+
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
- (0.0, 0.0, 0.0),
- (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+ #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
+ # (0.0, 0.0, 0.0),
+ # (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
 
 
     if show:
@@ -410,11 +439,9 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
     num_views = len(points_list)
     for i,points in enumerate(points_list):
-        if isinstance(points, torch.Tensor):
-            points_list[i] = points.squeeze().detach().cpu().numpy()
+        points_list[i] = format_input(points)
     for i, feas in enumerate(feas_list):
-        if isinstance(feas, torch.Tensor):
-            feas_list[i] = feas.squeeze().detach().cpu().numpy()
+        feas_list[i] = format_input(feas)
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* num_views
 
@@ -423,7 +450,7 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
         p.subplot(0, i)
         p.add_text(titles_list[i], font_size=18)
         p.add_mesh(pv.PolyData(points_list[i]),
-                         scalars=feas_list[i],
+                         scalars=color_adaptive(feas_list[i]),
                          cmap="magma", point_size=10,
                          render_points_as_spheres=True,
                          rgb=rgb_on[i],
@@ -472,9 +499,13 @@ def capture_plotter():
             case_folder = os.path.join(record_path,pair_name)
             os.makedirs(case_folder,exist_ok=True)
             path = os.path.join(case_folder, "flowed_target" + "_" + stage_suffix + ".png")
-            visualize_source_flowed_target_overlap(sp,fp, tp,
-                                         sw, fw, tw,
-                                         title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path, show=False)
+            # visualize_source_flowed_target_overlap(sp,fp, tp,
+            #                              sw, fw, tw,
+            #                              title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path, show=False)
+            visualize_source_flowed_target_overlap(sp, fp, tp,
+                                                   sp, sp, tp,
+                                                   title1="source", title2="flowed", title3="target", rgb_on=True,
+                                                   saving_capture_path=path, show=False)
             cp_command = "cp {} {}".format(path, os.path.join(stage_folder, pair_name + "_flowed_target.png"))
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
             #thread_safe_count +=1

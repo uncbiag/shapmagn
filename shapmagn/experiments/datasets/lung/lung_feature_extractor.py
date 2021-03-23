@@ -21,8 +21,8 @@ def lung_pair_feature_extractor(fea_type_list,weight_list=None, radius=0.01, std
         if target_gamma is None:
             target_gamma =get_anistropic_gamma(target.points)
         cur_weight_list = update_weight(weight_list, iter) if weight_list is not None else None
-        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points,weight_list=cur_weight_list,gamma=flowed_gamma,  return_stats=True)
-        target.pointfea, _ = fea_extractor(target.points,weight_list=weight_list,gamma=target_gamma,  mean=mean, std=std)
+        flowed.pointfea, mean, std, _ = fea_extractor(flowed.points,flowed.weights,weight_list=cur_weight_list,gamma=flowed_gamma,  return_stats=True)
+        target.pointfea, _ = fea_extractor(target.points,target.weights,weight_list=weight_list,gamma=target_gamma,  mean=mean, std=std)
         return flowed, target
     return extract
 

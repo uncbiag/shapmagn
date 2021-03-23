@@ -32,6 +32,7 @@ def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, loc
 
 def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     from pykeops.torch import LazyTensor
+    grad_enable_record =torch.is_grad_enabled()
     geom_obj = gemloss_setting["geom_obj"].replace(")", ",potentials=True)")
     blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
     blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
@@ -49,6 +50,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     weight2 = target.weights[:, :, 0]  # remove the last dim
     F_i, G_j = geomloss(weight1, attr1, weight2,
                         attr2)  # todo batch sz of input and output in geomloss is not consistent
+    torch.set_grad_enabled(grad_enable_record)
 
     B, N, M, D = points1.shape[0], points1.shape[1], points2.shape[1], points2.shape[2]
     a_i, x_i = LazyTensor(cur_source.weights.view(B,N, 1, 1)), LazyTensor(attr1.view(B,N, 1, -1))
@@ -64,11 +66,13 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     if mode=="soft":
         position_to_map = LazyTensor(points2.view(B,1, M, -1))  # Bx1xMxD
         mapped_position = log_P_ij.sumsoftmaxweight(position_to_map,dim=2)
+        mapped_mass_ratio = log_P_ij.exp().sum(2)/cur_source.weights
     elif mode == "hard":
         P_i_index = log_P_ij.argmax(dim=2).long().view(-1) #  over M,  return (B*N)
         points2_flatten = points2.view(-1, D)
         mapped_position = points2_flatten[P_i_index]
         mapped_position = mapped_position.view(B,N,D)
+        mapped_mass_ratio = log_P_ij.exp().sum(2)/cur_source.weights
     elif mode=="mapped_index":
         P_i_index = log_P_ij.argmax(dim=2).long().view(B,N)  # over M,  return (B,N)
         return P_i_index
@@ -89,7 +93,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     print("OT based forward mapping complete")
     mapped_shape = Shape()
     mapped_shape.set_data_with_refer_to(mapped_position,cur_source)
-    return mapped_shape
+    return mapped_shape, mapped_mass_ratio
 
 
 # xx_i = LazyTensor(x_i[:, None, :] / (np.sqrt(2) * blur))

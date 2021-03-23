@@ -35,7 +35,7 @@ def resume_train(model_path, model, optimizer=None):
             print("=> succeed load model '{}'".format(model_path))
         except:
             print("Warning !!! Meet error is reading the whole model, now try to read the part")
-            model.load_state_dict(checkpoint['state_dict'], strict=True)
+            model.load_state_dict(checkpoint['state_dict'], strict=False)
             print(" The incomplelet model is succeed load from '{}'".format(model_path))
         if 'optimizer' in checkpoint:
             if not isinstance(optimizer, tuple):

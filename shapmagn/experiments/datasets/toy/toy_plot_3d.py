@@ -43,35 +43,6 @@ def generate_aniso_gamma_on_sphere(points, foregroud_bool_index,foreground_sigma
 
 
 
-def get_Gamma(sigma_scale, principle_weight= None, eigenvalue=None, eigenvector=None,):
-    """
-
-    :param sigma_scale: scale the sigma
-    :param principle_weight: a list of sigma of D size, e.g.[1,1,1]
-    :param eigenvalue: 1XNxD, optional if the eigenvalue is not None, then the principle vector = normalized(eigenvale)*sigma_scale
-    :param eigenvector: 1XNxDxD
-    :return:
-    """
-    device = eigenvector.device
-    nbatch, npoints = eigenvector.shape[0], eigenvector.shape[1]
-    assert nbatch == 1
-    if eigenvalue is not None:
-        principle_weight = eigenvalue/torch.norm(eigenvalue,p=2,dim=2,keepdim=True)*sigma_scale
-        principle_weight_inv_sq = 1/(principle_weight**2).squeeze()
-        principle_diag = torch.diag_embed(principle_weight_inv_sq)[None]  # 1xNxDxD
-    else:
-
-        principle_weight = np.array(principle_weight)/np.linalg.norm(principle_weight)*sigma_scale
-        principle_weight = principle_weight.astype(np.float32)
-        principle_weight_inv_sq = 1/(principle_weight**2)
-        principle_diag = torch.diag(torch.tensor(principle_weight_inv_sq).to(device)).repeat(1,npoints,1,1) # 1xNxDxD
-        principle_weight =torch.tensor(principle_weight).repeat(1,npoints,1)
-    Gamma = eigenvector @ principle_diag @ (eigenvector.permute(0,1,3,2))
-    return Gamma,principle_weight
-
-
-
-
 def generate_eigen_vector_from_main_direction(main_direction):
     pass
 
@@ -81,9 +52,10 @@ points = make_spirial_points(noise=0.1)
 points = points.astype(np.float32)
 compute_interval(points)
 points = torch.Tensor(points)[None]
+weights = torch.ones(points.shape[0],1)/points.shape[0]
 fea_type_list= ["eigenvalue_prod","eigenvector_main"]
 fea_extractor = feature_extractor(fea_type_list, radius=0.1,std_normalize=False)
-combined_fea, mass = fea_extractor(points)
+combined_fea, mass = fea_extractor(points,weights)
 pointfea, main_direction = combined_fea[..., :1], combined_fea[..., 1:]
 #visualize_point_fea_with_arrow(points, mass, main_direction*0.1 , rgb_on=False)
 
@@ -123,13 +95,13 @@ pointfea, main_direction = combined_fea[..., :1], combined_fea[..., 1:]
 
 
 # visualize anisotropic kernel on spirial
-points = make_spirial_points()
+points = make_spirial_points(noise=0.2)
 points = points.astype(np.float32)
 points = torch.Tensor(points)[None]
 points_np = points.detach().cpu().numpy().squeeze()
 weights =torch.ones(points.shape[0],points.shape[1],1)
 npoints = points.shape[1]
-Gamma,principle_weight,eigenvector, mass = compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.1,aniso_kernel_scale=0.4,leaf_decay=True,principle_weight=None,eigenvalue_min=0.1,iter_twice=True,return_details=True)
+Gamma,principle_weight,eigenvector, mass = compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.1,aniso_kernel_scale=0.4,leaf_decay=True,principle_weight=None,eigenvalue_min=0.4,iter_twice=True,return_details=True)
 filtered_points = nadwat_kernel_interpolator(scale=0.4, exp_order=2,iso=False)(points,points,points,weights,Gamma)
 visualize_point_fea(points, mass, rgb_on=False)
 visualize_point_fea(filtered_points, mass, rgb_on=False)

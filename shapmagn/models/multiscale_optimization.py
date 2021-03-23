@@ -114,7 +114,7 @@ def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_
             cur_energy = cur_energy.item()
             rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
-            if save_3d_shape_every_n_iter>0 and iter%save_3d_shape_every_n_iter==0:
+            if shape_pair.dimension==3 and save_3d_shape_every_n_iter>0 and iter%save_3d_shape_every_n_iter==0:
                 save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter), shape_pair)
             if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
                 capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
@@ -171,8 +171,8 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
             last_energy = cur_energy
             if save_3d_shape_every_n_iter>0 and iter % save_3d_shape_every_n_iter == 0:
                 save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter), shape_pair)
-            # if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
-            #     capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
+            if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
+                capture_plotter(shape_folder_2d, "iter_{}".format(iter), shape_pair)
             if rel_f < rel_ftol:
                 print("the converge rate: {} is too small".format(rel_f))
                 patient_count = patient_count + 1 if (iter - previous_converged_iter) == 1 else 0
@@ -180,6 +180,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
                 if patient_count > patient:
                     print('Reached relative function tolerance of = ' + str(rel_ftol))
                     break
+
         save_shape_pair_into_files(record_path, "iter_last", shape_pair)
         model.reset()
         return shape_pair

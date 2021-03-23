@@ -59,7 +59,7 @@ class DeepFeature(nn.Module):
         :param batch_info:
         :return:
         """
-        if batch_info["is_synth"]:
+        if batch_info["corr_source_target"]:
             loss, shape_data_dict = self.forward(input_data, batch_info)
             shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
 
@@ -86,7 +86,7 @@ class DeepFeature(nn.Module):
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
 
-        if batch_info["is_synth"]:
+        if  batch_info["corr_source_target"]:
             # compute mapped acc
             gt_index = torch.arange(N, device=device).repeat(B, 1)  #B,N
             acc = (mapped_target_index == gt_index).sum(1) / N
@@ -117,8 +117,12 @@ class DeepFeature(nn.Module):
 
     def forward(self, input_data, batch_info=None):
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
+        gt_flowed_points = shape_pair.target.points if "gt_flowed" not in shape_pair.extra_info else \
+        shape_pair.extra_info["gt_flowed"]
+        gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points, shape_pair.source)
         flowed, shape_pair.target = self.pair_feature_extractor(shape_pair.source, shape_pair.target)
-        sim_loss, reg_loss = self.loss(flowed, shape_pair.target)
+
+        sim_loss, reg_loss = self.loss(flowed, gt_flowed)
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()
         sim_factor, reg_factor = self.get_factor()

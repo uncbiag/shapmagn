@@ -17,9 +17,9 @@ def visualize(points, deformed_points, point_weights=None, deformed_point_weight
     #                              target_weight_transform(deformed_point_weights, True),
     #                              title1="original", title2="deformed", rgb_on=False)
     visualize_point_pair_overlap(points, deformed_points,
-                                 point_weights,
-                                 deformed_point_weights,
-                                 title1="original", title2="deformed", rgb_on=False)
+                                 points,
+                                 deformed_points,
+                                 title1="original", title2="deformed", rgb_on=True)
 
 
 
@@ -29,19 +29,19 @@ class PointAug(object):
         self.remove_random_points = aug_settings[("remove_random_points", False,"randomly remove points from the uniform distribution")]
         self.add_random_point_noise = aug_settings[("add_random_point_noise",False,"randomly add points from the uniform distribution")]
         self.add_random_weight_noise = aug_settings[("add_random_weight_noise",False,"randomly add weight noise from normal distribution")]
-        self.remove_random_points_by_ratio = aug_settings[("remove_random_points_by_ratio", 0.01,"")]
+        # self.remove_random_points_by_ratio = aug_settings[("remove_random_points_by_ratio", 0.01,"")]
         self.add_random_point_noise_by_ratio = aug_settings[("add_random_point_noise_by_ratio", 0.01,"")]
         self.random_noise_raidus = aug_settings[("random_noise_raidus",0.1,"")]
         self.random_weight_noise_scale = aug_settings[("random_weight_noise_scale",0.05,"scale factor on the average weight value")]
         self.normalize_weights = aug_settings[("normalize_weights",False,"normalized the weight make it sum to 1")]
         self.plot = aug_settings[("plot",False,"plot the shape")]
 
-    def remove_random_points(self, points, point_weights, index):
-        npoints = points.shape[0]
-        nsample = int((1 - self.remove_random_points_by_ratio) * npoints)
-        sampler = uniform_sampler(nsample,fixed_random_seed=False,sampled_by_weight=True)
-        sampling_points, sampling_weights, sampling_index = sampler(points, point_weights)
-        return sampling_points, sampling_weights, index[sampling_index]
+    # def remove_random_points(self, points, point_weights, index):
+    #     npoints = points.shape[0]
+    #     nsample = int((1 - self.remove_random_points_by_ratio) * npoints)
+    #     sampler = uniform_sampler(nsample,fixed_random_seed=False,sampled_by_weight=True)
+    #     sampling_points, sampling_weights, sampling_index = sampler(points, point_weights)
+    #     return sampling_points, sampling_weights, index[sampling_index]
 
     def add_noises_around_points(self, points, point_weights, index=None):
         npoints, D = points.shape[0], points.shape[-1]
@@ -55,27 +55,32 @@ class PointAug(object):
         return points, weights, torch.cat([index,added_index])
 
     def add_random_noise_to_weights(self, points, point_weights, index=None):
-        noise_std = self.random_weight_noise_scale
+        noise_std = (torch.min(point_weights) / 5).item()
         weights_noise = torch.ones_like(point_weights).normal_(0, noise_std)*point_weights
         point_weights = point_weights+ weights_noise
         return points, point_weights, index
 
-    def __call__(self,points, point_weights):
-        N, D = points.shape[0], points.shape[1]
-        device = points.device
-        new_points, new_weights, new_index = points, point_weights, torch.tensor(list(range(N))).to(device)
-        if self.remove_random_points and self.remove_random_points_by_ratio!=0:
-            new_points, new_weights, new_index = self.remove_random_points(new_points, new_weights, new_index)
-        if self.add_random_point_noise and  self.add_random_point_noise_by_ratio!=0:
-            new_points, new_weights, new_index = self.add_noises_around_points(new_points, new_weights, new_index)
-        if self.add_random_weight_noise:
-            new_points, new_weights, new_index = self.add_random_noise_to_weights(new_points, new_weights, new_index)
-        if self.normalize_weights:
-            new_weights = new_weights*(point_weights.sum()/(new_weights.sum()))
-        if self.plot:
-            visualize(points,new_points,point_weights,new_weights)
+    def __call__(self,batch_points, batch_point_weights):
+        N, D = batch_points.shape[1], batch_points.shape[2]
+        device = batch_points.device
+        new_points_list, new_weights_list, new_index_list = [], [], []
+        for points, point_weights in zip(batch_points, batch_point_weights):
+            new_points, new_weights, new_index = points, point_weights, torch.tensor(list(range(N))).to(device)
+            # if self.remove_random_points and self.remove_random_points_by_ratio!=0:
+            #     new_points, new_weights, new_index = self.remove_random_points(new_points, new_weights, new_index)
+            if self.add_random_point_noise and  self.add_random_point_noise_by_ratio!=0:
+                new_points, new_weights, new_index = self.add_noises_around_points(new_points, new_weights, new_index)
+            if self.add_random_weight_noise:
+                new_points, new_weights, new_index = self.add_random_noise_to_weights(new_points, new_weights, new_index)
+            if self.normalize_weights:
+                new_weights = new_weights*(point_weights.sum()/(new_weights.sum()))
+            if self.plot:
+                visualize(points,new_points,point_weights,new_weights)
+            new_points_list.append(new_points)
+            new_weights_list.append(new_weights)
+            new_index_list.append(new_index)
 
-        return new_points, new_weights, new_index
+        return torch.stack(new_points_list), torch.stack(new_weights_list), torch.stack(new_index_list)
 
 
 class SplineAug(object):
@@ -173,6 +178,8 @@ class SplineAug(object):
                 visualize(points,deformed_points,point_weights,deformed_weights)
             if self.do_grid_aug:
                 deformed_points, deformed_weights = self.grid_spline_deform(deformed_points,deformed_weights)
+            if self.plot:
+                visualize(points,deformed_points,point_weights,deformed_weights)
             if self.do_rigid_aug:
                 deformed_points, deformed_weights = self.rigid_deform(deformed_points, deformed_weights)
             if self.plot:

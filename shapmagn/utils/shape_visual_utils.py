@@ -46,6 +46,8 @@ def save_shape_into_files(folder_path,name, shape):
 
 
 def save_shape_pair_into_files(folder_path, name, shape_pair):
+    if shape_pair.dimension != 3:
+        return
     folder_path = os.path.join(folder_path,name)
     save_shape_into_files(folder_path,"source_weight",shape_pair.source)
     save_shape_into_files(folder_path,"target_weight",shape_pair.target)

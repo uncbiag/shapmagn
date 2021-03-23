@@ -45,7 +45,7 @@ pair_name = generate_pair_name([source_path,target_path])
 reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
-sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.01)"
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
@@ -108,7 +108,7 @@ from pykeops.numpy.cluster import (
 )
 
 # Put our points in cubic bins of size eps, as we compute a vector of class labels:
-eps = 0.05
+eps = 0.001
 x_labels = grid_cluster(x, eps)
 # Compute the memory footprint and centroid of each of those non-empty "cubic" clusters:
 x_ranges, x_centroids, _ = cluster_ranges_centroids(x, x_labels)
@@ -149,7 +149,7 @@ plt.show()
 # pattern can be encoded in a small boolean matrix **keep** computed through:
 
 sigma = (
-    0.01 if pykeops.config.gpu_available else 0.1
+    0.001 if pykeops.config.gpu_available else 0.1
 )  # Standard deviation of our Gaussian kernel
 # Compute a coarse Boolean mask:
 D = np.sum((x_centroids[:, None, :] - x_centroids[None, :, :]) ** 2, 2)

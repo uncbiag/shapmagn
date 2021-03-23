@@ -39,37 +39,37 @@ source, target = create_shape_pair_from_data_dict(input_data)
 shape_pair = create_shape_pair(source, target)
 
 ###############  do registration ###########################s############
-#
-""" Experiment 1:  gradient flow """
-task_name = "gradient_flow"
-solver_opt = ParameterDict()
-record_path = server_path+"output/toy_demo/{}".format(task_name)
-os.makedirs(record_path,exist_ok=True)
-solver_opt["record_path"] = record_path
-model_name = "gradient_flow_opt"
-model_opt =ParameterDict()
-model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)"
-model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-model_opt['sim_loss']['loss_list'] =  ["geomloss"]
-model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-model_opt['sim_loss']['geomloss']["attr"] = "points"
-blur = 0.0005
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,debias=False)".format(blur)
-model = MODEL_POOL[model_name](model_opt)
-solver = build_single_scale_model_embedded_solver(solver_opt,model)
-model.init_reg_param(shape_pair)
-shape_pair = solver(shape_pair)
-print("the registration complete")
-gif_folder = os.path.join(record_path,"gif")
-os.makedirs(gif_folder,exist_ok=True)
-saving_gif_path = os.path.join(gif_folder,task_name+".gif")
-fea_to_map =  shape_pair.source.points[0]
-mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], source, target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.1)
-visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
-                     [fea_to_map,fea_to_map, mapped_fea],
-                     ["source", "gradient_flow","target"],
-                        [True, True, True],
-                      saving_gif_path=None)
+# #
+# """ Experiment 1:  gradient flow """
+# task_name = "gradient_flow"
+# solver_opt = ParameterDict()
+# record_path = server_path+"output/toy_demo/{}".format(task_name)
+# os.makedirs(record_path,exist_ok=True)
+# solver_opt["record_path"] = record_path
+# model_name = "gradient_flow_opt"
+# model_opt =ParameterDict()
+# model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)"
+# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+# model_opt['sim_loss']['loss_list'] =  ["geomloss"]
+# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+# model_opt['sim_loss']['geomloss']["attr"] = "points"
+# blur = 0.0005
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,debias=False)".format(blur)
+# model = MODEL_POOL[model_name](model_opt)
+# solver = build_single_scale_model_embedded_solver(solver_opt,model)
+# model.init_reg_param(shape_pair)
+# shape_pair = solver(shape_pair)
+# print("the registration complete")
+# gif_folder = os.path.join(record_path,"gif")
+# os.makedirs(gif_folder,exist_ok=True)
+# saving_gif_path = os.path.join(gif_folder,task_name+".gif")
+# fea_to_map =  shape_pair.source.points[0]
+# mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], source, target,fea_to_map ,p=2,mode="hard",confid=0.1)
+# visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
+#                      [fea_to_map,fea_to_map, mapped_fea],
+#                      ["source", "gradient_flow","target"],
+#                         [True, True, True],
+#                       saving_gif_path=None)
 
 
 #
@@ -186,13 +186,13 @@ visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],s
 
 # Experiment 4:  optimization based discrete flow
 task_name = "discrete_flow"
-gradient_flow_mode = True
+gradient_flow_mode = False
 solver_opt = ParameterDict()
 record_path = server_path+"output/toy_demo/{}".format(task_name)
 solver_opt["record_path"] = record_path
 solver_opt["save_2d_capture_every_n_iter"] = -1
 solver_opt["point_grid_scales"] =  [-1]
-solver_opt["iter_per_scale"] = [20,20,30] if not gradient_flow_mode else [5]
+solver_opt["iter_per_scale"] = [100] if not gradient_flow_mode else [5]
 solver_opt["rel_ftol_per_scale"] = [ 1e-9, 1e-9, 1e-9]
 solver_opt["init_lr_per_scale"] = [1e-1,1e-1,1e-1]
 solver_opt["save_3d_shape_every_n_iter"] = 10
@@ -220,12 +220,23 @@ model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
 model_opt["gradflow_guided"]["geomloss"]["attr"] = "points" #todo  the pointfea will be  more generalized choice
 model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,debias=False)"
 
+# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+# model_opt['sim_loss']['loss_list'] = ["geomloss"]
+# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+# model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
+# blur = 0.001
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=False)".format(blur)
+
+
+model_opt["mid_result_visualize"] = True
+
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-model_opt['sim_loss']['loss_list'] = ["geomloss"]
-model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
-blur = 0.001
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=False)".format(blur)
+model_opt['sim_loss']['loss_list'] = ["gmm"]
+model_opt['sim_loss'][("gmm", {}, "settings for geomloss")]
+model_opt['sim_loss']['gmm']["attr"] = "points"
+model_opt['sim_loss']['gmm']["sigma"] = 0.1
+model_opt['sim_loss']['gmm']["w_noise"] = 0.0
+model_opt['sim_loss']['gmm']["mode"] = "sym_neglog_likelihood" #sym_neglog_likelihood neglog_likelihood
 
 model = MODEL_POOL[model_name](model_opt)
 solver = build_multi_scale_solver(solver_opt,model)
@@ -239,7 +250,7 @@ fea_to_map =  shape_pair.source.points[0]
 blur = 0.0005
 model_opt['sim_loss']['geomloss']["geom_obj"] = model_opt['sim_loss']['geomloss']["geom_obj"].replace("blurplaceholder",str(blur))
 shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
-mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'],shape_pair.source, shape_pair.target,fea_to_map , blur= blur,p=2,mode="hard",confid=0.0)
+mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'],shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
 visualize_multi_point([shape_pair.source.points[0],shape_pair.flowed.points[0],shape_pair.target.points[0]],
                      [fea_to_map,fea_to_map, mapped_fea],
                      ["source", "discrete_flow","target"],

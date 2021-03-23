@@ -25,6 +25,8 @@ def grid_sampler(scale):
         return points, cluster_weights, index
     return sampling
 
+
+
 def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
     """
     :param num_sample: float
@@ -51,11 +53,14 @@ def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True,
                                             p=weights_np / weights_np.sum())
         else:
-            rand_ind = list(range(npoints))
-            np.random.shuffle(rand_ind)
-            rand_ind = rand_ind[: num_sample]
+            try:
+                rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=False)
+            except:
+                print("failed to sample {} from {} points".format(num_sample,npoints))
+                rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True)
         rand_ind.sort()
         points = points[rand_ind]
+        rand_ind = torch.from_numpy(rand_ind).to( points.device)
         if weights is not None:
             weights = weights[rand_ind]
             return points, weights, rand_ind
@@ -156,3 +161,60 @@ def point_uniform_sampler(num_sample,fixed_random_seed=True, sampled_by_weight=T
     return sampling
 
 
+
+
+
+
+def batch_grid_sampler(scale):
+    """
+    :param scale: voxelgrid gather the point info inside grids of "scale" size
+    :return:
+    """
+    sampler = grid_sampler(scale)
+    def sampling(points, weights=None):
+        points_list = []
+        weights_list = []
+        ind_list = []
+        if weights is not None:
+            for _points, _weights in zip(points, weights):
+                spoints, sweights, sind = sampler(points, weights)
+                points_list.append(spoints)
+                weights_list.append(sweights)
+                ind_list.append(sind)
+            return torch.stack(points_list, 0), torch.stack(weights_list, 0), torch.stack(ind_list, 0)
+        else:
+            for _points in zip(points):
+                spoints, sweights, sind = sampler(points)
+                points_list.append(spoints)
+                weights_list.append(sweights)
+                ind_list.append(sind)
+            return torch.stack(points_list, 0), torch.stack(weights_list, 0), torch.stack(ind_list, 0)
+    return sampling
+
+
+def batch_uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
+    """
+       :param num_sample: float
+       :param rand_generator:
+       :return:
+       """
+    sampler = uniform_sampler(num_sample,fixed_random_seed,sampled_by_weight)
+    def sampling(points, weights=None):
+        points_list = []
+        weights_list = []
+        ind_list = []
+        if weights is not None:
+            for _points, _weights in zip(points, weights):
+                spoints, sweights, sind  = sampler(_points, _weights)
+                points_list.append(spoints)
+                weights_list.append(sweights)
+                ind_list.append(sind)
+            return torch.stack(points_list,0), torch.stack(weights_list,0), torch.stack(ind_list,0)
+        else:
+            for _points in zip(points):
+                spoints, sweights, sind = sampler(_points)
+                points_list.append(spoints)
+                weights_list.append(sweights)
+                ind_list.append(sind)
+            return torch.stack(points_list,0), torch.stack(weights_list,0), torch.stack(ind_list,0)
+    return sampling

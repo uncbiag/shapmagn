@@ -6,11 +6,8 @@ Date: May 2020
 
 import torch.nn as nn
 import torch
-import numpy as np
-import torch.nn.functional as F
 from shapmagn.modules.networks.pointconv_util import PointConv, PointConvD, PointWarping2, UpsampleFlow2,PointWarping, UpsampleFlow, PointConvFlow, SceneFlowEstimatorPointConv
 from shapmagn.modules.networks.pointconv_util import index_points_gather as index_points, index_points_group, Conv1d, square_distance
-import time
 
 scale = 1.0
 
@@ -37,14 +34,14 @@ class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
         self.level1_1 = Conv1d(64, 128)
 
         # l2: 512
-        self.level2 = PointConvD(512, feat_nei, 128 + 3, 128)
+        self.level2 = PointConvD(int(initial_npoints/4), feat_nei, 128 + 3, 128)
         self.cost2 = PointConvFlow(flow_nei, 128 + 64 + 128 + 64 + 3, [128, 128])
         self.flow2 = SceneFlowEstimatorPointConv(128 + 64, 128)
         self.level2_0 = Conv1d(128, 128)
         self.level2_1 = Conv1d(128, 256)
 
         # l3: 256
-        self.level3 = PointConvD(256, feat_nei, 256 + 3, 256)
+        self.level3 = PointConvD(int(initial_npoints/8), feat_nei, 256 + 3, 256)
         self.cost3 = PointConvFlow(flow_nei, 256 + 64 + 256 + 64 + 3, [256, 256])
         self.flow3 = SceneFlowEstimatorPointConv(256, 256, flow_ch=0)
         self.level3_0 = Conv1d(256, 256)
@@ -188,7 +185,7 @@ class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
         fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
         fps_pc2_idxs = [fps_pc2_l1, fps_pc2_l2, fps_pc2_l3]
 
-        return flows, {"floweds":floweds, "flows":flows, "fps_pc1_idxs":fps_pc1_idxs, "fps_pc2_idxs":fps_pc2_idxs, "pc1":pc1, "pc2":pc2}
+        return flow0.transpose(2, 1).contiguous(), {"floweds":floweds, "flows":flows, "fps_pc1_idxs":fps_pc1_idxs, "fps_pc2_idxs":fps_pc2_idxs, "pc1":pc1, "pc2":pc2}
 
 
 def multiScaleLoss(pred_flows, gt_flow, fps_idxs, alpha=[0.02, 0.04, 0.08, 0.16]):

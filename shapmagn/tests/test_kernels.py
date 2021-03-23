@@ -19,11 +19,14 @@ def timming(func,message):
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     def time_diff(*args, **kwargs):
-        start.record()
-        res = func(*args, **kwargs)
-        end.record()
-        torch.cuda.synchronize()
-        print("{}, it takes {} ms".format(message,start.elapsed_time(end)))
+        try:
+            start.record()
+            res = func(*args, **kwargs)
+            end.record()
+            torch.cuda.synchronize()
+            print("{}, it takes {} ms".format(message, start.elapsed_time(end)))
+        except:
+            res = func(*args, **kwargs)
         return res
     return time_diff
 
@@ -36,7 +39,7 @@ class Test_Kernels(unittest.TestCase):
         N = 1000
         K = 800
         D = 3
-        device = torch.device("cuda:0") # cuda:0, cpu
+        device = torch.device("cpu") # cuda:0, cpu
         #device = torch.device("cpu") # cuda:0, cpu
         self.x = torch.rand(B,N,D,requires_grad=True, device=device)
         self.y = torch.rand(B,K,D,requires_grad=True, device=device)

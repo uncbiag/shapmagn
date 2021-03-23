@@ -192,7 +192,7 @@ def ridge_kernel_intepolator(scale=0.1, kernel="gauss"):
 
 
 
-def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, self_center=False):
+def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,principle_weight=None,eigenvalue_min=0.1,iter_twice=False, self_center=False,leaf_decay=False, mass_thres=2.5):
     interp = nadwat_kernel_interpolator(scale=1.0,exp_order=exp_order, iso=False, self_center=self_center)
 
     def compute(points,control_points,control_value,control_weights, gamma=None):
@@ -203,7 +203,9 @@ def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sig
                                                   aniso_kernel_scale=aniso_kernel_scale,
                                                   principle_weight=principle_weight,
                                                   eigenvalue_min=eigenvalue_min,
-                                                    iter_twice=iter_twice)
+                                                    iter_twice=iter_twice,
+                                                    leaf_decay = leaf_decay,
+                                                    mass_thres = mass_thres)
 
         interp_value = interp(points, control_points,control_value,control_weights,Gamma_control_points)
         return interp_value
@@ -213,13 +215,14 @@ def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sig
 
 
 class NadWatAnisoSpline(object):
-    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,aniso_kernel_weight=1.,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False, self_center=False):
+    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,aniso_kernel_weight=1.,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False, mass_thres=2.5, self_center=False):
         self.exp_order = exp_order
         self.cov_sigma_scale = cov_sigma_scale
         self.aniso_kernel_scale = aniso_kernel_scale
         self.principle_weight = principle_weight
         self.eigenvalue_min = eigenvalue_min
         self.iter_twice = iter_twice
+        self.mass_thres = mass_thres
         self.leaf_decay = leaf_decay
         self.self_center = self_center
         self.relative_scale = 1.
@@ -239,10 +242,11 @@ class NadWatAnisoSpline(object):
                                                         principle_weight=self.principle_weight,
                                                         eigenvalue_min=self.eigenvalue_min,
                                                         iter_twice=self.iter_twice,
-                                                        leaf_decay = self.leaf_decay)
+                                                        leaf_decay = self.leaf_decay,
+                                                        mass_thres = self.mass_thres)
         if self.fixed and self.iter== 0:
             if not isinstance(self.relative_scale,list):
-                compute_kernel = compute_nadwat_kernel(exp_order=self.exp_order, iso=False, self_center=self.self_center)
+                compute_kernel = compute_nadwat_kernel(scale=1.0,exp_order=self.exp_order, iso=False, self_center=self.self_center)
                 self.kernel = compute_kernel(points,points,weights, gamma=self.Gamma)
             else:
                 compute_kernel_list = [ compute_nadwat_kernel(scale=_scale, exp_order=self.exp_order, iso=False,

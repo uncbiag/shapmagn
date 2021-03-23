@@ -2,12 +2,14 @@
 the code is largely borrowed from deformetrica
 here turns it into a batch version
 """
-
 import torch
 from pykeops.torch import LazyTensor
 from shapmagn.kernels.keops_kernels import LazyKeopsKernel
 from shapmagn.kernels.torch_kernels import TorchKernel
 from shapmagn.utils.obj_factory import obj_factory
+from shapmagn.global_variable import Shape
+from shapmagn.utils.utils import sigmoid_decay
+
 
 class CurrentDistance(object):
     def __init__(self, opt):
@@ -36,7 +38,7 @@ class VarifoldDistance(object):
         kernel_backend = opt[("kernel_backend", 'torch', "kernel backend can either be 'torch'/'keops'")]
         sigma = opt[('sigma', 0.1, "the sigma in gaussian lin kernel")]
         self.kernel = LazyKeopsKernel('gauss_lin', sigma=sigma) if kernel_backend == 'keops' else TorchKernel('gauss_lin', sigma=sigma)
-    def __call__(self, flowed, target):
+    def __call__(self, flowed, target, epoch=None):
         assert flowed.type == 'SurfaceMesh'
         batch = flowed.batch
         c1, n1 = flowed.get_centers_and_normals()
@@ -60,7 +62,7 @@ class VarifoldDistance(object):
 class L2Distance(object):
     def __init__(self, opt):
         self.attr = opt[('attr','pointfea',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
-    def __call__(self,flowed, target):
+    def __call__(self,flowed, target, epoch=None):
         batch = flowed.nbatch
         attr1 = getattr(flowed, self.attr)
         attr2 = getattr(target, self.attr)
@@ -68,9 +70,100 @@ class L2Distance(object):
 
 
 
+class LocalReg(object):
+    """
+    compare local invariant shape feature (e.g. local eigenvale) before and after registration
+    """
+    def __init__(self, opt):
+        local_feature_extractor_obj = opt[("local_feature_extractor",
+                                           "local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[0.1], radius=0.05,include_pos=True)",
+                                            "feature extractor")]
+
+        self.pair_feature_extractor = obj_factory(local_feature_extractor_obj)
+
+        local_kernel_obj =  opt[("local_kernel_obj","keops_kernels.LazyKeopsKernel('gauss',sigma=0.1)","kernel object")]
+        self.local_kernel = obj_factory(local_kernel_obj)
+
+    def __call__(self, source, flowed, epoch=None):
+        source_tmp = Shape().set_data_with_refer_to(source.points)
+        flowed_tmp = Shape().set_data_with_refer_to(flowed.points)
+        source_tmp, flowed_tmp = self.pair_feature_extractor(source_tmp,flowed_tmp)
+        loss = (source_tmp.pointfea - flowed_tmp.pointfea) **2
+        loss = (loss.sum(2)*source.weight[...,0]).sum(1)
+        return loss
+
+class GMMLoss():
+    def __init__(self, opt):
+        self.sigma = opt[("sigma", 0.1,"sigma of the gauss kernel")]
+        self.w_noise = opt[("w_noise", 0.0,"ratio of the noise")]
+        self.use_anneal = opt["use_anneal",False, "use anneal strategy for sigma"]
+        anneal_strategy_obj = opt["anneal_strategy_obj","", "anneal strategy for sigma"]
+        self.anneal_strategy = obj_factory(anneal_strategy_obj) if anneal_strategy_obj else self.anneal_strategy
+        self.attr = opt[('attr','points',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
+        self.mode =  opt[('mode','neglog_likelihood',"neglog_likelihood/sym_neglog_likelihood/log_sum_likelihood")]
+
+    def update_sigma(self, epoch):
+
+        if self.use_anneal and self.anneal_strategy is not None:
+            return self.anneal_strategy(self.sigma, epoch)
+        else:
+            return self.sigma
+
+    def anneal_strategy(self,sigma, iter):
+        sigma = float(
+            max(sigmoid_decay(iter, static=10, k=6) * 1,sigma))
+        print(sigma)
+        return sigma
+    #
+    # def log_sum_likelihood(self,  attr1, attr2,weight1, weight2):
+    #     """Expectation step for CPD
+    #     """
+    #     N, M = attr1.shape[1], attr2.shape[1]
+    #     D = float(attr1.shape[-1])
+    #     sigma = self.sigma
+    #     pi = 3.14159265359
+    #     factor = (2*pi*(sigma**2))**(-D/2)
+    #     attr1 = LazyTensor(attr1[:,:,None]/(sigma*(2**(1/D))))
+    #     attr2 = LazyTensor(attr2[:,None]/(sigma*(2**(1/D))))
+    #     dist = attr1.sqdist(attr2)
+    #     logw_j = LazyTensor(weight2.log()[:,None])  # (B,1,M,1)
+    #     scores_i = ((logw_j - dist).logsumexp(dim=2) +1e-7)  # (B,N, 1)
+    #     scores = scores_i
+    #     if self.w_noise>0:
+    #         # todo , a normalization term is needed
+    #         scores = scores_i*(1-self.w_noise) + 1/N*self.w_noise
+    #     loss = -scores.sum(1)/N
+    #     return loss
 
 
 
+    def neglog_likelihood(self, attr1, attr2,weight1, weight2) :
+        D = float(attr1.shape[-1])
+        sigma = self.sigma
+        attr1 = LazyTensor(attr1[:, :, None] / (sigma * (2 ** (1 / 2))))
+        attr2 = LazyTensor(attr2[:, None] / (sigma * (2 ** (1 / 2))))
+        dist = attr1.sqdist(attr2)
+        logw_j = LazyTensor(weight2.log()[:, None])  # (B,1,M,1)
+        scores_i = ((logw_j - dist).logsumexp(dim=2))*(sigma**D)  # (B,N, 1)
+        loss = -torch.sum( weight1*scores_i,1)
+        return loss
+
+    def sym_neglog_likelihood(self,attr1, attr2, weight1, weight2):
+        return self.neglog_likelihood(attr1, attr2, weight1, weight2) + self.neglog_likelihood(attr2, attr1, weight2, weight1)
+
+
+    def __call__(self, flowed, target, epoch=None):
+        self.sigma = self.update_sigma(epoch)
+        attr1 = getattr(flowed, self.attr)
+        attr2 = getattr(target, self.attr)
+        weight1 = flowed.weights
+        weight2 = target.weights
+        fn = None
+        if self.mode == "neglog_likelihood":
+            fn = self.neglog_likelihood
+        elif self.mode == "sym_neglog_likelihood":
+            fn = self.sym_neglog_likelihood
+        return fn(attr1, attr2, weight1, weight2)
 
 
 
@@ -78,19 +171,17 @@ class GeomDistance(object):
     def __init__(self, opt):
         self.attr = opt[('attr','points',"compute distance on the specific class attribute: 'ponts','landmarks','pointfea")]
         geom_obj = opt[('geom_obj',"geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, scaling=0.8, debias=False)","blur argument in ot")]
-
         self.gemoloss = obj_factory(geom_obj)
 
-    def __call__(self,flowed, target):
+    def __call__(self,flowed, target, epoch=None):
         attr1 = getattr(flowed,self.attr)
         attr2 = getattr(target,self.attr)
         weight1 = flowed.weights[:,:,0] #remove the last dim
         weight2 = target.weights[:,:,0] #remove the last dim
-        return self.gemoloss(weight1,attr1,weight2,attr2)
-
-
-
-
+        grad_enable_record = torch.is_grad_enabled()
+        loss =  self.gemoloss(weight1,attr1,weight2,attr2)
+        torch.set_grad_enabled(grad_enable_record)
+        return loss
 
 class Loss():
     """
@@ -110,6 +201,8 @@ class Loss():
             return [1.]* len(self.loss_fn_list)
         else:
             return self.loss_weight_strategy(epoch)
+
+
 
     def __call__(self, flowed, target, epoch=-1):
         weights_list = self.update_weight(epoch)

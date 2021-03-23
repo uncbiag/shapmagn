@@ -25,7 +25,7 @@ class PolyLine(ShapeBase):
         self.type = 'polyline'
         self.edges = None
         self.index = None
-        self.attr_list=["points","edges","index","label","landmarks","name_list","pointfea","weights","seg"]
+        self.attr_list=["points","edges","index","label","landmarks","name_list","pointfea","weights","seg", "mask"]
         self.points_mode_on = False
         """the mesh sampling is not implemented, if the topology changed, only points related operators are allowed"""
 

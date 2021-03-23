@@ -217,6 +217,8 @@ def generate_pair_name(pair_path,return_separate_name=False):
 
 
 def compute_interval(vertices):
+    if isinstance(vertices, torch.Tensor):
+        vertices = vertices.detach().cpu().numpy()
     if len(vertices)<2000:
         vert_i  = vertices[:,None]
         vert_j  = vertices[None]
@@ -241,6 +243,18 @@ def compute_interval(vertices):
 
 
 def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand_bch_dim=True):
+    def to_tensor(data):
+        if isinstance(data, dict):
+            return {key: to_tensor(item) for key, item in data.items()}
+        else:
+            return torch.from_numpy(data).to(device)
+
+    def expand_bch_dim(data):
+        if isinstance(data, dict):
+            return {key: expand_bch_dim(item) for key, item in data.items()}
+        else:
+            return data[None]
+
     def _get_obj(file_path):
         name = get_file_name(file_path)
         file_info = {"name":name,"data_path":file_path}
@@ -250,10 +264,10 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
         data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
         min_interval = compute_interval(data_dict["points"])
         sampler = obj_factory(sampler_obj) if sampler_obj else None
-        data_dict = sampler(data_dict) if sampler_obj else data_dict
-        obj = {key: torch.from_numpy(fea).to(device) for key, fea in data_dict.items()}
+        data_dict,_= sampler(data_dict) if sampler_obj else data_dict
+        obj = to_tensor(data_dict)
         if expand_bch_dim:
-            obj= {key: fea[None] for key, fea in obj.items()}
+            obj= expand_bch_dim(obj)
         return obj, min_interval
     return _get_obj
 

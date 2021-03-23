@@ -7,7 +7,8 @@ from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 from shapmagn.global_variable import *
 from shapmagn.datasets.data_aug import SplineAug, PointAug
 from shapmagn.utils.module_parameters import ParameterDict
-
+from shapmagn.utils.utils import enlarge_by_factor
+from functools import partial
 
 
 
@@ -99,7 +100,7 @@ def lung_aug_data(**kwargs):
 
     rigid_aug_settings = aug_settings[
         ("rigid_aug", {}, "settings for rigid augmentation")]
-    rigid_aug_settings["rotation_range"] = [-30, 30]
+    rigid_aug_settings["rotation_range"] = [-15, 15]
     rigid_aug_settings["scale_range"] = [0.8, 1.2]
     rigid_aug_settings["translation_range"] = [-0.1, 0.1]
 
@@ -141,7 +142,7 @@ if __name__ == "__main__":
     scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
     normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
     sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
-    use_local_mount = False
+    use_local_mount = True
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
 
@@ -175,6 +176,13 @@ if __name__ == "__main__":
     grid_spline_aug = aug_settings[("grid_spline_aug",{},"settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
     grid_spline_aug["disp_scale"] = 0.1
+
+    rigid_aug_settings = aug_settings[("rigid_aug", {}, "settings for rigid augmentation")]
+    rigid_aug_settings["rotation_range"] = [-15, 15]
+    rigid_aug_settings["scale_range"] = [0.8, 1.2]
+    rigid_aug_settings["translation_range"] = [-0.1, 0.1]
+
+
     kernel_scale = 0.1
     grid_spline_aug["grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(kernel_scale)
 
@@ -185,7 +193,7 @@ if __name__ == "__main__":
 
     points_aug = aug_settings[
         ("points_aug", {}, "settings for remove or add noise points")]
-    points_aug["remove_random_points"] = True
+    points_aug["remove_random_points"] = False
     points_aug["add_random_point_noise"] = True
     points_aug["add_random_weight_noise"] = True
     points_aug["remove_random_points_by_ratio"] = 0.01
@@ -194,6 +202,7 @@ if __name__ == "__main__":
     points_aug["random_noise_raidus"] = 0.1
     points_aug["normalize_weights"] = False
     points_aug["plot"] = True
+
     point_aug = PointAug(points_aug)
     point_aug(source_points,source_weights)
 

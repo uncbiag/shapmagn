@@ -20,6 +20,7 @@ os.makedirs(cache_path,exist_ok=True)
 pykeops.set_bin_folder(cache_path)  # change the build folder
 print(pykeops.config.bin_folder)  # display new build_folder
 import torch
+torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark=True
 import shapmagn.utils.module_parameters as pars
 from abc import ABCMeta, abstractmethod
@@ -86,7 +87,11 @@ def __do_registration(args):
     task_name = args.task_name
     setting_folder_path = args.setting_folder_path
     task_output_path = os.path.join(output_root_path,task_name)
-    copy_tree(dataset_path,output_root_path)
+    if os.path.isdir(output_root_path):
+        print("the output folder {} exists, skipping copying the dataset json files".format(output_root_path))
+    else:
+        print("copy dataset json files from {} to {}").format(dataset_path,output_root_path)
+        copy_tree(dataset_path,output_root_path)
     os.makedirs(task_output_path, exist_ok=True)
     tsm = init_task_env(setting_folder_path,output_root_path,task_name)
     if args.eval:

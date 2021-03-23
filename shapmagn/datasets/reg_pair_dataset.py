@@ -39,7 +39,7 @@ class RegistrationPairDataset(Dataset):
         self.get_file_list()
         self.reg_option = option
         self.reader = obj_factory(option[('reader',"","a reader instance")])
-        self.sampler = obj_factory(option[('sampler',"","a sampler instance")])
+        self.sampler = obj_factory(option[('sampler',"","a sampler instance, the goal of sampling here is for batch consistency, where we pick the same index order from the source and the target")])
         self.normalizer = obj_factory(option[('normalizer',"", "a normalizer instance")])
         pair_postprocess_obj = option[('pair_postprocess_obj', "", "a pair_postprocess instance")]
         self.pair_postprocess =  obj_factory(pair_postprocess_obj) if pair_postprocess_obj else None
@@ -56,9 +56,10 @@ class RegistrationPairDataset(Dataset):
             raise IOError("Non data detected")
         self.pair_name_list, self.pair_info_list = read_json_into_list(os.path.join(self.data_path,'pair_data.json'))
         read_num = min(self.max_num_for_loading, len(self.pair_info_list))
+        step = int(len(self.pair_info_list)/read_num)
         if self.max_num_for_loading>0:
-            self.pair_info_list = self.pair_info_list[:read_num]
-            self.pair_name_list = self.pair_name_list[:read_num]
+            self.pair_info_list = self.pair_info_list[::step]
+            self.pair_name_list = self.pair_name_list[::step]
 
         if self.aug_data_via_inverse_reg_direction and self.phase=='train':
             for pair_info in self.pair_info_list:
@@ -117,7 +118,6 @@ class RegistrationPairDataset(Dataset):
         preprocess the data :
         1. read the data into dict, and return the shape_type (pointcloud, polyline, surfacemesh)
         2. normalize the data dict (pyhiscal properties are better normalized before sampling)
-        3. sample the data
         :param path: data_path
         :return: data_dict, shape_type
         """
@@ -194,9 +194,9 @@ class RegistrationPairDataset(Dataset):
             target_dict = unzip_shape_fn(zip_target_dict)
         if self.pair_postprocess is not None:
             source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
-        # to introduce the randomness during the training, we put the sampling here
-        source_dict = self.sampler(source_dict, fixed_random_seed=self.phase != "train")
-        target_dict = self.sampler(target_dict, fixed_random_seed=self.phase != "train")
+        # to introduce the randomness during the training, we put the sampling here,
+        source_dict, ind = self.sampler(source_dict, ind=None, fixed_random_seed=self.phase != "train")
+        target_dict, _ = self.sampler(target_dict, ind=ind, fixed_random_seed=self.phase != "train")
 
 
 
@@ -215,8 +215,11 @@ class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
     def __call__(self, sample):
-        n_tensor = torch.from_numpy(sample)
-        return n_tensor
+        if isinstance(sample, dict):
+            return {item:torch.from_numpy(sample[item]) for item in sample}
+        else:
+            n_tensor = torch.from_numpy(sample)
+            return n_tensor
 
 
 if __name__ == "__main__":

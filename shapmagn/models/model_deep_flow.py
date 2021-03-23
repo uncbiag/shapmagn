@@ -1,7 +1,12 @@
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.deep_flow_module import *
 
-DEEP_REGPARAM_GENERATOR= {"flownet_regparam": DeepFlowNetRegParam, "pwcnet_regparam":PointConvSceneFlowPWCRegParam}
+DEEP_REGPARAM_GENERATOR= {
+    "flownet_regparam": DeepFlowNetRegParam,
+    "pwcnet_regparam":PointConvSceneFlowPWCRegParam,
+    "geonet_regparam":DeepGeoNetRegParam,
+    "flotnet_regparam":FLOTRegParam,
+}
 Deep_Loss = {"deepflow_loss":DeepFlowLoss, "pwc_loss":PWCLoss}
 
 
@@ -32,6 +37,8 @@ class DeepDiscreteFlow(nn.Module):
         self.register_buffer("local_iter", torch.Tensor([0]))
         self.n_step = opt[("n_step",1,"number of iteration step")]
         self.step_weight_list = opt[("step_weight_list",[1/self.n_step]*self.n_step,"weight for each step")]
+        external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "","external evaluate metric")]
+        self.external_evaluate_metric = obj_factory(external_evaluate_metric_obj) if external_evaluate_metric_obj else None
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
         self.buffer = {}
 
@@ -85,14 +92,20 @@ class DeepDiscreteFlow(nn.Module):
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "points"
+        # in the first epoch, we would output the ot baseline, this is for analysis propose, comment the following two lines if don't needed
+        if self.cur_epoch==0:
+            print("In the first epoch, the validation/debugging output is the baseline ot mapping")
+            shape_pair.flowed= shape_pair.source
+
         mapped_target_index,mapped_topK_target_index, mapped_position = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target,
                                                                            geomloss_setting)  # BxN
-        wasserstein_dist = self.loss.geom_loss(shape_pair.flowed, shape_pair.target)
+        geom_loss = GeomDistance(geomloss_setting)
+        wasserstein_dist = geom_loss(shape_pair.flowed, shape_pair.target)
         source_points = shape_pair.source.points
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
         print("debugging, synth is {}".format( batch_info["is_synth"]))
-        if batch_info["is_synth"]:
+        if batch_info["corr_source_target"]:
             # compute mapped acc
             gt_index = torch.arange(N, device=device).repeat(B, 1)  #B,N
             acc = (mapped_target_index == gt_index).sum(1) / N
@@ -103,6 +116,9 @@ class DeepDiscreteFlow(nn.Module):
         else:
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
+        if self.external_evaluate_metric is not None:
+            self.external_evaluate_metric(metrics, shape_pair.source.points, shape_pair.target.points, shape_pair.flowed.points,batch_info)
+            self.external_evaluate_metric(metrics, shape_pair.source.points, shape_pair.target.points, mapped_position,batch_info, "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 
@@ -131,16 +147,18 @@ class DeepDiscreteFlow(nn.Module):
         sim_factor, reg_factor,reg_param_scale = self.get_factor()
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
         moving = shape_pair.source
-        target = shape_pair.target
+        has_gt = "gt_flowed" in shape_pair.extra_info
+        gt_flowed_points = shape_pair.target.points if not has_gt else shape_pair.extra_info["gt_flowed"]
+        gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points,moving)
         sim_loss, reg_loss = 0, 0
         debug_reg_param_list = []
         for s in range(self.n_step):
-            reg_param, additional_param = self.deep_regparam_generator(moving, target)
+            reg_param, additional_param = self.deep_regparam_generator(moving, shape_pair.target)
             debug_reg_param_list.append(reg_param.abs().mean())
             reg_param = reg_param*reg_param_scale
             # moving.points = moving.points.detach()
             flowed, _reg_loss = self.flow_model(moving, reg_param)
-            sim_loss += self.step_weight_list[s]*self.loss(flowed, shape_pair.target,is_synth=batch_info["is_synth"],additional_param=additional_param)
+            sim_loss += self.step_weight_list[s]*self.loss(flowed,gt_flowed,corr_source_target = has_gt,additional_param=additional_param)
             reg_loss += self.step_weight_list[s]*_reg_loss
             moving = Shape().set_data_with_refer_to(flowed.points.clone().detach(), flowed)
         shape_pair.flowed = flowed

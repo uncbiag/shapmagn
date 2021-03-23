@@ -9,14 +9,17 @@ class LazyKeopsKernel(object):
     LazyTensor formulaton in Keops,  support batch
     """
     def __init__(self, kernel_type="gauss", **kernel_args):
-        assert kernel_type in ["gauss", "multi_gauss", "normalized_gauss","gauss_lin", "gauss_grad", "multi_gauss_grad", "gauss_lin"]
+        assert kernel_type in ["gauss", "multi_gauss", "normalized_gauss","normalized_multi_gauss","gauss_lin", "gauss_grad", "multi_gauss_grad", "gauss_lin","aniso_gauss","aniso_multi_gauss"]
         self.kernel_type = kernel_type
         self.kernels = {"gauss": self.gauss_kernel,
                         "normalized_gauss": self.normalized_gauss_kernel,
                         "multi_gauss": self.multi_gauss_kernel,
+                        "normalized_multi_gauss":self.normalized_multi_gauss_kernel,
                         "gauss_grad": self.gaussian_gradient,
                         "multi_gauss_grad": self.multi_gaussian_gradient,
-                        "gauss_lin": self.gauss_lin_kernel}
+                        "gauss_lin": self.gauss_lin_kernel,
+                        "aniso_gauss":self.aniso_gauss_kernel,
+                        "aniso_multi_gauss":self.aniso_multi_gauss_kernel}
         self.kernel = self.kernels[self.kernel_type](**kernel_args)
 
     @staticmethod
@@ -25,6 +28,7 @@ class LazyKeopsKernel(object):
         :param sigma: scalar
         :return:
         """
+        sig2 = sigma * (2 ** (1 / 2))
         def conv(x, y, b):
             """
 
@@ -33,8 +37,8 @@ class LazyKeopsKernel(object):
             :param b: torch.Tensor, BxMxd, input val
             :return:torch.Tensor, BxNxd, output
             """
-            x = LazyTensor(x[:, :, None]/sigma) # BxNx1xD
-            y = LazyTensor(y[:, None]/sigma) # Bx1xMxD
+            x = LazyTensor(x[:, :, None]/sig2) # BxNx1xD
+            y = LazyTensor(y[:, None]/sig2) # Bx1xMxD
             b = LazyTensor(b[:, None]) # Bx1xMxd
             dist2 = x.sqdist(y)
             kernel = (-dist2).exp() # BxNxM
@@ -57,8 +61,9 @@ class LazyKeopsKernel(object):
             :param b: torch.Tensor, BxMxd, input val
             :return:torch.Tensor, BxNxd, output
             """
-            x = LazyTensor(x[:, :, None] / sigma)  # BxNx1xD
-            y = LazyTensor(y[:, None] / sigma)  # Bx1xMxD
+            sig2 = sigma * (2 ** (1 / 2))
+            x = LazyTensor(x[:, :, None] / sig2)  # BxNx1xD
+            y = LazyTensor(y[:, None] / sig2)  # Bx1xMxD
             b = LazyTensor(b[:, None])  # Bx1xMxd
             dist2 = -x.sqdist(y)
             return dist2.sumsoftmaxweight(b,axis=2)
@@ -73,7 +78,7 @@ class LazyKeopsKernel(object):
         :return:
         """
         log_weight_list =[float(np.log(weight)) for weight in weight_list]
-        gamma_list= [sigma**2  for sigma in sigma_list]
+        gamma_list= [1/(2*sigma*sigma)  for sigma in sigma_list]
 
         # def conv(x, y, b):
         #     """
@@ -108,13 +113,13 @@ class LazyKeopsKernel(object):
             y = LazyTensor(y[:, None])
             b = LazyTensor(b[:, None])
             dist2 = x.sqdist(y)
-            dist2 = dist2/gammas
+            dist2 = dist2*gammas
             kernel = (log_ws-dist2).exp().sum(3)
             return (kernel * b).sum_reduction(axis=2)
         return conv
 
     @staticmethod
-    def multi_gauss_normalized_kernel(sigma_list=None, weight_list=None):
+    def normalized_multi_gauss_kernel(sigma_list=None, weight_list=None):
         """
         :param sigma_list: a list of sigma
         :param weight_list: corresponding list of weight, sum(weight_list)=1
@@ -132,8 +137,11 @@ class LazyKeopsKernel(object):
             y = LazyTensor(y[:, None])  # Bx1xMxD
             b = LazyTensor(b[:, None])  # Bx1xMxd
             res = 0
+            D = x.shape[-1]
+
             for sigma, weight in zip(sigma_list, weight_list):
-                dist2 = -(x/sigma).sqdist(y/sigma)
+                sig2 = sigma * (2 ** (1 / D))
+                dist2 = -(x/sig2).sqdist(y/sig2)
                 res += (weight*dist2.sumsoftmaxweight(b,axis=2))
             return res
         return conv
@@ -158,10 +166,10 @@ class LazyKeopsKernel(object):
             px = LazyTensor(px[:,:,None]) # BxNx1xD
             py = LazyTensor(py[:,None,:]) # Bx1xMxD
             dist2 = x.sqdist(y)  # BxNxM
-            kernel = (-dist2).exp()
+            kernel = (-dist2*0.5).exp()
             diff_kernel = (x-y) * kernel # BxNxMxD
             pyx = (py*px).sum() #BxNxM
-            return (-2/sigma) * (diff_kernel * pyx).sum_reduction(axis=2)
+            return (-1/sigma) * (diff_kernel * pyx).sum_reduction(axis=2)
         return conv
 
     @staticmethod
@@ -171,7 +179,7 @@ class LazyKeopsKernel(object):
        :param weight_list: corresponding list of weight, sum(weight_list)=1
        :return:
         """
-        gamma_list = [1 / (sigma * sigma) for sigma in sigma_list]
+        gamma_list = [1 / (2*sigma * sigma) for sigma in sigma_list]
 
         def conv(px, x, py=None, y=None):
             """
@@ -194,7 +202,7 @@ class LazyKeopsKernel(object):
             for gamma, weight in zip(gamma_list, weight_list):
                 kernel += ((-dist2 * gamma).exp()) * gamma * weight  # BxNxMx1
             diff_kernel = (x - y) * kernel  # BxNxMxD
-            pyx = (py * px).sum()  # BxNxM
+            pyx = (py * px).sum(-1)  # BxNxM
             return (-2) * (diff_kernel * pyx).sum_reduction(axis=2)
         return conv
 
@@ -206,6 +214,7 @@ class LazyKeopsKernel(object):
          :param sigma: scalar
          :return:
          """
+        sig2 = sigma * (2 ** (1 / 2))
         def conv(x,y,u,v,b):
             """
             :param x: torch.Tensor, BxNxD,  input position1
@@ -215,8 +224,8 @@ class LazyKeopsKernel(object):
             :param b: torch.Tensor, BxMxd, input scalar vector
             :return: torch.Tensor, BxNxd, output
             """
-            x = LazyTensor(x[:,:, None]/sigma)
-            y = LazyTensor(y[:, None]/sigma)
+            x = LazyTensor(x[:,:, None]/sig2)
+            y = LazyTensor(y[:, None]/sig2)
             u = LazyTensor(u[:,:,None])
             v = LazyTensor(v[:,None])
             b = LazyTensor(b[:,None]) #Bx1xMxd
@@ -225,68 +234,73 @@ class LazyKeopsKernel(object):
             return (kernel * b).sum_reduction(axis=2)
         return conv
 
+
     def __call__(self, *data_args):
         return self.kernel(*data_args)
 
 
-    @staticmethod
-    def aniso_sp_gauss_kernel(neigh_to_center=True):
-        """
-        anisotropic rbf kernel
-
-        if neigh_to_center value defined by neigh-to-center sum
-        if not neigh_to_center value defined by center-to-neighing sum
-        """
-        reduce_dim = 2 if neigh_to_center else 1
-
-        def conv(x, gamma, b):
-            """
-
-            :param x: torch.Tensor, BxNxD,
-            :param gamma: BxNxDxD
-            :param b: torch.Tensor, BxNxd, input val
-            :return:torch.Tensor, BxNxd, output
-            """
-            x_i = LazyTensor(x[:, :, None])  # BxNx1xD
-            x_j = LazyTensor(x[:, None])  # Bx1xNxD
-            b = LazyTensor(b[:, None])  # Bx1xNxd
-            gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xNxD*D
-            dist2 = (x_i - x_j) | gamma.matvecmult(x_i - x_j) # BxNxNxD | Bx1xNxDxD * BxNxNxD    -> BxNxN
-            kernel = (-dist2).exp()  # BxNxN
-            return kernel.t() @ ((kernel * b).sum_reduction(axis=reduce_dim))
-        return conv
-
 
     @staticmethod
-    def aniso_sp_gauss_interp_kernel():
+    def aniso_gauss_kernel(self_center=False):
         """
         anisotropic rbf interpolation kernel,
-
         """
-        reduce_dim = 2
-        assert False,"not check yet"
-        def conv(x,y, gamma_x,gamma_y, b):
+        assert False, "not test yet"
+        def conv(x,y, b, gamma):
             """
-
             :param x: torch.Tensor, BxNxD,
             :param y: torch.Tensor, BxMxD,
-            :param gamma_x: BxNxDxD
-            :param gamma_y: BxMxDxD
+            :param gamma: BxMxDxD  if not self_center  else BxNxDxD
             :param b: torch.Tensor, BxMxd, input val
             :return: torch.Tensor, BxNxd, output
             """
-            x_i = LazyTensor(x[:, :, None])  # BxNx1xD
-            x_j = LazyTensor(x[:,None])  # Bx1xNxD
-            y_j = LazyTensor(y[:, None])  # Bx1xMxD
-            b = LazyTensor(b[:, None])  # Bx1xMxd
-            gamma_x = LazyTensor(gamma_x.view(gamma_x.shape[0], gamma_x.shape[1], -1)[:, None])  # Bx1xNxD*D
-            gamma_y = LazyTensor(gamma_y.view(gamma_y.shape[0], gamma_y.shape[1], -1)[:, None])  # Bx1xMxD*D
-            dist2_xx = (x_i - x_j) | gamma_x.matvecmult(x_i - x_j)  # BxNxNxD | Bx1xNxDxD * BxNxNxD    -> BxNxN
-            dist2_xy = (x_i - y_j) | gamma_y.matvecmult(x_i - y_j)  # BxNxMxD | Bx1xMxDxD * BxNxMxD    -> BxNxM
-            kernel_xx = (-dist2_xx).exp()  # BxNxN
-            kernel_xy = (-dist2_xy).exp()  # BxNxM
-            return kernel_xx.t()@((kernel_xy * b).sum_reduction(axis=reduce_dim))
+
+            sqrt2 = (2 ** (1 / 2))
+            x_i = LazyTensor(x[:, None, :]/sqrt2)  # (N, 1, D)  "column"
+            y_j = LazyTensor(y[None, :, :]/sqrt2)  # (1, M, D)  "line"
+            if not self_center:
+                gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xMxD*D
+            else:
+                gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, :, None])  # BxNx1xD*D
+            D_ij = (x_i - y_j) | gamma.matvecmult(x_i - y_j)  # (N, M) squared distances
+            K_ij = (- D_ij).exp()  # (N, M)  kernel matrix
+            b_j = LazyTensor((b)[:, None, :, :])  # (B,1, M, D)
+            return (K_ij * b_j).sum(dim=2)  # BxNxd
         return conv
+
+    @staticmethod
+    def aniso_multi_gauss_kernel(relative_scale_list, weight_list,self_center=False):
+        """
+        anisotropic rbf interpolation kernel,
+        """
+        assert False, "not test yet"
+        def conv(x, y, b, gamma):
+            """
+            :param x: torch.Tensor, BxNxD,
+            :param y: torch.Tensor, BxMxD,
+            :param gamma: BxMxDxD  if not self_center  else BxNxDxD
+            :param b: torch.Tensor, BxMxd, input val
+            :return: torch.Tensor, BxNxd, output
+            """
+            kernel = 0
+            sqrt2 = (2 ** (1 / 2))
+            x_i = LazyTensor(x[:, None, :]/sqrt2)  # (N, 1, D)  "column"
+            y_j = LazyTensor(y[None, :, :]/sqrt2)  # (1, M, D)  "line"
+            b_j = LazyTensor((b)[:, None, :, :])  # (B,1, M, D
+
+            for rscale, weight in zip(relative_scale_list, weight_list):
+                gamma = gamma * (1 / rscale ** 2)
+                if not self_center:
+                    gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, None])  # Bx1xMxD*D
+                else:
+                    gamma = LazyTensor(gamma.view(gamma.shape[0], gamma.shape[1], -1)[:, :, None])  # BxNx1xD*D
+                D_ij = (x_i - y_j) | gamma.matvecmult(x_i - y_j)  # (N, M) squared distances
+                K_ij = (- D_ij).exp()  # (N, M)  kernel matrix
+                kernel += weight*K_ij
+            return  (kernel* b_j).sum(dim=2)
+        return conv
+
+
 
 
 

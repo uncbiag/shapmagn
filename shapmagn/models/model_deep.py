@@ -4,7 +4,6 @@ from shapmagn.models.model_base import ModelBase
 from shapmagn.global_variable import *
 from shapmagn.utils.net_utils import print_model
 from shapmagn.utils.shape_visual_utils import save_shape_pair_into_files
-from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.modules.optimizer import optimizer_builder
 from shapmagn.modules.scheduler import scheduler_builder
 class DeepModel(ModelBase):
@@ -54,9 +53,7 @@ class DeepModel(ModelBase):
             self._model = MODEL_POOL[method_name](method_opt)
         else:
             raise ValueError("method not supported")
-
-        if gpus and len(gpus) >= 1:
-            self._model = nn.DataParallel(self._model, gpus)
+        self._model = nn.DataParallel(self._model, gpus)
         self._model.to(device)
         self.optimizer = optimizer_builder(self.opt_optim)(self._model.parameters())
         self.lr_scheduler = scheduler_builder(self.opt_scheduler)(self.optimizer)
@@ -91,15 +88,32 @@ class DeepModel(ModelBase):
 
 
     def _set_input(self, input_data, batch_info):
+        ##################### unknown bug during single gpu training, when gpu_id!=0 and call pointnet2_utils.py an ugly workaround  todo debug the pointnet2_utils
+        if len(self.gpu_ids)==1 and self.gpu_ids[0]!=0:
+            from pykeops.torch import LazyTensor
+            a  = LazyTensor(input_data["source"]["points"][:,:,None])
+            a.sum(1)
+        ################################################################################################
+        batch_info["corr_source_target"] = False
+        if "gt_flow" in input_data["source"].get("extra_info",{}):
+            input_data["extra_info"]["gt_flow"] = input_data["source"]["gt_flow"]
+            input_data["extra_info"]["gt_flowed"] = input_data["extra_info"]["gt_flow"] + input_data["source"]["points"]
+            batch_info["corr_source_target"] = True
         return input_data, batch_info
 
     def set_input(self, input_data, device, phase=None):
+        def to_device(item, device):
+            if isinstance(item, dict):
+                return {key: to_device(_item, device) for key, _item in item.items()}
+            else:
+                return item.to(device)
+
         batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"],
                             "is_synth":False, "phase":phase, "epoch":self.cur_epoch}
-        input_data["source"] = {key: fea.to(device) for key, fea in input_data["source"].items()}
-        input_data["target"] = {key: fea.to(device) for key, fea in input_data["target"].items()}
+        input_data["source"] =to_device(input_data["source"],device)
+        input_data["target"] =to_device(input_data["target"],device)
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
         return input_data
 

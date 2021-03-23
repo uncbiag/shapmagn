@@ -19,6 +19,7 @@ class ShapeBase(object):
         :param points: BxNxD
         """
         self.type = 'ShapeBase'
+        self.attr_list = ["points", "label", "landmarks", "pointfea", "weights", "seg"]
         self.nbatch = None
         self.dimension = None
         self.points = None
@@ -33,6 +34,7 @@ class ShapeBase(object):
         self.landmarks = None
         self.pointfea = None
         self.scale =-1
+        self.extra_info = None
         #self.update_bounding_box()
 
     def update_info(self):
@@ -46,6 +48,14 @@ class ShapeBase(object):
             self.weights = torch.ones(self.nbatch,self.npoints,1).to(points.device)/self.npoints
         if self.compute_bd:
             self.update_bounding_box()
+
+
+    def detatch(self):
+        for attr in self.attr_list:
+            if attr is not None:
+                hasattr(self, attr).detach_()
+
+
 
 
 
@@ -64,6 +74,7 @@ class ShapeBase(object):
         label = args["label"] if "label" in args else None
         seg = args["seg"] if "seg" in args else None
         scale = args["scale"] if "scale" in args else -1
+        extra_info = args["extra_info"] if "extra_info" in args else None
         self.points = points
         self.weights = weights
         self.landmarks = landmarks
@@ -71,6 +82,7 @@ class ShapeBase(object):
         self.label = label
         self.seg = seg
         self.scale = scale
+        self.extra_info = extra_info
         self.update_info()
         self.points_mode_on = False
         return self

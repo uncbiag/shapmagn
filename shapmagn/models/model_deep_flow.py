@@ -88,6 +88,10 @@ class DeepDiscreteFlow(nn.Module):
         """
         loss, shape_data_dict = self.forward(input_data, batch_info)
         shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
+        has_gt = "gt_flowed" in shape_pair.extra_info
+        gt_flowed_points = None if not has_gt else shape_pair.extra_info["gt_flowed"]
+        corr_source_target = batch_info["corr_source_target"]
+
         geomloss_setting = deepcopy(self.opt["deepflow_loss"]["geomloss"])
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
@@ -105,7 +109,7 @@ class DeepDiscreteFlow(nn.Module):
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
         print("debugging, synth is {}".format( batch_info["is_synth"]))
-        if batch_info["corr_source_target"]:
+        if corr_source_target:
             # compute mapped acc
             gt_index = torch.arange(N, device=device).repeat(B, 1)  #B,N
             acc = (mapped_target_index == gt_index).sum(1) / N
@@ -116,9 +120,9 @@ class DeepDiscreteFlow(nn.Module):
         else:
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
-        if self.external_evaluate_metric is not None:
-            self.external_evaluate_metric(metrics, shape_pair.source.points, shape_pair.target.points, shape_pair.flowed.points,batch_info)
-            self.external_evaluate_metric(metrics, shape_pair.source.points, shape_pair.target.points, mapped_position,batch_info, "_and_gf")
+        if self.external_evaluate_metric is not None and has_gt:
+            self.external_evaluate_metric(metrics, shape_pair.source.points, gt_flowed_points, shape_pair.flowed.points,batch_info)
+            self.external_evaluate_metric(metrics, shape_pair.source.points, gt_flowed_points, mapped_position,batch_info, "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 

@@ -31,9 +31,12 @@ class HybirdData(object):
         if use_synth or self.raw_source_target_has_corr:
             gf = tp - sp
             input_data["source"]["extra_info"].update({"gt_flow":index_points(gf,ssind)}) # here we save gt_flow to both source and target, another option is save it to shapepair
+        if self.corr_sampled_source_target:
+            tsind = ssind
+            input_data["target"]["points"], input_data["target"]["weights"] = index_points(input_data["target"]["points"], tsind),index_points(input_data["target"]["weights"], tsind)
+        else:
+            input_data["target"]["points"], input_data["target"]["weights"], tsind = self.sampler(tp, tw)
 
-        input_data["target"]["points"], input_data["target"]["weights"], tsind = self.sampler(tp, tw)
-        tsind = ssind.long() if self.corr_sampled_source_target else tsind.long()
         if "pointfea" in input_data["target"]:
             input_data["target"]["pointfea"] = index_points(input_data["target"]["pointfea"], tsind)
         input_data["extra_info"] = {key:index_points(item,tsind) for key, item in input_data["target"].get("extra_info",{}).items()}
@@ -79,10 +82,10 @@ class HybirdData(object):
         return cur_synth_ratio
 
     def planner(self,phase, current_epoch):
-        if phase=="val":
+        if phase=="debug":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
             return True, True
-        elif phase=="debug":
+        elif phase=="val":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
             return False, self.corr_sampled_source_target
         elif phase=="train":
@@ -91,6 +94,32 @@ class HybirdData(object):
             return random.random()< synth_ratio, self.corr_sampled_source_target
 
     def __call__(self,input_data, batch_info):
+        """
+        here list several common scenario
+        raw_source_target_has_corr: the input source and target has sorted one-to-one mapping
+        corr_source_target:  the output source and target has sorted one-to-one mapping
+        gt_flow : the output source and target has ground truth flow, but the source and target are not necessary to be one-to-one sorted mapped
+
+        1. the  input data already has source-target one-to-one correspondence: raw_source_target_has_corr = True
+            1.1 if not use the synth data
+                if set corr_sampled_source_target=True, then corr_source_target=True, otherwise  corr_source_target=False
+            1.2 if use the synth data
+                if set corr_sampled_source_target=True, then corr_source_target=True, otherwise  corr_source_target=False
+            the gt_flow will be provided in any case
+
+        2. the input data don't have one-to-one correspondence: raw_source_target_has_corr = False
+            2.1 if not use the synth data
+                not matter how to set corr_sampled_source_target, corr_source_target=False
+                the gt_flow is not provided
+            2.2. if use the synth data
+                if set corr_sampled_source_target=True, then corr_source_target=True, otherwise  corr_source_target=False
+                the gt_flow is provided
+
+
+        :param input_data:
+        :param batch_info:
+        :return:
+        """
         use_synth, corr_sampled_source_target = self.planner(batch_info["phase"],batch_info["epoch"])
         if use_synth:
             input_data, batch_info = self.prepare_synth_input(input_data,batch_info)

@@ -88,12 +88,7 @@ class DeepModel(ModelBase):
 
 
     def _set_input(self, input_data, batch_info):
-        ##################### unknown bug during single gpu training, when gpu_id!=0 and call pointnet2_utils.py an ugly workaround  todo debug the pointnet2_utils
-        if len(self.gpu_ids)==1 and self.gpu_ids[0]!=0:
-            from pykeops.torch import LazyTensor
-            a  = LazyTensor(input_data["source"]["points"][:,:,None])
-            a.sum(1)
-        ################################################################################################
+
         batch_info["corr_source_target"] = False
         if "gt_flow" in input_data["source"].get("extra_info",{}):
             input_data["extra_info"]["gt_flow"] = input_data["source"]["gt_flow"]
@@ -102,6 +97,7 @@ class DeepModel(ModelBase):
         return input_data, batch_info
 
     def set_input(self, input_data, device, phase=None):
+
         def to_device(item, device):
             if isinstance(item, dict):
                 return {key: to_device(_item, device) for key, _item in item.items()}
@@ -115,6 +111,14 @@ class DeepModel(ModelBase):
         input_data["source"] =to_device(input_data["source"],device)
         input_data["target"] =to_device(input_data["target"],device)
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
+
+        ##################### unknown bug during single gpu training, when gpu_id!=0 and call pointnet2_utils.py an ugly workaround  todo debug the pointnet2_utils
+        if len(self.gpu_ids) == 1 and self.gpu_ids[0] != 0:
+            from pykeops.torch import LazyTensor
+            a = LazyTensor(input_data["source"]["points"][:, :, None])
+            a.sum(1)
+
+        ################################################################################################
         return input_data
 
     def do_some_clean(self):
@@ -176,6 +180,7 @@ class DeepModel(ModelBase):
         :param input_data:
         :return:
         """
+        self._model.module.set_cur_epoch(self.cur_epoch)
         scores, shape_data_dict = self._model.module.model_eval(input_data, self.batch_info)
         shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
         return scores, shape_pair

@@ -59,7 +59,7 @@ def train_model(opt,model, dataloaders,writer, device):
                 break
             # if # = 0 or None then skip the val or debug phase
             if not max_batch_num_per_epoch[phase]:
-                break
+                continue
             if phase == 'train':
                 set_seed(seed=None)
                 model.update_scheduler(epoch)

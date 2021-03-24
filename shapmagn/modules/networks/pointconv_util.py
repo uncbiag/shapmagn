@@ -258,7 +258,6 @@ class PointConvD(nn.Module):
 
         fps_idx = pointnet2_utils.furthest_point_sample(xyz, self.npoint)
         new_xyz = index_points_gather(xyz, fps_idx)
-
         new_points, grouped_xyz_norm = group_query(self.nsample, xyz, new_xyz, points)
 
         grouped_xyz = grouped_xyz_norm.permute(0, 3, 2, 1)

@@ -11,10 +11,8 @@ LOSS_POOL = {"current": CurrentDistance, "varifold": VarifoldDistance, "geomloss
 
 
 from shapmagn.datasets.reg_pair_dataset import RegistrationPairDataset
-from shapmagn.debugging.reg_pair_synth_dataset import RegistrationPairSynthDataset
 DATASET_POOL = {
-    "pair_dataset": RegistrationPairDataset,
-    "pair_synth_dataset": RegistrationPairSynthDataset
+    "pair_dataset": RegistrationPairDataset
 }
 
 

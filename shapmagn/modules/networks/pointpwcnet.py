@@ -6,12 +6,13 @@ Date: May 2020
 
 import torch.nn as nn
 import torch
+from pykeops.torch import LazyTensor
 import numpy as np
 import torch.nn.functional as F
 from shapmagn.modules.networks.pointconv_util import PointConv, PointConvD, PointWarping2, UpsampleFlow2,PointWarping, UpsampleFlow, PointConvFlow, SceneFlowEstimatorPointConv
 from shapmagn.modules.networks.pointconv_util import index_points_gather as index_points, index_points_group, Conv1d, square_distance
 import time
-
+from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator
 scale = 1.0
 
 
@@ -243,14 +244,69 @@ def computeChamfer(pc1, pc2):
     return dist1, dist2
 
 
+def computeChamfer2(pc1, pc2):
+    '''
+    pc1: B 3 N
+    pc2: B 3 M
+    '''
+    pc1 = pc1.permute(0, 2, 1)
+    pc2 = pc2.permute(0, 2, 1)
+    pc_i, pc_j = LazyTensor(pc1[:, None, :]), LazyTensor(pc2[None, :, :])
+    sqdist12 = pc_i.sqdist(pc_j)
+    dist1,_ = sqdist12.argmin(dim=2)
+    dist2,_ = sqdist12.argmin(dim=1)
+    return dist1, dist2
+
+
+def curvatureWarp2(pc,warped_pc, K=9):
+    """
+
+    :param pc:  BxNxD
+    :return:
+    """
+    warped_pc = warped_pc.permute(0, 2, 1).contiguous()
+    pc = pc.permute(0, 2, 1).contiguous()
+    B,N, D = pc.shape[0], pc.shape[1],pc.shape[2]
+    pc_i, pc_j = LazyTensor(pc[:, None, :]), LazyTensor(pc[None, :, :])
+    _, kidx = pc_i.sqdist(pc_j) .argKmin(K=K,dim=2).long().view(B,N, K)
+    grouped_pc = index_points_group(warped_pc, kidx)
+    pc_curvature = torch.sum(grouped_pc - warped_pc.unsqueeze(2), dim=2) / 9.0
+    return pc_curvature  # B N 3
+
+
+
 def curvatureWarp(pc, warped_pc):
-    warped_pc = warped_pc.permute(0, 2, 1)
-    pc = pc.permute(0, 2, 1)
+    """
+
+    :param pc: BxDxN
+    :param warped_pc:  BxDxM
+    :return:
+    """
+
+    warped_pc = warped_pc.permute(0, 2, 1).contiguous()
+    pc = pc.permute(0, 2, 1).contiguous()
     sqrdist = square_distance(pc, pc)
     _, kidx = torch.topk(sqrdist, 10, dim=-1, largest=False, sorted=False)  # B N 10 3
     grouped_pc = index_points_group(warped_pc, kidx)
     pc_curvature = torch.sum(grouped_pc - warped_pc.unsqueeze(2), dim=2) / 9.0
     return pc_curvature  # B N 3
+
+
+
+def computeSmooth2(pc1, pred_flow,K=9):
+    '''
+    pc1: B 3 N
+    pred_flow: B 3 N
+    '''
+
+    pc1 = pc1.permute(0, 2, 1)
+    pred_flow = pred_flow.permute(0, 2, 1)
+    pc_i, pc_j = LazyTensor(pc1[:, None, :]), LazyTensor(1[None, :, :])
+    _, kidx = pc_i.sqdist(pc_j) .argKmin(K=K,dim=2).long().view(B,N, K)
+    grouped_flow = index_points_group(pred_flow, kidx)  # B N 9 3
+    diff_flow = torch.norm(grouped_flow - pred_flow.unsqueeze(2), dim=3).sum(dim=2) / (K-1)
+
+    return diff_flow
 
 
 def computeSmooth(pc1, pred_flow):
@@ -269,6 +325,21 @@ def computeSmooth(pc1, pred_flow):
     diff_flow = torch.norm(grouped_flow - pred_flow.unsqueeze(2), dim=3).sum(dim=2) / 8.0
 
     return diff_flow
+
+
+def interpolateCurvature2(pc1, pc2, pc2_curvature,K=5):
+    '''
+    pc1: B D N
+    pc2: B D M
+    pc2_curvature: B D M
+    '''
+
+    pc1 = pc1.permute(0, 2, 1)
+    pc2 = pc2.permute(0, 2, 1)
+    pc2_curvature = pc2_curvature
+    interpolator = nadwat_kernel_interpolator(scale=0.1)
+    pc1_interp = interpolator(pc1, pc2, pc2_curvature)
+    return pc1_interp.permute(0, 2, 1)
 
 
 def interpolateCurvature(pc1, pc2, pc2_curvature):

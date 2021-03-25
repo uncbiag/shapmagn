@@ -82,9 +82,24 @@ class HybirdData(object):
         return cur_synth_ratio
 
     def planner(self,phase, current_epoch):
+        """
+        1. the  input data already has source-target one-to-one correspondence: raw_source_target_has_corr = True
+            during the train, the data can be either real or synth depending on synth_ratio, the corr_sampled_source_target depends on setting
+            during the val, the data is real, the corr_sampled_source_target depends on setting
+            during the debug, the data is real,  corr_sampled_source_target will be true
+
+        2. the input data don't have one-to-one correspondence: raw_source_target_has_corr = False
+            during the train, the data can be either real or synth depending on synth_ratio, the corr_sampled_source_target depends on setting
+            during the val, the data is real, the corr_sampled_source_target depends on setting
+            during the debug, the data is synth,  corr_sampled_source_target will be true
+
+        :param phase:
+        :param current_epoch:
+        :return:
+        """
         if phase=="debug":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
-            return True, True
+            return not self.raw_source_target_has_corr, True
         elif phase=="val":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
             return False, self.corr_sampled_source_target

@@ -200,7 +200,7 @@ class FlowModel(nn.Module):
 
     def disp_reg(self,reg_param, reg_additional_input=None):
         dist = reg_param ** 2
-        dist = dist.sum(2).mean(1,keepdim=True)
+        dist = dist.sum(2).mean(1)
         return dist
 
 
@@ -279,6 +279,7 @@ class DeepFlowLoss(nn.Module):
         geomloss_setting["attr"] = "points"
         self.geom_loss = GeomDistance(geomloss_setting)
         self.buffer = {"gt_one_hot":None, "gt_plan":None}
+
 
 
     def disp_l2(self, flowed, target):
@@ -364,7 +365,7 @@ class PWCLoss(nn.Module):
         for i in range(num_scale):
             diff_flow = floweds[i] - gt[i+offset]
             total_loss += alpha[i] * ((diff_flow**2).sum(dim = 2,keepdim=True)*w[i]).sum(1)
-        return total_loss
+        return total_loss[...,0]
 
 
     def chamfer_self_loss(self,flowed, target, additional_param):

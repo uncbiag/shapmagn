@@ -27,7 +27,7 @@ def toy_sampler():
     :return:
     """
     def do_nothing(data_dict):
-        return data_dict
+        return data_dict, None
     return do_nothing
 
 

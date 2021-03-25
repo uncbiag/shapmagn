@@ -77,8 +77,8 @@ class LungFeatureExtractor(object):
             flowed_pointfea = self.buffer["flowed_pointfea"]
             target_pointfea = self.buffer["target_pointfea"]
         if self.include_pos:
-            flowed_pointfea = torch.cat([flowed.points,flowed_pointfea],-1)
-            target_pointfea = torch.cat([target.points,target_pointfea],-1)
+            flowed_pointfea = torch.cat([flowed.points,flowed_pointfea],-1) if flowed_pointfea is not None else flowed.points
+            target_pointfea = torch.cat([target.points,target_pointfea],-1) if target_pointfea is not None else target.points
 
         flowed.pointfea = flowed_pointfea
         target.pointfea = target_pointfea

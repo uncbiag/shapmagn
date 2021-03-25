@@ -84,15 +84,15 @@ def flying3d_nonocc_aug_data(**kwargs):
     local_deform_aug = aug_settings[
         ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
     local_deform_aug["num_sample"] = 1000
-    local_deform_aug["disp_scale"] = 1
-    kernel_scale = 1.2
+    local_deform_aug["disp_scale"] = 0.5
+    kernel_scale = 1
     spline_param = "cov_sigma_scale=1,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
         kernel_scale)
     local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
         spline_param)
     grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 4
-    grid_spline_aug["disp_scale"] = 3
+    grid_spline_aug["disp_scale"] = 1
     kernel_scale = 3
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
@@ -100,7 +100,7 @@ def flying3d_nonocc_aug_data(**kwargs):
 
     rigid_aug_settings = aug_settings[
         ("rigid_aug", {}, "settings for rigid augmentation")]
-    rigid_aug_settings["rotation_range"] = [-15, 15]
+    rigid_aug_settings["rotation_range"] = [-5, 5]
     rigid_aug_settings["scale_range"] = [0.9, 1.1]
     rigid_aug_settings["translation_range"] = [-1, 1]
 
@@ -110,7 +110,7 @@ def flying3d_nonocc_aug_data(**kwargs):
         ("points_aug", {}, "settings for remove or add noise points")]
     points_aug["remove_random_points"] = False
     points_aug["add_random_point_noise"] = False
-    points_aug["add_random_weight_noise"] = True
+    points_aug["add_random_weight_noise"] = False
     points_aug["remove_random_points_by_ratio"] = 0.01
     points_aug["add_random_point_noise_by_ratio"] = 0.01
     points_aug["random_weight_noise_scale"] = 0.1
@@ -167,15 +167,15 @@ if __name__ == "__main__":
 
     local_deform_aug = aug_settings[("local_deform_aug",{},"settings for uniform sampling based spline augmentation")]
     local_deform_aug["num_sample"] = 1000
-    local_deform_aug["disp_scale"] = 1  #2
-    kernel_scale = 1.2 #1.5
+    local_deform_aug["disp_scale"] = 0.5  #2
+    kernel_scale = 1 #1.5
     spline_param = "cov_sigma_scale=1,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(kernel_scale)
     local_deform_aug['local_deform_spline_kernel_obj']="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
 
 
     grid_spline_aug = aug_settings[("grid_spline_aug",{},"settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 4
-    grid_spline_aug["disp_scale"] =  3# 5
+    grid_spline_aug["disp_scale"] =  1# 5
     kernel_scale =3
     grid_spline_aug["grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(kernel_scale)
 

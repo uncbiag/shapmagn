@@ -96,7 +96,7 @@ class DeepDiscreteFlow(nn.Module):
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "points"
-        # in the first epoch, we would output the ot baseline, this is for analysis propose, comment the following two lines if don't needed
+        #in the first epoch, we would output the ot baseline, this is for analysis propose, comment the following two lines if don't needed
         if self.cur_epoch==0:
             print("In the first epoch, the validation/debugging output is the baseline ot mapping")
             shape_pair.flowed= shape_pair.source

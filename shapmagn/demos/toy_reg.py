@@ -72,46 +72,46 @@ shape_pair = create_shape_pair(source, target)
 #                       saving_gif_path=None)
 
 
-#
-# """ Experiment 2: lddmm flow  too slow !!!, and likely to experience numerically underflow, see expri 3 for a workaround"""
-# task_name = "lddmm"
-# solver_opt = ParameterDict()
-# record_path = server_path+"output/toy_demo/{}".format(task_name)
-# os.makedirs(record_path,exist_ok=True)
-# solver_opt["record_path"] = record_path
-# solver_opt["point_grid_scales"] =  [-1]
-# solver_opt["iter_per_scale"] = [50]
-# solver_opt["rel_ftol_per_scale"] = [ 1e-9]
-# solver_opt["init_lr_per_scale"] = [5e-1]
-# solver_opt["save_3d_shape_every_n_iter"] = 20
-# solver_opt["shape_sampler_type"] = "point_grid"
-# solver_opt["stragtegy"] = "use_optimizer_defined_here"
-# solver_opt[("optim", {}, "setting for the optimizer")]
-# solver_opt[("scheduler", {}, "setting for the scheduler")]
-# solver_opt["optim"]["type"] = "sgd" #lbgfs
-# solver_opt["scheduler"]["type"] = "step_lr"
-# solver_opt["scheduler"][("step_lr",{},"settings for step_lr")]
-# solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
-# solver_opt["scheduler"]["step_lr"]["step_size"] = 80
-# model_name = "lddmm_opt"
-# model_opt =ParameterDict()
-# model_opt["module"] ="hamiltonian"
-# model_opt[("hamiltonian", {}, "settings for hamiltonian")]
-# model_opt['hamiltonian']['kernel'] =  "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.03, 0.05],weight_list=[0.2,0.3, 0.5])"
-# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-# model_opt['sim_loss']['loss_list'] =  ["geomloss"]
-# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-# model_opt['sim_loss']['geomloss']["attr"] = "points"
-# blur = 0.0005
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
-# model = MODEL_POOL[model_name](model_opt)
-# solver = build_multi_scale_solver(solver_opt,model)
-# model.init_reg_param(shape_pair)
-# shape_pair = solver(shape_pair)
-# print("the registration complete")
 
-#
-#
+""" Experiment 2: lddmm flow  too slow !!!, and likely to experience numerically underflow, see expri 3 for a workaround"""
+task_name = "lddmm"
+solver_opt = ParameterDict()
+record_path = server_path+"output/toy_demo/{}".format(task_name)
+os.makedirs(record_path,exist_ok=True)
+solver_opt["record_path"] = record_path
+solver_opt["point_grid_scales"] =  [-1]
+solver_opt["iter_per_scale"] = [50]
+solver_opt["rel_ftol_per_scale"] = [ 1e-9]
+solver_opt["init_lr_per_scale"] = [5e-1]
+solver_opt["save_3d_shape_every_n_iter"] = 20
+solver_opt["shape_sampler_type"] = "point_grid"
+solver_opt["stragtegy"] = "use_optimizer_defined_here"
+solver_opt[("optim", {}, "setting for the optimizer")]
+solver_opt[("scheduler", {}, "setting for the scheduler")]
+solver_opt["optim"]["type"] = "sgd" #lbgfs
+solver_opt["scheduler"]["type"] = "step_lr"
+solver_opt["scheduler"][("step_lr",{},"settings for step_lr")]
+solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
+solver_opt["scheduler"]["step_lr"]["step_size"] = 80
+model_name = "lddmm_opt"
+model_opt =ParameterDict()
+model_opt["module"] ="hamiltonian"
+model_opt[("hamiltonian", {}, "settings for hamiltonian")]
+model_opt['hamiltonian']['kernel'] =  "keops_kernels.LazyKeopsKernel(kernel_type='multi_gauss', sigma_list=[0.01,0.03, 0.05],weight_list=[0.2,0.3, 0.5])"
+model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+model_opt['sim_loss']['loss_list'] =  ["geomloss"]
+model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+model_opt['sim_loss']['geomloss']["attr"] = "points"
+blur = 0.0005
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True)".format(blur)
+model = MODEL_POOL[model_name](model_opt)
+solver = build_multi_scale_solver(solver_opt,model)
+model.init_reg_param(shape_pair)
+shape_pair = solver(shape_pair)
+print("the registration complete")
+
+
+
 #
 # """ Experiment 3: lddmm guide by gradient flow """
 # task_name = "gradient_flow_guided_by_lddmm"
@@ -176,7 +176,7 @@ shape_pair = create_shape_pair(source, target)
 #                       saving_gif_path=None)
 #
 #
-
+#
 
 
 
@@ -220,23 +220,26 @@ model_opt["gradflow_guided"] [("geomloss", {}, "settings for geomloss")]
 model_opt["gradflow_guided"]["geomloss"]["attr"] = "points" #todo  the pointfea will be  more generalized choice
 model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,debias=False)"
 
-# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-# model_opt['sim_loss']['loss_list'] = ["geomloss"]
-# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-# model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
-# blur = 0.001
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=False)".format(blur)
-
 
 model_opt["mid_result_visualize"] = True
 
+
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-model_opt['sim_loss']['loss_list'] = ["gmm"]
-model_opt['sim_loss'][("gmm", {}, "settings for geomloss")]
-model_opt['sim_loss']['gmm']["attr"] = "points"
-model_opt['sim_loss']['gmm']["sigma"] = 0.1
-model_opt['sim_loss']['gmm']["w_noise"] = 0.0
-model_opt['sim_loss']['gmm']["mode"] = "sym_neglog_likelihood" #sym_neglog_likelihood neglog_likelihood
+model_opt['sim_loss']['loss_list'] = ["geomloss"]
+model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+model_opt['sim_loss']['geomloss']["attr"] = "points" #todo  the pointfea will be  more generalized choice
+blur = 0.001
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=False)".format(blur)
+
+
+#
+# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+# model_opt['sim_loss']['loss_list'] = ["gmm"]
+# model_opt['sim_loss'][("gmm", {}, "settings for geomloss")]
+# model_opt['sim_loss']['gmm']["attr"] = "points"
+# model_opt['sim_loss']['gmm']["sigma"] = 0.1
+# model_opt['sim_loss']['gmm']["w_noise"] = 0.0
+# model_opt['sim_loss']['gmm']["mode"] = "sym_neglog_likelihood" #sym_neglog_likelihood neglog_likelihood
 
 model = MODEL_POOL[model_name](model_opt)
 solver = build_multi_scale_solver(solver_opt,model)

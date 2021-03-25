@@ -16,7 +16,7 @@ def format_input(input):
 
 def color_adaptive(color):
     if len(color)>3:
-        color = (color-color.min())/(color.max()-color.min()+1e-7)*10-10
+        color = (color-color.min())/(color.max()-color.min()+1e-7)
     return color
 
 

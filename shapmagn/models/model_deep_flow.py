@@ -121,8 +121,8 @@ class DeepDiscreteFlow(nn.Module):
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         if self.external_evaluate_metric is not None and has_gt:
-            self.external_evaluate_metric(metrics, shape_pair.source.points, gt_flowed_points, shape_pair.flowed.points,batch_info)
-            self.external_evaluate_metric(metrics, shape_pair.source.points, gt_flowed_points, mapped_position,batch_info, "_and_gf")
+            self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param = None, alias="")
+            self.external_evaluate_metric(metrics, shape_pair,batch_info, {"mapped_position":mapped_position}, "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 

@@ -116,8 +116,8 @@ class RegistrationPairDataset(Dataset):
     def _preprocess_data(self, file_info):
         """
         preprocess the data :
-        1. read the data into dict, and return the shape_type (pointcloud, polyline, surfacemesh)
-        2. normalize the data dict (pyhiscal properties are better normalized before sampling)
+        1. read the data into dict
+        2. normalize the data dict
         :param path: data_path
         :return: data_dict, shape_type
         """

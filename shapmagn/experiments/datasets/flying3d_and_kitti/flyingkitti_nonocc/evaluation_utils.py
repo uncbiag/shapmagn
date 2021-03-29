@@ -34,7 +34,10 @@ def evaluate_2d(flow_pred, flow_gt):
 
 
 def evaluate_res(is_kitti=False):
-    def eval(metrics, sp, tp, fp, batch_info,alias=''):
+    def eval(metrics, shape_pair, batch_info,additional_param=None, alias=''):
+        sp, tp,fp = shape_pair.source.points, shape_pair.target.points, shape_pair.flowed.points
+        if additional_param is not None and "mapped_position" in additional_param:
+            fp = additional_param["mapped_position"]
         pred_sf, gt_sf = fp - sp, tp - sp
         EPE3D, acc3d_strict, acc3d_relax, outlier = evaluate_3d(pred_sf, gt_sf)
         # 2D evaluation metrics

@@ -242,7 +242,7 @@ def compute_interval(vertices):
 
 
 
-def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand_bch_dim=True):
+def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand_bch_dim=True,return_tensor=True):
     def to_tensor(data):
         if isinstance(data, dict):
             return {key: to_tensor(item) for key, item in data.items()}
@@ -265,7 +265,7 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
         min_interval = compute_interval(data_dict["points"])
         sampler = obj_factory(sampler_obj) if sampler_obj else None
         data_dict,_= sampler(data_dict) if sampler_obj else data_dict
-        obj = to_tensor(data_dict)
+        obj = to_tensor(data_dict) if return_tensor else data_dict
         if expand_bch_dim:
             obj= expand_bch_dim(obj)
         return obj, min_interval
@@ -273,7 +273,44 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
 
 
 
+def get_pair_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postprocess_obj=None, device=None, expand_bch_dim=True, return_tensor=True):
+    def to_tensor(data):
+        if isinstance(data, dict):
+            return {key: to_tensor(item) for key, item in data.items()}
+        else:
+            return torch.from_numpy(data).to(device)
 
+    def expand_bch_dim(data):
+        if isinstance(data, dict):
+            return {key: expand_bch_dim(item) for key, item in data.items()}
+        else:
+            return data[None]
+
+    def _get_obj(file_path):
+        name = get_file_name(file_path)
+        file_info = {"name":name,"data_path":file_path}
+        reader = obj_factory(reader_obj)
+        raw_data_dict  = reader(file_info)
+        normalizer = obj_factory(normalizer_obj) if normalizer_obj else None
+        data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
+        min_interval = compute_interval(data_dict["points"])
+        sampler = obj_factory(sampler_obj) if sampler_obj else None
+        data_dict,_= sampler(data_dict) if sampler_obj else data_dict
+        return data_dict, min_interval
+
+    def _get_pair_obj(source_path, target_path):
+        source_dict, source_interval= _get_obj(source_path)
+        target_dict, target_interval = _get_obj(target_path)
+        if pair_postprocess_obj is not None:
+            pair_postprocess = obj_factory(pair_postprocess_obj)
+            source_dict, target_dict = pair_postprocess(source_dict,target_dict)
+        source_dict = to_tensor(source_dict) if return_tensor else source_dict
+        target_dict = to_tensor(target_dict) if return_tensor else target_dict
+        if expand_bch_dim:
+            source_dict = expand_bch_dim(source_dict)
+            target_dict = expand_bch_dim(target_dict)
+        return source_dict, target_dict, source_interval, target_interval
+    return _get_pair_obj
 
 
 

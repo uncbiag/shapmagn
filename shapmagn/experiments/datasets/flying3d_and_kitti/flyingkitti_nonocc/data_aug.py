@@ -12,7 +12,7 @@ from functools import partial
 
 
 
-def flying3d_nonocc_synth_data(**kwargs):
+def flyingkitti_nonocc_synth_data(**kwargs):
     aug_settings = ParameterDict()
     aug_settings["do_local_deform_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
     aug_settings["do_grid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
@@ -74,7 +74,7 @@ def flying3d_nonocc_synth_data(**kwargs):
 
 
 
-def flying3d_nonocc_aug_data(**kwargs):
+def flyingkitti_nonocc_aug_data(**kwargs):
     aug_settings = ParameterDict()
     aug_settings["do_local_deform_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
     aug_settings["do_grid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
@@ -138,15 +138,15 @@ def flying3d_nonocc_aug_data(**kwargs):
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
     device = torch.device("cpu") # cuda:0  cpu
-    reader_obj = "flying3d_nonocc_utils.flying3d_nonocc_reader()"
+    reader_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_reader()"
     scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-    normalizer_obj = "flying3d_nonocc_utils.flying3d_nonocc_normalizer()"
-    sampler_obj = "flying3d_nonocc_utils.flying3d_nonocc_sampler(num_sample=20000)"
+    normalizer_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_normalizer()"
+    sampler_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_sampler(num_sample=20000)"
     use_local_mount = True
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
 
-    dataset_json_path = "/playpen-raid1/zyshen/data/flying3d_nonocc/train/pair_data.json" #home/zyshen/remote/llr11_mount
+    dataset_json_path = "/playpen-raid1/zyshen/data/flyingkitti_nonocc/train/pair_data.json" #home/zyshen/remote/llr11_mount
     dataset_json_path = path_transfer(dataset_json_path)
     pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
     pair_path_list = [[pair_info["source"]["data_path"], pair_info["target"]["data_path"]] for pair_info in

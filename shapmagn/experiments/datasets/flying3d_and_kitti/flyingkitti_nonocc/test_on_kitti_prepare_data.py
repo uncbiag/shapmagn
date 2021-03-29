@@ -5,7 +5,7 @@ from shapmagn.datasets.data_utils import get_file_name, save_json
 # Get list of filenames / directories
 root_dir = "/playpen-raid1/Data/FlyingThings3D_subset_processed_35m"
 test_root_dir = "/playpen-raid1/Data/KITTI_processed_occ_final"
-output_dir = "/playpen-raid1/zyshen/data/flying3d_nonocc_test_on_kitti"
+output_dir = "/playpen-raid1/zyshen/data/flyingkitti_nonocc_test_on_kitti"
 for mode in ["train","val"]:
     if mode == "train" or mode == "val":
         pattern = "train/0*"

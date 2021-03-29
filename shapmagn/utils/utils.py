@@ -165,7 +165,11 @@ def t2np(v):
         except:
             return v
 
-
+def to_tensor(data, device):
+    if isinstance(data, dict):
+        return {key: to_tensor(item,device) for key, item in data.items()}
+    else:
+        return torch.from_numpy(data).to(device)
 
 # Adapted from: https://github.com/Sudy/coling2018/blob/master/torchtext/utils.py
 def download_from_url(url, output_path):

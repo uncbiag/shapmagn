@@ -4,7 +4,7 @@ import numpy as np
 from shapmagn.datasets.data_utils import get_file_name, save_json
 # Get list of filenames / directories
 root_dir = "/playpen-raid1/Data/FlyingThings3D_subset_processed_35m"
-output_dir = "/playpen-raid1/zyshen/data/flying3d_nonocc"
+output_dir = "/playpen-raid1/zyshen/data/flyingkitti_nonocc"
 for mode in ["train","val","test"]:
     if mode == "train" or mode == "val":
         pattern = "train/0*"

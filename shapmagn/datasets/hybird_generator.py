@@ -88,25 +88,30 @@ class HybirdData(object):
             during the val, the data is real, the corr_sampled_source_target depends on setting
             during the debug, the data is real,  corr_sampled_source_target will be true
 
+            in any case, we can infer the ground truth flow and set has_gt=True
+
         2. the input data don't have one-to-one correspondence: raw_source_target_has_corr = False
             during the train, the data can be either real or synth depending on synth_ratio, the corr_sampled_source_target depends on setting
-            during the val, the data is real, the corr_sampled_source_target depends on setting
-            during the debug, the data is synth,  corr_sampled_source_target will be true
+            during the val, the data is real, the corr_sampled_source_target depends on setting, has_gt=self.raw_source_target_has_corr
+            during the debug, the data is synth,  corr_sampled_source_target will be true, has_gt=True
 
+            if the data is synth, we can infer the gt flow, set has_gt=True otherwise has_gt=False
         :param phase:
         :param current_epoch:
         :return:
         """
+
         if phase=="debug":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
-            return not self.raw_source_target_has_corr, True
-        elif phase=="val":
+            return not self.raw_source_target_has_corr, True, True
+        elif phase=="val" or "test":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
-            return False, self.corr_sampled_source_target
+            return False, self.corr_sampled_source_target, self.raw_source_target_has_corr
         elif phase=="train":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=False, sampled_by_weight=True)
             synth_ratio = self.synth_ratio if self.ratio_decay_rate==-1 else self.update_synth_ratio(current_epoch)
-            return random.random()< synth_ratio, self.corr_sampled_source_target
+            use_synth = random.random()< synth_ratio
+            return use_synth, self.corr_sampled_source_target, use_synth or self.raw_source_target_has_corr
 
     def __call__(self,input_data, batch_info):
         """
@@ -135,7 +140,8 @@ class HybirdData(object):
         :param batch_info:
         :return:
         """
-        use_synth, corr_sampled_source_target = self.planner(batch_info["phase"],batch_info["epoch"])
+        use_synth, corr_sampled_source_target, has_gt = self.planner(batch_info["phase"],batch_info["epoch"])
+        batch_info["has_gt"] = has_gt
         if use_synth:
             input_data, batch_info = self.prepare_synth_input(input_data,batch_info)
         else:

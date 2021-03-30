@@ -1,7 +1,11 @@
+from copy import deepcopy
+
 import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import GeomDistance
+from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad
 class GradientFlowOPT(nn.Module):
@@ -19,6 +23,10 @@ class GradientFlowOPT(nn.Module):
         self.interp_kernel = obj_factory(interpolator_obj)
         assert self.opt["sim_loss"]['loss_list'] == ["geomloss"]
         self.sim_loss_fn = GeomDistance(self.opt["sim_loss"]["geomloss"])
+        self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {}, "settings for sim_loss_opt, the sim_loss here is not used for optimization but for evaluation")]
+        external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "", "external evaluate metric")]
+        self.external_evaluate_metric = obj_factory(
+            external_evaluate_metric_obj) if external_evaluate_metric_obj else None
         self.call_thirdparty_package = False
         self.register_buffer("iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',1,"print every n iteration")]
@@ -34,6 +42,8 @@ class GradientFlowOPT(nn.Module):
     def reset(self):
         self.iter = self.iter*0
 
+    def clean(self):
+        self.iter = self.iter * 0
 
 
     def flow(self, shape_pair):
@@ -108,6 +118,16 @@ class GradientFlowOPT(nn.Module):
         return loss.detach()
 
 
+    def model_eval(self, shape_pair, batch_info=None):
+        """
+        for  deep approach, we assume the source points = control points
+        :param shape_pair:
+        :param batch_info:
+        :return:
+        """
+        return opt_flow_model_eval(shape_pair, batch_info=batch_info,
+                                   geom_loss_opt_for_eval=self.geom_loss_opt_for_eval,
+                                   external_evaluate_metric=self.external_evaluate_metric)
 
 
 

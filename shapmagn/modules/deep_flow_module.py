@@ -322,10 +322,10 @@ class DeepFlowLoss(nn.Module):
         return l2_loss[..., 0] * self.geo_loss_factor # remove the last 1 dim
 
 
-    def forward(self,flowed, target, additional_param=None, corr_source_target=True):
+    def forward(self,flowed, target, additional_param=None, has_gt=True):
 
         geo_loss=0. if not self.include_local_geo_constrain else self.geo_distance(flowed, target)
-        if not corr_source_target:
+        if not has_gt:
             return self.ot_distance(flowed, target) + geo_loss
         if self.loss_type == "disp_l2":
             return self.disp_l2(flowed, target) + geo_loss
@@ -375,10 +375,10 @@ class PWCLoss(nn.Module):
 
 
 
-    def forward(self,flowed, target, additional_param=None, corr_source_target=True):
+    def forward(self,flowed, target, additional_param=None, has_gt=True):
         if self.use_self_supervised_loss:
             return self.chamfer_self_loss(flowed, target, additional_param)
-        elif corr_source_target:
+        elif has_gt:
             return self.multiScaleLoss(flowed, target, additional_param)
         else:
             raise NotImplemented

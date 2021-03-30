@@ -6,13 +6,11 @@ import numpy as np
 
 
 def eval_model(opt,model,dataloaders,writer,device, task_name=""):
-    model_path = opt['tsk_set']['path'][('model_load_path',"","trained model path")]
+    model_path = opt['path'][('model_load_path',"","trained model path")]
     since = time()
-    record_path = opt['tsk_set']['path']['record_path']
-    running_range=opt['tsk_set'][('running_range',[-1],"max running number, set -1 if not limited")]  # todo should be [-1]
-    visual_opt = opt['tsk_set'][('visual', {}, "settings for visualziation")]
-    save_visual_results = visual_opt[
-        ('save_visual_results', False, 'save the visualizatio results during the evaluation')]
+    record_path = opt['path']['record_path']
+    running_range=opt[('running_range',[-1],"max running number, set -1 if not limited")]  # todo should be [-1]
+    save_fig_on = opt[('save_fig_on',False, 'save the visualizatio results during the evaluation')]
     running_part_data = running_range[0]>=0
     if running_part_data:
         print("running part of the test data from range {}".format(running_range))
@@ -45,8 +43,6 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
             batch_size = len(data["pair_name"])
             batch_size_list.append(batch_size)
             is_train = False
-            # if model._model is not None:
-            #     model._model.train(False)
             model.set_test()
             input_data = model.set_input(data, device, is_train)
             ex_time = time()
@@ -56,16 +52,16 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
             print("the batch prediction takes {} to complete".format(batch_time))
             records_time_np[i] = batch_time
             score, detailed_scores = model.analyze_res(test_res,cache_res=True)
-            update_res(detailed_scores,runing_detailed_scores,mode="append")
+            update_res(detailed_scores,runing_detailed_scores)
             print("the loss_detailed is {}".format(detailed_scores))
             running_test_score += score * batch_size
             records_score_np[i] = score
             sum_batch = sum(batch_size_list)
-            print("id {} and current name is : {}".format(i,data['fname']))
+            print("id {} and current name is : {}".format(i,data['pair_name']))
             print('the current running_score:{}'.format(score))
             print('the current average running_score:{}'.format(running_test_score/sum_batch))
             print('the current average running detailed score:{}'.format({metric:np.sum(score)/sum_batch for metric, score in runing_detailed_scores.items()}))
-            model.save_visual_res(save_visual_results, input_data, test_res, phase)
+            model.save_visual_res(save_fig_on, input_data, test_res, phase)
 
         test_score = running_test_score / len(dataloaders[phase].dataset)
         time_per_img = time_total / len((dataloaders[phase].dataset))

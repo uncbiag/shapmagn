@@ -81,7 +81,6 @@ def __do_registration(args):
     :param pipeline:a Pipeline object
     :return: a Pipeline object
     """
-
     output_root_path = args.output_root_path
     dataset_path =args.dataset_folder
     task_name = args.task_name

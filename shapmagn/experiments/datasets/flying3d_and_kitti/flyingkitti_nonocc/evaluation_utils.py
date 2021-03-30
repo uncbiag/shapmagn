@@ -35,6 +35,10 @@ def evaluate_2d(flow_pred, flow_gt):
 
 def evaluate_res(is_kitti=False):
     def eval(metrics, shape_pair, batch_info,additional_param=None, alias=''):
+        has_gt = batch_info["has_gt"]
+        if not has_gt:
+            return metrics
+
         sp, tp,fp = shape_pair.source.points, shape_pair.target.points, shape_pair.flowed.points
         if additional_param is not None and "mapped_position" in additional_param:
             fp = additional_param["mapped_position"]

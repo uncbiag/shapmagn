@@ -90,10 +90,12 @@ class DeepModel(ModelBase):
     def _set_input(self, input_data, batch_info):
 
         batch_info["corr_source_target"] = False
+        batch_info["has_gt"] = False
         if "gt_flow" in input_data["source"].get("extra_info",{}):
             input_data["extra_info"]["gt_flow"] = input_data["source"]["gt_flow"]
             input_data["extra_info"]["gt_flowed"] = input_data["extra_info"]["gt_flow"] + input_data["source"]["points"]
             batch_info["corr_source_target"] = True
+            batch_info["has_gt"] = True
         return input_data, batch_info
 
     def set_input(self, input_data, device, phase=None):

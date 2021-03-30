@@ -31,9 +31,7 @@ class DeepDiscreteFlow(nn.Module):
             self.opt[generator_name, {}, "settings for the deep registration parameter generator"])
         self.flow_model = FlowModel(self.opt["flow_model",{},"settings for the flow model"])
         self.loss = Deep_Loss[loss_name](self.opt[loss_name, {}, "settings for the deep registration parameter generator"])
-        # sim_loss_opt = opt[("sim_loss_for_evaluation_only", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
-        # self.sim_loss_fn = Loss(sim_loss_opt)
-        # self.reg_loss_fn = self.regularization
+        self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
         self.register_buffer("local_iter", torch.Tensor([0]))
         self.n_step = opt[("n_step",1,"number of iteration step")]
         self.step_weight_list = opt[("step_weight_list",[1/self.n_step]*self.n_step,"weight for each step")]
@@ -88,11 +86,8 @@ class DeepDiscreteFlow(nn.Module):
         """
         loss, shape_data_dict = self.forward(input_data, batch_info)
         shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
-        has_gt = "gt_flowed" in shape_pair.extra_info
-        gt_flowed_points = None if not has_gt else shape_pair.extra_info["gt_flowed"]
         corr_source_target = batch_info["corr_source_target"]
-
-        geomloss_setting = deepcopy(self.opt["deepflow_loss"]["geomloss"])
+        geomloss_setting = deepcopy(self.geom_loss_opt_for_eval)
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "points"
@@ -108,7 +103,7 @@ class DeepDiscreteFlow(nn.Module):
         source_points = shape_pair.source.points
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
-        print("debugging, synth is {}".format( batch_info["is_synth"]))
+        print("the current data is {}".format("synth" if batch_info["is_synth"] else "real"))
         if corr_source_target:
             # compute mapped acc
             gt_index = torch.arange(N, device=device).repeat(B, 1)  #B,N
@@ -120,7 +115,7 @@ class DeepDiscreteFlow(nn.Module):
         else:
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
-        if self.external_evaluate_metric is not None and has_gt:
+        if self.external_evaluate_metric is not None:
             self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param = None, alias="")
             self.external_evaluate_metric(metrics, shape_pair,batch_info, {"mapped_position":mapped_position}, "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
@@ -151,7 +146,7 @@ class DeepDiscreteFlow(nn.Module):
         sim_factor, reg_factor,reg_param_scale = self.get_factor()
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
         moving = shape_pair.source
-        has_gt = "gt_flowed" in shape_pair.extra_info
+        has_gt = batch_info["has_gt"]
         gt_flowed_points = shape_pair.target.points if not has_gt else shape_pair.extra_info["gt_flowed"]
         gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points,moving)
         sim_loss, reg_loss = 0, 0
@@ -162,7 +157,7 @@ class DeepDiscreteFlow(nn.Module):
             reg_param = reg_param*reg_param_scale
             # moving.points = moving.points.detach()
             flowed, _reg_loss = self.flow_model(moving, reg_param)
-            sim_loss += self.step_weight_list[s]*self.loss(flowed,gt_flowed,corr_source_target = has_gt,additional_param=additional_param)
+            sim_loss += self.step_weight_list[s]*self.loss(flowed,gt_flowed,has_gt = has_gt,additional_param=additional_param)
             reg_loss += self.step_weight_list[s]*_reg_loss
             moving = Shape().set_data_with_refer_to(flowed.points.clone().detach(), flowed)
         shape_pair.flowed = flowed

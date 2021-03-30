@@ -41,6 +41,7 @@ def build_multi_scale_solver(opt, model):
     def solve(toinput_shape_pair):
         source, target = toinput_shape_pair.source, toinput_shape_pair.target
         output_shape_pair = None
+        model.clean()
         for i in range(num_scale):
             print("{} th scale optimization begins, with  the strategy '{}' with setting {}".format(i, shape_sampler_type, scale_args_list[i]))
             scale_source = scale_shape_sampler_list[i](source) if scale_args_list[i] > 0 else source

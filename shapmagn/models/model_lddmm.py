@@ -6,6 +6,7 @@ from shapmagn.modules.gradient_flow_module import gradient_flow_guide
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
 from shapmagn.modules.ode_int import ODEBlock
+from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.utils.obj_factory import obj_factory
 class LDDMMOPT(nn.Module):
@@ -52,6 +53,11 @@ class LDDMMOPT(nn.Module):
             print("the feature extraction mode should be disabled")
             assert self.pair_feature_extractor is None
 
+        self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {},
+                                           "settings for sim_loss_opt, the sim_loss here is not used for optimization but for evaluation")]
+        external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "", "external evaluate metric")]
+        self.external_evaluate_metric = obj_factory(
+            external_evaluate_metric_obj) if external_evaluate_metric_obj else None
 
     def set_record_path(self, record_path):
         self.record_path = record_path
@@ -69,7 +75,10 @@ class LDDMMOPT(nn.Module):
         self.local_iter = self.local_iter*0
         self.gradflow_guided_buffer = {}
 
-
+    def clean(self):
+        self.local_iter = self.local_iter*0
+        self.global_iter = self.global_iter*0
+        self.gradflow_guided_buffer = {}
 
 
     def shooting(self, shape_pair):
@@ -189,11 +198,16 @@ class LDDMMOPT(nn.Module):
                 flowed, target = pair_shape_transformer(flowed, target, self.local_iter)
             n_update = self.global_iter.item() / self.update_gradflow_every_n_step
             cur_blur = max(gradflow_blur_init*(update_gradflow_blur_by_raito**n_update), gradflow_blur_min)
-            cur_reach = max(gradflow_reach_init * (update_gradflow_reach_by_raito ** n_update), gradflow_reach_min)
+            if gradflow_reach_init > 0:
+                cur_reach = max(gradflow_reach_init * (update_gradflow_reach_by_raito ** n_update), gradflow_reach_min)
+            else:
+                cur_reach = None
             geomloss_setting = deepcopy(self.opt["gradflow_guided"]["geomloss"])
             geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("blurplaceholder", str(cur_blur))
-            geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("reachplaceholder", str(cur_reach))
-            geomloss_setting["mode"] = 'hard'
+            geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("reachplaceholder",
+                                                                                str(cur_reach) if cur_reach else "None")
+            geomloss_setting["mode"] = 'soft'
+            geomloss_setting["attr"] = "pointfea"
             guide_fn = gradient_flow_guide(gradflow_mode)
             gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
             self.gradflow_guided_buffer["gradflowed"] = gradflowed
@@ -234,6 +248,31 @@ class LDDMMOPT(nn.Module):
         self.local_iter +=1
         self.global_iter +=1
         return loss
+
+
+
+
+
+    def model_eval(self, shape_pair, batch_info=None):
+        """
+        for  deep approach, we assume the source points = control points
+        :param shape_pair:
+        :param batch_info:
+        :return:
+        """
+        return opt_flow_model_eval(shape_pair, batch_info=batch_info,
+                                   geom_loss_opt_for_eval=self.geom_loss_opt_for_eval,
+                                   external_evaluate_metric=self.external_evaluate_metric)
+
+
+
+
+
+
+
+
+
+
 
 
     def debug(self,shape_pair):

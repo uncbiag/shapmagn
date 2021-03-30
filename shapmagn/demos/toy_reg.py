@@ -112,7 +112,8 @@ print("the registration complete")
 
 
 
-#
+
+
 # """ Experiment 3: lddmm guide by gradient flow """
 # task_name = "gradient_flow_guided_by_lddmm"
 # solver_opt = ParameterDict()
@@ -133,7 +134,9 @@ print("the registration complete")
 # solver_opt["scheduler"][("step_lr",{},"settings for step_lr")]
 # solver_opt["scheduler"]["step_lr"]["gamma"] = 0.5
 # solver_opt["scheduler"]["step_lr"]["step_size"] = 80
-#
+
+
+
 # model_name = "lddmm_opt"
 # model_opt =ParameterDict()
 # model_opt["module"] ="hamiltonian"
@@ -221,7 +224,7 @@ model_opt["gradflow_guided"]["geomloss"]["attr"] = "points" #todo  the pointfea 
 model_opt["gradflow_guided"]["geomloss"]["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8,debias=False)"
 
 
-model_opt["mid_result_visualize"] = True
+model_opt["running_result_visualize"] = True
 
 
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]

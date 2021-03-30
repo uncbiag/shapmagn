@@ -30,7 +30,7 @@ class DeepFeature(nn.Module):
         deep_extractor = self.opt[("deep_extractor","pointnet2_extractor","name of deep feature extractor")]
         self.pair_feature_extractor = DEEP_EXTRACTOR[deep_extractor](self.opt[deep_extractor,{},"settings for the deep extractor"])
         self.loss = DeepFeatureLoss(self.opt[("deepfea_loss",{},"settings for deep feature loss")])
-        sim_loss_opt = opt[("sim_loss_for_evaluation_only", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
+        sim_loss_opt = opt[("geom_loss_opt_for_eval", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         # self.reg_loss_fn = self.regularization
         self.register_buffer("local_iter", torch.Tensor([0]))
@@ -117,7 +117,7 @@ class DeepFeature(nn.Module):
 
     def forward(self, input_data, batch_info=None):
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
-        gt_flowed_points = shape_pair.target.points if "gt_flowed" not in shape_pair.extra_info else \
+        gt_flowed_points = shape_pair.target.points if batch_info["has_gt"] else \
         shape_pair.extra_info["gt_flowed"]
         gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points, shape_pair.source)
         flowed, shape_pair.target = self.pair_feature_extractor(shape_pair.source, shape_pair.target)

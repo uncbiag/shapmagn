@@ -104,7 +104,7 @@ class HybirdData(object):
         if phase=="debug":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
             return not self.raw_source_target_has_corr, True, True
-        elif phase=="val" or "test":
+        elif phase=="val" or phase=="test":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
             return False, self.corr_sampled_source_target, self.raw_source_target_has_corr
         elif phase=="train":

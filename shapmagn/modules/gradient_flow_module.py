@@ -6,9 +6,12 @@ from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.metrics.losses import GeomDistance
 from torch.autograd import grad
 
-def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter):
+def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter=-1):
     geomloss_setting = deepcopy(geomloss_setting)
     geomloss_setting['attr'] = "points"
+    mode = geomloss_setting[("mode","flow", "flow/analysis")]
+    grad_enable_record = torch.is_grad_enabled()
+    torch.set_grad_enabled(True)
     geomloss = GeomDistance(geomloss_setting)
     cur_source_points_clone = cur_source.points.detach().clone()
     cur_source_points_clone.requires_grad_()
@@ -16,16 +19,20 @@ def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, loc
     cur_source_clone.set_data_with_refer_to(cur_source_points_clone,
                                         cur_source)  # shallow copy, only points are cloned, other attr are not
     loss = geomloss(cur_source_clone, target)
-    print("{} th step, before gradient flow, the ot distance between the cur_source and the target is {}".format(
-        local_iter.item(), loss.item()))
-    grad_cur_source_points = grad(loss, cur_source_points_clone)[0]
+    # print("{} th step, before gradient flow, the ot distance between the cur_source and the target is {}".format(
+    #     local_iter.item(), loss.item()))
+    grad_cur_source_points = grad(loss.sum(), cur_source_points_clone)[0]
+    torch.set_grad_enabled(grad_enable_record)
     cur_source_points_clone = cur_source_points_clone - grad_cur_source_points / cur_source_clone.weights
     cur_source_clone.points = cur_source_points_clone.detach()
-    loss = geomloss(cur_source_clone, target)
-    print(
-        "{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(
-            local_iter.item(), loss.item()))
-    return cur_source_clone
+    # loss = geomloss(cur_source_clone, target)
+    # print(
+    #     "{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(
+    #         local_iter.item(), loss.item()))
+    if mode =="flow":
+        return cur_source_clone
+    elif mode=="analysis":
+        return cur_source_clone.points, loss
 
 
 
@@ -90,7 +97,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
         return log_prob_i.exp(), log_prob_i
     else:
         raise ValueError("mode {} not defined, support: soft/ hard/ confid".format(mode))
-    print("OT based forward mapping complete")
+    #print("OT based forward mapping complete")
     mapped_shape = Shape()
     mapped_shape.set_data_with_refer_to(mapped_position,cur_source)
     return mapped_shape, mapped_mass_ratio

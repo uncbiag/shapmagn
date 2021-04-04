@@ -14,18 +14,17 @@ def format_input(input):
         input = input.squeeze().detach().cpu().numpy()
     return input
 
-def color_adaptive(color):
-    if len(color)>3:
-        color = (color-color.min())/(color.max()-color.min()+1e-7)
+def color_adaptive(color, turn_on=True):
+    if turn_on:
+        if len(color)>3:
+            color = (color-color.min())/(color.max()-color.min()+1e-7)
     return color
 
 
-def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
     points = format_input(points)
     fea = format_input(fea)
     p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
-    # install pyvistaqt for background plotting that plots without pause the program
-    # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     p.add_mesh(pv.PolyData(points),
                      scalars=color_adaptive(fea),
                      cmap="magma", point_size=10,
@@ -35,6 +34,8 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
                      lighting=True,
                      style="points", show_scalar_bar=True)
     p.show_grid()
+    if camera_pos is not None:
+        p.camera_position = camera_pos
     if show:
         p.show(auto_close=False)
     elif saving_capture_path:
@@ -53,15 +54,13 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
             ]
             p.write_frame()
             p.render()
-
-        # Close movie and delete object
         p.close()
     return p
 
 
 
 
-def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
     points = format_input(points)
     fea = format_input(fea)
     vectors = format_input(vectors)
@@ -80,6 +79,8 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
                      lighting=True,
                      style="points", show_scalar_bar=True)
     p.show_grid()
+    if camera_pos is not None:
+        p.camera_position = camera_pos
     if show:
         p.show(auto_close=False)
     elif saving_capture_path:
@@ -105,7 +106,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
 
 
 
-def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, show=True):
     points1 = format_input (points1)
     points2 = format_input(points2)
     feas1 = format_input(feas1)
@@ -136,11 +137,8 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
                      lighting=True,
                      style="points", show_scalar_bar=True)
 
-    p.link_views()  # link all the views
-    # Set a camera position to all linked views
-    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
- (0.0, 0.0, 0.0),
- (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+    if camera_pos is not None:
+        p.camera_position = camera_pos
 
     if show:
         p.show(auto_close=False)
@@ -166,7 +164,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
     return p
 
 
-def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(10,10), rgb_on=True,opacity=("linear","linear"), saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(10,10), rgb_on=True,opacity=("linear","linear"), saving_gif_path=None, saving_capture_path=None,camera_pos=None, show=True):
     points1 = format_input(points1)
     points2 = format_input(points2)
     feas1 = format_input(feas1)
@@ -195,6 +193,9 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
                lighting=True,
                style="points", show_scalar_bar=True)
     p.show_grid()
+
+    if camera_pos is not None:
+        p.camera_position = camera_pos
     if show:
         p.show(auto_close=False)
     elif saving_capture_path:
@@ -219,7 +220,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
     return p
 
 
-def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
     points1 = format_input(points1)
     points2 = format_input(points2)
     feas1 = format_input(feas1)
@@ -269,6 +270,8 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                style="points", show_scalar_bar=True)
 
     p.link_views()  # link all the views
+    if camera_pos is not None:
+        p.camera_position = camera_pos
     # Set a camera position to all linked views
  #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
  # (0.0, 0.0, 0.0),
@@ -304,7 +307,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
 
 
-def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, show=True):
     points1 = format_input(points1)
     points2 = format_input(points2)
     points3 = format_input(points3)
@@ -402,10 +405,10 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
 
     p.link_views()  # link all the views
+    if camera_pos is not None:
+        p.camera_position = camera_pos
     # Set a camera position to all linked views
- #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
- # (0.0, 0.0, 0.0),
- # (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+ #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453), (0.0, 0.0, 0.0), (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
 
 
     if show:
@@ -436,7 +439,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
 
 
-def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, show=True):
+def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
     num_views = len(points_list)
     for i,points in enumerate(points_list):
         points_list[i] = format_input(points)
@@ -459,9 +462,8 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
                          style="points", show_scalar_bar=True)
     p.link_views()  # link all the views
     # Set a camera position to all linked views
-    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453),
- (0.0, 0.0, 0.0),
- (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+    if camera_pos is not None:
+        p.camera_position = camera_pos
 
 
     if show:
@@ -488,27 +490,25 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
     return p
 
 
-def capture_plotter():
+def capture_plotter(render_by_weight=False, camera_pos=None):
     def save(record_path,stage_suffix,pair_name_list, shape_pair):
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-        #saving_two_at_most=1 # due to the bug of vtk 9.0, at most around 200+ plots can be saved, so this function would be safe if calling less than 50 times
-        #thread_safe_count = 0
+        # due to the bug of vtk 9.0, at most around 200+ plots can be saved, so this function would be safe if calling less than 50 times
         stage_folder = os.path.join(record_path,stage_suffix)
         os.makedirs(stage_folder,exist_ok=True)
         for sp, fp, tp,sw,fw,tw, pair_name in zip(source.points, flowed.points, target.points,source.weights, flowed.weights, target.weights, pair_name_list):
             case_folder = os.path.join(record_path,pair_name)
             os.makedirs(case_folder,exist_ok=True)
             path = os.path.join(case_folder, "flowed_target" + "_" + stage_suffix + ".png")
-            # visualize_source_flowed_target_overlap(sp,fp, tp,
-            #                              sw, fw, tw,
-            #                              title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path, show=False)
-            visualize_source_flowed_target_overlap(sp, fp, tp,
-                                                   sp, sp, tp,
-                                                   title1="source", title2="flowed", title3="target", rgb_on=True,
-                                                   saving_capture_path=path, show=False)
+            if render_by_weight:
+                visualize_source_flowed_target_overlap(sp,fp, tp,
+                                             sw, fw, tw,
+                                             title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path,camera_pos=camera_pos, show=False)
+            else:
+                visualize_source_flowed_target_overlap(sp, fp, tp,
+                                                       sp, sp, tp,
+                                                       title1="source", title2="flowed", title3="target", rgb_on=True,
+                                                       saving_capture_path=path, camera_pos=camera_pos,show=False)
             cp_command = "cp {} {}".format(path, os.path.join(stage_folder, pair_name + "_flowed_target.png"))
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
-            #thread_safe_count +=1
-            # if thread_safe_count==saving_two_at_most:
-            #     break
     return save

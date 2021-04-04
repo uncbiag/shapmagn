@@ -1,5 +1,6 @@
 from copy import deepcopy
 from shapmagn.modules.deep_feature_module import *
+from shapmagn.modules.gradient_flow_module import positional_based_gradient_flow_guide
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.metrics.losses import Loss
 
@@ -22,7 +23,7 @@ class DeepFeature(nn.Module):
              "decompose shape pair into dict")]
         self.decompose_shape_pair_into_dict = obj_factory(decompose_shape_pair_into_dict)
         spline_kernel_obj = self.opt[("spline_kernel_obj","point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)", "shape interpolator in multi-scale solver")]
-        self.spline_kernel= obj_factory(spline_kernel_obj)
+        self.spline_kernel= obj_factory(spline_kernel_obj) if spline_kernel_obj else None
         interp_kernel_obj = self.opt[(
         "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)",
         "kernel for multi-scale interpolation")]
@@ -30,9 +31,12 @@ class DeepFeature(nn.Module):
         deep_extractor = self.opt[("deep_extractor","pointnet2_extractor","name of deep feature extractor")]
         self.pair_feature_extractor = DEEP_EXTRACTOR[deep_extractor](self.opt[deep_extractor,{},"settings for the deep extractor"])
         self.loss = DeepFeatureLoss(self.opt[("deepfea_loss",{},"settings for deep feature loss")])
-        sim_loss_opt = opt[("geom_loss_opt_for_eval", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
-        self.sim_loss_fn = Loss(sim_loss_opt)
+        self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {}, "settings for sim_loss_opt, the sim_loss here is not used for training but for evaluation")]
         # self.reg_loss_fn = self.regularization
+
+        external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "", "external evaluate metric")]
+        self.external_evaluate_metric = obj_factory(
+            external_evaluate_metric_obj) if external_evaluate_metric_obj else None
         self.register_buffer("local_iter", torch.Tensor([0]))
         self.print_step = self.opt[('print_step',5,"print every n iteration")]
         self.buffer = {}
@@ -49,6 +53,26 @@ class DeepFeature(nn.Module):
 
     def reset(self):
         self.local_iter = self.local_iter*0
+
+
+
+    def flow(self, shape_pair):
+        """
+        :param shape_pair:
+        :return:
+        """
+
+        toflow_points = shape_pair.toflow.points
+        control_points = shape_pair.control_points
+        flowed_control_points = shape_pair.flowed_control_points
+        control_weights = shape_pair.control_weights
+        flowed_points = self.interp_kernel(toflow_points, control_points, flowed_control_points, control_weights)
+        flowed = Shape()
+        flowed.set_data_with_refer_to(flowed_points,shape_pair.toflow)
+        shape_pair.set_flowed(flowed)
+        return shape_pair
+
+
 
 
 
@@ -72,19 +96,22 @@ class DeepFeature(nn.Module):
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "pointfea"
-        mapped_target_index,mapped_topK_target_index, mapped_position = wasserstein_forward_mapping(shape_pair.source, shape_pair.target,
-                                                                           geomloss_setting)  # BxN
-
+        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(shape_pair.source, shape_pair.target,  geomloss_setting)  # BxN
+        mapped_position = bary_mapped_position
         source_points = shape_pair.source.points
         source_weights = shape_pair.source.weights
         disp = mapped_position - source_points
-        smoothed_disp = self.spline_kernel(source_points, source_points,disp,
-                                                source_weights)
+        smoothed_disp = self.spline_kernel(source_points, source_points,disp, source_weights) if self.spline_kernel is not None else None
         flowed_points = source_points + smoothed_disp
         shape_pair.flowed = Shape().set_data_with_refer_to(flowed_points, shape_pair.source)
-        wasserstein_dist = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
+        geomloss_setting = deepcopy(self.geom_loss_opt_for_eval)
+        geomloss_setting["attr"] = "points"
+        geomloss = GeomDistance(geomloss_setting)
+        wasserstein_dist = geomloss(shape_pair.flowed, shape_pair.target)
+        source_points = shape_pair.source.points
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
+        print("the current data is {}".format("synth" if batch_info["is_synth"] else "real"))
 
         if  batch_info["corr_source_target"]:
             # compute mapped acc
@@ -95,8 +122,12 @@ class DeepFeature(nn.Module):
                        "_acc":[_acc.item() for _acc in acc], "topk_acc":[_topk_acc.item() for _topk_acc in topk_acc],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         else:
-            metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
+            metrics = {"score": [_ot_dist.item() for _ot_dist in wasserstein_dist],"loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
+        if self.external_evaluate_metric is not None:
+            self.external_evaluate_metric(metrics, shape_pair, batch_info, additional_param ={"model":self}, alias="")
+            self.external_evaluate_metric(metrics, shape_pair, batch_info, {"mapped_position": mapped_position, "model":self},
+                                          "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
     def get_factor(self):
@@ -117,12 +148,11 @@ class DeepFeature(nn.Module):
 
     def forward(self, input_data, batch_info=None):
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
-        gt_flowed_points = shape_pair.target.points if batch_info["has_gt"] else \
-        shape_pair.extra_info["gt_flowed"]
+        has_gt = batch_info["has_gt"]
+        gt_flowed_points = shape_pair.target.points if not has_gt else shape_pair.extra_info["gt_flowed"]
         gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points, shape_pair.source)
         flowed, shape_pair.target = self.pair_feature_extractor(shape_pair.source, shape_pair.target)
-
-        sim_loss, reg_loss = self.loss(flowed, gt_flowed)
+        sim_loss, reg_loss = self.loss(flowed,shape_pair.target, gt_flowed, has_gt=has_gt)
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()
         sim_factor, reg_factor = self.get_factor()

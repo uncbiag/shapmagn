@@ -1,3 +1,4 @@
+from shapmagn.modules.gradient_flow_module import positional_based_gradient_flow_guide
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.deep_flow_module import *
 
@@ -53,29 +54,22 @@ class DeepDiscreteFlow(nn.Module):
     def reset(self):
         self.local_iter = self.local_iter*0
 
-
-
-    def flow(self, input_data):
+    def flow(self, shape_pair):
         """
-        The deep method doesn't support control points, and assume source.points = control_points
-        but we remain 'flow' method for ambient interpolation
-
+        if the LDDMM is used, we 1qassume the nstep=1
         :param shape_pair:
         :return:
         """
-        shape_pair = self.create_shape_pair_from_data_dict(input_data)
+
         toflow_points = shape_pair.toflow.points
         control_points = shape_pair.control_points
+        flowed_control_points = shape_pair.flowed_control_points
         control_weights = shape_pair.control_weights
-
-        moving_control_points = self.drift_buffer["moving_control_points"]
-        interped_control_points = self.self.flow_model.interp(toflow_points, control_points,
-                                                          moving_control_points, control_weights)
-        flowed_points =interped_control_points
+        flowed_points = self.flow_model.interp(toflow_points, control_points, flowed_control_points, control_weights,shape_pair.reg_param)
         flowed = Shape()
-        flowed.set_data_with_refer_to(flowed_points,shape_pair.source)
+        flowed.set_data_with_refer_to(flowed_points, shape_pair.source)
         shape_pair.set_flowed(flowed)
-        return self.decompose_shape_pair_into_dict(shape_pair)
+        return shape_pair
 
     def model_eval(self, input_data, batch_info=None):
         """
@@ -91,15 +85,15 @@ class DeepDiscreteFlow(nn.Module):
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "points"
+        use_bary_map = geomloss_setting[("use_bary_map",True,"take wasserstein baryceneter if there is little noise or outlier,  otherwise use gradient flow")]
         #in the first epoch, we would output the ot baseline, this is for analysis propose, comment the following two lines if don't needed
         if self.cur_epoch==0:
             print("In the first epoch, the validation/debugging output is the baseline ot mapping")
             shape_pair.flowed= shape_pair.source
 
-        mapped_target_index,mapped_topK_target_index, mapped_position = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target,
-                                                                           geomloss_setting)  # BxN
-        geom_loss = GeomDistance(geomloss_setting)
-        wasserstein_dist = geom_loss(shape_pair.flowed, shape_pair.target)
+        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target, geomloss_setting)  # BxN
+        gt_mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
+        mapped_position = bary_mapped_position if use_bary_map else gt_mapped_position
         source_points = shape_pair.source.points
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
@@ -116,8 +110,8 @@ class DeepDiscreteFlow(nn.Module):
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         if self.external_evaluate_metric is not None:
-            self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param = None, alias="")
-            self.external_evaluate_metric(metrics, shape_pair,batch_info, {"mapped_position":mapped_position}, "_and_gf")
+            self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param ={"model":self}, alias="")
+            self.external_evaluate_metric(metrics, shape_pair,batch_info, {"mapped_position":mapped_position,"model":self}, "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 
@@ -157,6 +151,7 @@ class DeepDiscreteFlow(nn.Module):
             reg_param = reg_param*reg_param_scale
             # moving.points = moving.points.detach()
             flowed, _reg_loss = self.flow_model(moving, reg_param)
+            additional_param.update({"source":shape_pair.source, "moving":moving})
             sim_loss += self.step_weight_list[s]*self.loss(flowed,gt_flowed,has_gt = has_gt,additional_param=additional_param)
             reg_loss += self.step_weight_list[s]*_reg_loss
             moving = Shape().set_data_with_refer_to(flowed.points.clone().detach(), flowed)

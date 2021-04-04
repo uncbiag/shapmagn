@@ -29,14 +29,9 @@ python toy_reg.py
 ```
 
 ## TODO
-6. deep feature learning
 7. confidence map
-9. test flying3d kitti dataloader
-10. test pwcnet and flot net, prnet
+10. test flot net, prnet
 11.  maxpool
 12. rewrite warp2 function in pwc
-13. test local geo constrains
 14. add transformer to geonet
-15. add local laplacian
 16. simplify the anisotropic kernel
-17. fix the color in visualizer

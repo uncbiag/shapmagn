@@ -89,7 +89,7 @@ def __do_registration(args):
     if os.path.isdir(output_root_path):
         print("the output folder {} exists, skipping copying the dataset json files".format(output_root_path))
     else:
-        print("copy dataset json files from {} to {}").format(dataset_path,output_root_path)
+        print("copy dataset json files from {} to {}".format(dataset_path,output_root_path))
         copy_tree(dataset_path,output_root_path)
     os.makedirs(task_output_path, exist_ok=True)
     tsm = init_task_env(setting_folder_path,output_root_path,task_name)

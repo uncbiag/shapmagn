@@ -157,18 +157,22 @@ class DeepFeatureLoss(nn.Module):
     def __init__(self, opt):
         super(DeepFeatureLoss,self).__init__()
         self.opt = opt
-        self.loss_type = self.opt[("loss_type", "ot_map","naive_corres / ot_corres /ot_ce/ot_soften_ce/ ot_distance/ot_map")]
+        self.loss_type = self.opt[("loss_type", "ot_map","naive_corres / ot_corres /ot_ce/ot_soften_ce/ ot_distance/ot_map/unsup_ot_map")]
         self.geomloss_setting = deepcopy(self.opt["geomloss"])
         self.geomloss_setting.print_settings_off()
-        self.geom_loss = GeomDistance(self.geomloss_setting)
-        self.pos_is_in_fea =self.opt["pos_is_in_fea",True,"the position info is in the feature this should be consistent with 'include_pos_in_final_feature' in the feature extractor model"]
-
-        self.soften_gt_sigma  =  self.opt[("soften_gt_sigma",0.005,"sigma to soften the one-hot gt")]
+        self.pos_is_in_fea = self.opt["pos_is_in_fea",True,"the position info is in the feature this should be consistent with 'include_pos_in_final_feature' in the feature extractor model"]
+        self.soften_gt_sigma = self.opt[("soften_gt_sigma",0.005,"sigma to soften the one-hot gt")]
         self.buffer = {"gt_one_hot":None, "gt_plan":None,"soften_gt_one_hot":None}
 
 
 
     def naive_corres(self, cur_source, target):
+        """
+        cur_source and target should have one-to-one ordered correspondence
+        :param cur_source:
+        :param target:
+        :return:
+        """
         points = cur_source.points
         pointfea1 = cur_source.pointfea
         pointfea2 = target.pointfea
@@ -233,6 +237,9 @@ class DeepFeatureLoss(nn.Module):
 
 
     def ot_corres(self, cur_source, target):
+        """
+        cur_source and target should have one-to-one ordered correspondence
+        """
         points = cur_source.points
         weights = cur_source.weights  # BxNx1
         gt_corres = self.compute_gt_plan(points, weights)
@@ -246,6 +253,13 @@ class DeepFeatureLoss(nn.Module):
 
 
     def ot_ce(self,cur_source, target):
+        """
+                cur_source and target should have one-to-one ordered correspondence
+
+        :param cur_source:
+        :param target:
+        :return:
+        """
         points = cur_source.points
         weights = cur_source.weights # BxNx1
         lazy_gt_one_hot = self.compute_gt_one_hot(points) if self.loss_type=="ot_ce" else self.compute_soften_gt_one_hot(points)
@@ -258,10 +272,20 @@ class DeepFeatureLoss(nn.Module):
         return torch.stack([ce_loss * factor/B]*B,0)
 
 
-    def mapped_bary_center(self,cur_source, target):
+    def mapped_bary_center(self,cur_source, target,gt_flowed):
+
         self.geomloss_setting["mode"] = "soft"
-        flowed = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
-        return (((target.points-flowed.points)**2).sum(2)*flowed.weights[...,0]).sum(1)
+        flowed,_ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
+        return (((gt_flowed.points-flowed.points)**2).sum(2)*flowed.weights[...,0]).sum(1)
+
+    def unsupervised_mapped_bary_center(self,cur_source, target,gt_flowed):
+        self.geomloss_setting["mode"] = "soft"
+        flowed,_ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
+        geomloss_setting = deepcopy(self.opt["geomloss"])
+        geomloss_setting["attr"] = "points"
+        geom_loss = GeomDistance(geomloss_setting)
+        wasserstein_dist = geom_loss(flowed, gt_flowed)
+        return wasserstein_dist
 
 
 
@@ -277,22 +301,26 @@ class DeepFeatureLoss(nn.Module):
 
 
     def ot_distance(self, cur_source, target):
-        return self.geom_loss(cur_source, target)
+        geom_loss = GeomDistance(self.geomloss_setting)
+        return geom_loss(cur_source, target)
 
 
-    def __call__(self,cur_source, target):
+    def __call__(self,cur_source, target, gt_flowed, has_gt=True):
 
         reg_loss = self.reg_loss(cur_source,target)
-        if self.loss_type=="ot_map":
-            return self.mapped_bary_center(cur_source,target), reg_loss
-        if self.loss_type == "ot_distance":
-            return self.ot_distance(cur_source, target), reg_loss
-        elif self.loss_type == "ot_corres":
-            return self.ot_corres(cur_source, target), reg_loss
-        elif self.loss_type=="ot_ce" or self.loss_type=="ot_soften_ce":
-            return self.ot_ce(cur_source, target), reg_loss
+        if has_gt:
+            if self.loss_type=="ot_map":
+                return self.mapped_bary_center(cur_source,target,gt_flowed), reg_loss
+            if self.loss_type == "ot_distance":
+                return self.ot_distance(cur_source, target), reg_loss
+            elif self.loss_type == "ot_corres":
+                return self.ot_corres(cur_source, target), reg_loss
+            elif self.loss_type=="ot_ce" or self.loss_type=="ot_soften_ce":
+                return self.ot_ce(cur_source, target), reg_loss
+            else:
+                return self.naive_corres(cur_source, target), reg_loss
         else:
-            return self.naive_corres(cur_source, target), reg_loss
+            return self.unsupervised_mapped_bary_center(cur_source, target,gt_flowed), reg_loss
 
 
 

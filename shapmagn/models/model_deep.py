@@ -71,6 +71,12 @@ class DeepModel(ModelBase):
         self.lr_scheduler_base_epoch = base_epoch
         self.lr_scheduler = scheduler_builder(self.opt_scheduler)(self.optimizer)
 
+    def reset_lr_optimizer(self, new_lr=0.001):
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = new_lr
+            param_group['initial_lr'] = new_lr
+        print(" the learning rate now is set to {}".format(new_lr))
+
     def update_learning_rate(self, new_lr=-1):
         """
         set new learning rate

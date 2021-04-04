@@ -49,7 +49,8 @@ class ShapePair():
         self.control_weights = None
         self.flowed_control_points = None
         self.dense_mode = dense_mode
-        self.extra_info = None
+        self.pair_name = None
+        self.extra_info = {}
         self.shape_type = None
         self.dimension = None
         self.nbatch = -1
@@ -61,6 +62,18 @@ class ShapePair():
         self.shape_type = self.source.type
         self.nbatch = source.nbatch
         self.dimension = source.dimension
+
+
+    def set_pair_name(self, pair_name):
+        self.pair_name = pair_name
+
+    def get_pair_name(self):
+        if self.pair_name is not None:
+            return self.pair_name
+        if len(self.source.name_list) and len(self.target.name_list):
+            self.pair_name = [s_name+"_"+t_name for s_name, t_name in zip(self.source.name_list, self.target.name_list)]
+            return self.pair_name
+        return "not_given"
 
     def set_toflow(self, toflow):
         self.toflow = toflow
@@ -74,7 +87,7 @@ class ShapePair():
 
 
     def set_extra_info(self, value, name):
-        self.extra_info[name] = value
+        self.extra_info.update({name:value})
 
     def set_flowed_control_points(self, flowed_control_points):
         self.flowed_control_points = flowed_control_points

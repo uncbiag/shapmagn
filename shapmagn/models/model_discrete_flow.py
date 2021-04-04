@@ -115,6 +115,26 @@ class DiscreteFlowOPT(nn.Module):
         shape_pair.set_flowed(flowed)
         return shape_pair
 
+
+    def flow_v2(self, shape_pair):
+        """
+
+        :param shape_pair:
+        :return:
+        """
+
+        toflow_points = shape_pair.toflow.points
+        control_points = shape_pair.control_points
+        control_weights = shape_pair.control_weights
+        flowed_control_points = shape_pair.flowed_control_weights
+
+        flowed_points = self.interp_kernel(toflow_points, control_points,
+                                                          flowed_control_points, control_weights)
+        flowed = Shape()
+        flowed.set_data_with_refer_to(flowed_points,shape_pair.source)
+        shape_pair.set_flowed(flowed)
+        return shape_pair
+
     def regularization(self,sm_flow, flow):
         dist = sm_flow * flow
         dist = dist.mean(2).mean(1)
@@ -130,7 +150,7 @@ class DiscreteFlowOPT(nn.Module):
         """
         sim_factor = self.opt[("sim_factor",100,"similarity factor")]
         init_reg_factor = self.opt[("init_reg_factor",100,"regularization factor")]
-        min_reg_factor = self.opt[("min_reg_factor",1,"min_reg_factor")]
+        min_reg_factor = self.opt[("min_reg_factor",init_reg_factor/10,"min_reg_factor")]
         decay_factor = self.opt[("decay_factor",8,"decay_factor")]
         sim_factor = sim_factor
         reg_factor_init =init_reg_factor #self.initial_reg_factor
@@ -155,6 +175,21 @@ class DiscreteFlowOPT(nn.Module):
                                                                shape_pair_low.reg_param,control_weights_low)
         self.spline_kernel.set_interp(False)
         flowed_control_points_high = interped_control_points_high+interped_control_points_disp_high
+        shape_pair_high.set_control_points(control_points_high)
+        self.init_reg_param(shape_pair_high)
+        self.drift_buffer["moving_control_points"] = flowed_control_points_high.detach().clone()
+        return shape_pair_high
+
+
+    def update_reg_param_from_low_scale_to_high_scale_v2(self, shape_pair_low, shape_pair_high):
+        """todo   do interpolation on disp"""
+        #assert self.drift_every_n_iter==-1, "the drift mode is not fully tested in multi-scale mode, disabled for now"
+        control_points_high = shape_pair_high.get_control_points()
+        control_points_low = shape_pair_low.get_control_points()
+        control_weights_low = shape_pair_low.control_weights
+        flowed_control_points_low = shape_pair_low.flowed_control_points
+        flowed_control_points_high = self.interp_kernel(control_points_high, control_points_low,
+                                                     flowed_control_points_low, control_weights_low)
         shape_pair_high.set_control_points(control_points_high)
         self.init_reg_param(shape_pair_high)
         self.drift_buffer["moving_control_points"] = flowed_control_points_high.detach().clone()

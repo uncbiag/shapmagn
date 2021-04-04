@@ -75,6 +75,7 @@ class ShapeBase(object):
         seg = args["seg"] if "seg" in args else None
         scale = args["scale"] if "scale" in args else -1
         extra_info = args["extra_info"] if "extra_info" in args else None
+
         self.points = points
         self.weights = weights
         self.landmarks = landmarks

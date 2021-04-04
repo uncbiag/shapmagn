@@ -76,7 +76,7 @@ scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto
 # normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
 # sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000)"
-sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=3000)"
+sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=30000)"
 pair_postprocess_obj = "lung_dataloader_utils.lung_pair_postprocess()"
 
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device) #reader-> normalized-> pair_post-> sampler
@@ -96,7 +96,7 @@ target = get_half_lung(target,normalize_weight=False) if compute_on_half_lung el
 
 
 shape_pair = create_shape_pair(source, target)
-
+shape_pair.set_pair_name(pair_name)
 
 
 
@@ -154,37 +154,38 @@ shape_pair = create_shape_pair(source, target)
 
 
 
-
-""" Experiment 1:  gradient flow """
-task_name = "gradient_flow"
-solver_opt = ParameterDict()
-record_path = server_path+"output/lung_demo/{}".format(task_name)
-os.makedirs(record_path,exist_ok=True)
-solver_opt["record_path"] = record_path
-solver_opt["save_2d_capture_every_n_iter"] = 1
-#solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
-model_name = "gradient_flow_opt"
-model_opt =ParameterDict()
-model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
-model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-model_opt['sim_loss']['loss_list'] =  ["geomloss"]
-model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
-
-blur = 0.01
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=None,debias=False,backend='online')".format(blur)
-model = MODEL_POOL[model_name](model_opt)
-solver = build_single_scale_model_embedded_solver(solver_opt,model)
-model.init_reg_param(shape_pair)
-shape_pair=solver(shape_pair)
-print("the registration complete")
-gif_folder = os.path.join(record_path,"gif")
-os.makedirs(gif_folder,exist_ok=True)
-saving_gif_path = os.path.join(gif_folder,task_name+".gif")
-fea_to_map =  shape_pair.source.points[0]
-shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
-mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
-analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
+#
+# """ Experiment 1:  gradient flow """
+# task_name = "gradient_flow"
+# solver_opt = ParameterDict()
+# record_path = server_path+"output/lung_demo/{}".format(task_name)
+# os.makedirs(record_path,exist_ok=True)
+# solver_opt["record_path"] = record_path
+# solver_opt["save_2d_capture_every_n_iter"] = 1
+# #solver_opt["capture_plot_obj"] = "lung_data_analysis.capture_plotter()"
+# model_name = "gradient_flow_opt"
+# model_opt =ParameterDict()
+# model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
+# model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+# model_opt['sim_loss']['loss_list'] =  ["geomloss"]
+# model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+# model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
+# model_opt["running_result_visualize"] = True
+#
+# blur = 0.01
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=None,debias=False,backend='online')".format(blur)
+# model = MODEL_POOL[model_name](model_opt)
+# solver = build_single_scale_model_embedded_solver(solver_opt,model)
+# model.init_reg_param(shape_pair)
+# shape_pair=solver(shape_pair)
+# print("the registration complete")
+# gif_folder = os.path.join(record_path,"gif")
+# os.makedirs(gif_folder,exist_ok=True)
+# saving_gif_path = os.path.join(gif_folder,task_name+".gif")
+# fea_to_map =  shape_pair.source.points[0]
+# shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
+# mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
+# analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 
 
 

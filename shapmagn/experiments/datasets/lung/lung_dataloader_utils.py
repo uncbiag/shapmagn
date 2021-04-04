@@ -61,7 +61,7 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
     :param args:
     :return:
     """
-    def uniform_sample(data_dict,index=None, fixed_random_seed=True):
+    def uniform_sample(data_dict,ind=None, fixed_random_seed=True):
         num_sample = args["num_sample"]
         if num_sample !=-1:
             points = data_dict["points"]
@@ -75,7 +75,7 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
             data_dict["pointfea"] = pointfea[index]
         return data_dict, index
 
-    def voxelgrid_sample(data_dict,index=None, fixed_random_seed=None):
+    def voxelgrid_sample(data_dict,ind=None, fixed_random_seed=None):
         scale = args["scale"]
         if scale != -1:
             points = torch.Tensor(data_dict["points"])
@@ -93,9 +93,9 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
             data_dict["pointfea"] = pointfea.numpy()
         return data_dict, index
 
-    def combine_sample(data_dict,fixed_random_seed):
-        data_dict, _ = voxelgrid_sample(data_dict,fixed_random_seed)
-        return uniform_sample(data_dict,fixed_random_seed)
+    def combine_sample(data_dict,ind=None, fixed_random_seed=True):
+        data_dict, _ = voxelgrid_sample(data_dict,ind,fixed_random_seed)
+        return uniform_sample(data_dict,ind, fixed_random_seed)
 
 
     assert method in ["uniform", "voxelgrid","combined"], "Not in supported sampler: 'uniform' / 'voxelgrid' / 'combined' "
@@ -105,8 +105,8 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
         sampler = voxelgrid_sample
     else:
         sampler = combine_sample
-    def sample(data_dict, fixed_random_seed=True):
-        return sampler(data_dict, fixed_random_seed=fixed_random_seed)
+    def sample(data_dict, ind=None, fixed_random_seed=True):
+        return sampler(data_dict, ind=ind, fixed_random_seed=fixed_random_seed)
     return sample
 
 
@@ -130,14 +130,13 @@ def lung_normalizer(**args):
         data_dict["points"] = (points-shift)/scale
         weight_scale = args["weight_scale"] if 'weight_scale' in args and args['weight_scale']!=-1 else weights.sum()
         data_dict["weights"] = weights/weight_scale  #/50000
-        # data_dict["physical_info"] ={}
-        # data_dict["physical_info"] ={'scale':scale,'shift':shift}
         return data_dict
     return normalize
 
 def lung_pair_postprocess(**kwargs):
     def postprocess(source_dict, target_dict):
         source_dict["weights"] = matching_np_radius(source_dict["weights"],target_dict["weights"])
+
         return source_dict, target_dict
     return postprocess
 

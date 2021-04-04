@@ -14,6 +14,8 @@ from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
 from shapmagn.modules.networks.flownet3d import FlowNet3D
 from shapmagn.modules.networks.pointpwcnet import PointConvSceneFlowPWC
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
+from shapmagn.metrics.losses import CurvatureReg
+
 
 
 
@@ -192,6 +194,27 @@ class FlowModel(nn.Module):
         elif self.model_type == "disp":
             self.flow_model = self.disp_forward
             self.regularization = self.disp_reg
+        self.init_interp(opt[("interp",{},"settings for interpolation mode")])
+
+
+    def init_interp(self,opt_interp):
+        if self.model_type== "disp" or self.model_type=="spline":
+            interp_kernel_obj = opt_interp[(
+            "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)",
+            "shape interpolator")]
+            self.interp_kernel = obj_factory(interp_kernel_obj)
+
+    def interp(self,toflow_points, control_points, control_value, control_weights, reg_param=None):
+        if self.model_type== "disp" or self.model_type=="spline":
+            return self.interp_kernel(toflow_points, control_points, control_value, control_weights)
+        elif self.model_type=="lddmm":
+            self.lddmm_module.set_mode("flow")
+            momentum = reg_param
+            _, _, flowed_points = self.integrator.solve((momentum, control_points, toflow_points))
+            return flowed_points
+        else:
+            raise NotImplemented
+
 
     def disp_forward(self,toflow, reg_param):
         points, weights = toflow.points, toflow.weights
@@ -205,7 +228,7 @@ class FlowModel(nn.Module):
 
 
     def init_spline(self,spline_opt):
-        spline_kernel_obj = spline_opt[("spline_kernel_obj","point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)", "shape interpolator in multi-scale solver")]
+        spline_kernel_obj = spline_opt[("spline_kernel_obj","point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)", "shape interpolator")]
         self.spline_kernel = obj_factory(spline_kernel_obj)
 
 
@@ -267,18 +290,8 @@ class DeepFlowLoss(nn.Module):
         super(DeepFlowLoss,self).__init__()
         self.opt = opt
         self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_loss")]
-        self.include_local_geo_constrain = self.opt[("include_local_geo_constrain", False,"include_local_geo_constrain")]
-        if self.include_local_geo_constrain:
-            local_pair_feature_extractor_obj = self.opt[
-                ("local_pair_feature_extractor_obj", "", "function object for local_feature_extractor")]
-            self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(
-                local_pair_feature_extractor_obj) else None
-            self.geo_loss_factor = self.opt[
-                ("geo_loss_factor", 1., "factor of geo loss")]
-        geomloss_setting = deepcopy(self.opt["geomloss"])
-        geomloss_setting["attr"] = "points"
-        self.geom_loss = GeomDistance(geomloss_setting)
-        self.buffer = {"gt_one_hot":None, "gt_plan":None}
+        self.include_curv_constrain =self.opt[("include_curv_constrain", True, "add constrain on the curvature")]
+        self.curv_factor =self.opt[("curv_factor", 1.0, "curv_factor")]
 
 
 
@@ -292,7 +305,6 @@ class DeepFlowLoss(nn.Module):
         fp = flowed.points
         tp = target.points
         fw = flowed.weights
-
         l2_loss = (((fp-tp)**2).sum(2,keepdim=True) * fw).sum(1) #todo test
         return l2_loss[...,0] # remove the last 1 dim
 
@@ -304,6 +316,9 @@ class DeepFlowLoss(nn.Module):
         :param target: shape
         :return:
         """
+        geomloss_setting = deepcopy(self.opt["geomloss"])
+        geomloss_setting["attr"] = "points"
+        self.geom_loss = GeomDistance(geomloss_setting)
         return self.geom_loss(flowed, target)
 
 
@@ -314,21 +329,33 @@ class DeepFlowLoss(nn.Module):
         :param target:
         :return:
         """
-        flowed, target = self.local_pair_feature_extractor(flowed, target)
+        local_pair_feature_extractor_obj = self.opt[
+            ("local_pair_feature_extractor_obj", "", "function object for local_feature_extractor")]
+        local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(
+            local_pair_feature_extractor_obj) else None
+        flowed, target = local_pair_feature_extractor(flowed, target)
         fp = flowed.pointfea
         tp = target.pointfea
         fw = flowed.weights
         l2_loss = (((fp - tp) ** 2).sum(2, keepdim=True) * fw).sum(1)  # todo test
-        return l2_loss[..., 0] * self.geo_loss_factor # remove the last 1 dim
+        return l2_loss[..., 0]
+
+
+    def curvature_diff(self,source, flowed, target):
+        curloss_setting = deepcopy(self.opt["curloss"])
+        curloss = GeomDistance(curloss_setting)
+        curvature_loss = curloss(source, flowed, target)
+        return curvature_loss
+
 
 
     def forward(self,flowed, target, additional_param=None, has_gt=True):
-
-        geo_loss=0. if not self.include_local_geo_constrain else self.geo_distance(flowed, target)
+        curv_reg = self.curv_factor* self.curvature_diff(additional_param["source"], flowed,
+                                       target) if self.include_curv_constrain else 0
         if not has_gt:
-            return self.ot_distance(flowed, target) + geo_loss
+            return self.ot_distance(flowed, target) + curv_reg
         if self.loss_type == "disp_l2":
-            return self.disp_l2(flowed, target) + geo_loss
+            return self.disp_l2(flowed, target) + curv_reg
 
 
 

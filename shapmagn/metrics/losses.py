@@ -9,6 +9,7 @@ from shapmagn.kernels.torch_kernels import TorchKernel
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.global_variable import Shape
 from shapmagn.utils.utils import sigmoid_decay
+from shapmagn.modules.keops_utils import KNN
 
 
 class CurrentDistance(object):
@@ -182,6 +183,54 @@ class GeomDistance(object):
         loss =  self.gemoloss(weight1,attr1,weight2,attr2)
         torch.set_grad_enabled(grad_enable_record)
         return loss
+
+class CurvatureReg(object):
+
+    def __init__(self, opt):
+        weights = opt[("weight",[0.3,1.0], "weights for curvature diff and curvature smoothness")]
+        self.w_diff = weights[0]
+        self.w_smooth = weights[1]
+    def curvature(self,pc):
+        _, index = KNN(pc, pc, 10)
+        grouped_pc = pc[index]
+        pc_curvature = torch.sum(grouped_pc - pc.unsqueeze(2), dim=2) / 9.0
+        return pc_curvature  # B N 3
+
+    def curvatureWarp(self,pc, warped_pc):
+        _, index = KNN(pc, pc, 10)
+        grouped_pc = warped_pc[index]
+        pc_curvature = torch.sum(grouped_pc - warped_pc.unsqueeze(2), dim=2) / 9.0
+        return pc_curvature  # B N 3
+
+    def interpolateCurvature(self,pc1, pc2, pc2_curvature):
+
+        sigma = 1.0
+        K_dist, index = KNN(pc1/sigma, pc2/sigma, 5)
+        grouped_pc2_curvature = pc2_curvature[index]
+        K_w = torch.functional.softmax(-K_dist)
+        inter_pc2_curvature = torch.sum(K_w * grouped_pc2_curvature, dim=2)
+        return inter_pc2_curvature
+
+    def computeSmooth(self,pc1, pred_flow):
+
+        _, index = KNN(pc1, pc1, 9)  # B N N
+        grouped_flow = pred_flow[index]
+        diff_flow = torch.norm(grouped_flow - pred_flow.unsqueeze(2), dim=3).sum(dim=2) / 8.0
+        return diff_flow
+
+    def __call__(self,source, flowed, target, epoch=None):
+        from shapmagn.modules.networks.pointpwcnet_original import curvature,curvatureWarp, computeSmooth, interpolateCurvature
+        source_points, flowed_points, target_points = source.points, flowed.points, target.points
+        cur_pc2_curvature = curvature(target_points)   #curvature of target
+        moved_pc1_curvature = curvatureWarp(source_points, flowed_points) # define the flowed curvature  where topology is  define by the source
+        smoothnessLoss = computeSmooth(source_points, flowed_points-source_points).sum(dim=1).mean()  # curvature of flow
+        inter_pc2_curvature = interpolateCurvature(flowed_points, target_points, cur_pc2_curvature) # define the flowed curvature via interpolating the neighboring target curvature
+        curvatureLoss = torch.sum((inter_pc2_curvature - moved_pc1_curvature) ** 2, dim=2).sum(dim=1).mean()  # difference between two definition of the flowed curvature
+        return self.w_smooth*smoothnessLoss+ self.w_diff*curvatureLoss
+
+
+
+
 
 class Loss():
     """

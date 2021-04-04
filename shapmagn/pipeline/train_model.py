@@ -23,7 +23,6 @@ def train_model(opt,model, dataloaders,writer, device):
     max_batch_num_per_epoch ={x: max_batch_num_per_epoch_list[i] for i, x in enumerate(phases)}
     period ={x: print_step[i] for i, x in enumerate(phases)}
     check_best_model_period =opt[('check_best_model_period',5,'save best performed model every # epoch')]
-    visual_opt = opt[('visual',{},"settings for visualziation")]
     tensorboard_print_period = { phase: min(max_batch_num_per_epoch[phase],period[phase]) for phase in phases}
     val_period = opt[('val_period',10,'do validation every num epoch')]
     warmming_up_epoch = opt[('warmming_up_epoch',2,'warming up the model in the first # epoch')]
@@ -34,7 +33,7 @@ def train_model(opt,model, dataloaders,writer, device):
     if continue_train:
         start_epoch, best_prec1, global_step= resume_train(model_path, model.get_model(),model.optimizer)
         if continue_train_lr > 0:
-            model.update_learning_rate(continue_train_lr)
+            model.reset_lr_optimizer(continue_train_lr)
             print("the learning rate has been changed into {} when resuming the training".format(continue_train_lr))
             model.rebuild_lr_scheduler(base_epoch=start_epoch)
             model.iter_count = global_step['train']

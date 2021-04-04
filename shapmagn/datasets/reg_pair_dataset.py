@@ -45,6 +45,7 @@ class RegistrationPairDataset(Dataset):
         self.pair_postprocess =  obj_factory(pair_postprocess_obj) if pair_postprocess_obj else None
         load_training_data_into_memory = option[('load_training_data_into_memory',True, "when train network, load all training sample into memory can relieve disk burden")]
         self.load_into_memory = load_training_data_into_memory if phase == 'train' else False
+        self.enlarge_dataset_size_by_factor =  option[("enlarge_dataset_size_by_factor",1.," during the training, increase the dataset size to  factor*len(dataset) ")]
 
         if self.load_into_memory:
             self._init_data_pool()
@@ -164,7 +165,7 @@ class RegistrationPairDataset(Dataset):
 
     def __len__(self):
         # to make the epoch size always meet the setting, we scale the dataset when training dataset size is too small
-        return len(self.pair_name_list)*50 if len(self.pair_name_list)<200 and self.phase=='train' else len(self.pair_name_list)
+        return int(len(self.pair_name_list)*self.enlarge_dataset_size_by_factor)
 
     def __getitem__(self, idx):
         """
@@ -216,7 +217,7 @@ class ToTensor(object):
 
     def __call__(self, sample):
         if isinstance(sample, dict):
-            return {item:torch.from_numpy(sample[item]) for item in sample}
+            return {item:ToTensor()(sample[item]) for item in sample}
         else:
             n_tensor = torch.from_numpy(sample)
             return n_tensor

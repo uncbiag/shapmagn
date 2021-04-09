@@ -30,7 +30,8 @@ KNOWN_MODULES = {
     'lr_scheduler': 'torch.optim.lr_scheduler',
     'probreg':'probreg',
     'features':'probreg.features',
-    'utils':'shapmagn.utils.utils'
+    'utils':'shapmagn.utils.utils',
+    'keops_utils':'shapmagn.modules.keops_utils'
     #'probreg.filterreg':'probreg.filterreg'
 }
 

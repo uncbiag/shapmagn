@@ -1,6 +1,20 @@
 """keops failed on multi-processing data loader,  so the synthsis process are put before the network"""
 import os, sys
+import pykeops
+import subprocess
+
+from shapmagn.utils.visualizer import visualize_point_pair_overlap
+
 sys.path.insert(0, os.path.abspath('../../../..'))
+cache_path ="/playpen/zyshen/keops_cachev2"
+os.makedirs(cache_path,exist_ok=True)
+pykeops.set_bin_folder(cache_path)  # change the build folder
+os.environ['DISPLAY'] = ':99.0'
+os.environ['PYVISTA_OFF_SCREEN'] = 'true'
+os.environ['PYVISTA_USE_IPYVTK'] = 'true'
+bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
+process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+process.wait()
 import random
 import time
 from shapmagn.experiments.datasets.lung.lung_data_analysis import *
@@ -22,24 +36,24 @@ def lung_synth_data(**kwargs):
     local_deform_aug = aug_settings[
         ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
     local_deform_aug["num_sample"] = 1000
-    local_deform_aug["disp_scale"] = 0.05
-    kernel_scale = 0.12
-    spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+    local_deform_aug["disp_scale"] = 0.03
+    kernel_scale = 0.04
+    spline_param = "cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
         kernel_scale)
     local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
         spline_param)
     grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.12
-    kernel_scale = 0.1
+    grid_spline_aug["disp_scale"] = 0.25
+    kernel_scale = 0.25
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
         kernel_scale)
     rigid_aug_settings = aug_settings[
         ("rigid_aug", {}, "settings for rigid augmentation")]
-    rigid_aug_settings["rotation_range"] = [-50,50]
+    rigid_aug_settings["rotation_range"] = [-30,30]
     rigid_aug_settings["scale_range"] = [0.8, 1.2]
-    rigid_aug_settings["translation_range"] = [-0.3,0.3]
+    rigid_aug_settings["translation_range"] = [-0.1,0.1]
 
 
     spline_aug = SplineAug(aug_settings)
@@ -84,16 +98,16 @@ def lung_aug_data(**kwargs):
     local_deform_aug = aug_settings[
         ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
     local_deform_aug["num_sample"] = 1000
-    local_deform_aug["disp_scale"] = 0.05
-    kernel_scale = 0.12
-    spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+    local_deform_aug["disp_scale"] = 0.03
+    kernel_scale = 0.04
+    spline_param = "cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
         kernel_scale)
     local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
         spline_param)
     grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
     grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.05
-    kernel_scale = 0.1
+    grid_spline_aug["disp_scale"] = 0.08
+    kernel_scale = 0.15
     grid_spline_aug[
         "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
         kernel_scale)
@@ -140,69 +154,93 @@ if __name__ == "__main__":
     device = torch.device("cpu") # cuda:0  cpu
     reader_obj = "lung_dataloader_utils.lung_reader()"
     scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-    normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
-    sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
-    use_local_mount = True
+    normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
+    sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
+    use_local_mount = False
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
-
-    dataset_json_path = "/playpen-raid1/zyshen/data/point_cloud_expri/train/pair_data.json" #home/zyshen/remote/llr11_mount
+    phase= "val"
+    dataset_json_path = "/playpen-raid1/zyshen/data/point_cloud_expri/{}/pair_data.json".format(phase) #home/zyshen/remote/llr11_mount
+    saving_output_path = "/playpen-raid1/zyshen/data/lung_data_analysis/{}/aug".format(phase)
     dataset_json_path = path_transfer(dataset_json_path)
+    saving_output_path = path_transfer(saving_output_path)
+    os.makedirs(saving_output_path,exist_ok=True)
     pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
     pair_path_list = [[pair_info["source"]["data_path"], pair_info["target"]["data_path"]] for pair_info in
                       pair_info_list]
     pair_id = 3
-    pair_path = pair_path_list[pair_id]
-    pair_path = [path_transfer(path) for path in pair_path]
-    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device,expand_bch_dim=True)
-    source, source_interval = get_obj_func(pair_path[0])
-    target, target_interval = get_obj_func(pair_path[1])
-    source_points, source_weights = source["points"], source["weights"]
-
-    # set deformation
-    aug_settings = ParameterDict()
-    aug_settings["do_local_deform_aug"] = True
-    aug_settings["do_grid_aug"] = True
-    aug_settings["plot"] = True
-
-    local_deform_aug = aug_settings[("local_deform_aug",{},"settings for uniform sampling based spline augmentation")]
-    local_deform_aug["num_sample"] = 1000
-    local_deform_aug["disp_scale"] = 0.05
-    kernel_scale = 0.12
-    spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(kernel_scale)
-    local_deform_aug['local_deform_spline_kernel_obj']="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
 
 
-    grid_spline_aug = aug_settings[("grid_spline_aug",{},"settings for grid sampling based spline augmentation")]
-    grid_spline_aug["grid_spacing"] = 0.9
-    grid_spline_aug["disp_scale"] = 0.1
-
-    rigid_aug_settings = aug_settings[("rigid_aug", {}, "settings for rigid augmentation")]
-    rigid_aug_settings["rotation_range"] = [-15, 15]
-    rigid_aug_settings["scale_range"] = [0.8, 1.2]
-    rigid_aug_settings["translation_range"] = [-0.1, 0.1]
 
 
-    kernel_scale = 0.1
-    grid_spline_aug["grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(kernel_scale)
+    pair_index_list =  list(range(len(pair_name_list)))
+    for pair_id in pair_index_list:
+        pair_path = pair_path_list[pair_id]
+        pair_path = [path_transfer(path) for path in pair_path]
+        get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device,expand_bch_dim=True)
+        source, source_interval = get_obj_func(pair_path[0])
+        target, target_interval = get_obj_func(pair_path[1])
+        source_points, source_weights = source["points"], source["weights"]
 
-    st = time.time()
-    spline_aug = SplineAug(aug_settings)
-    print("it takes {} s".format(time.time()-st))
-    spline_aug(source_points,source_weights)
+        input_data = {"source": source, "target": target}
+        create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
+        source, target = create_shape_pair_from_data_dict(input_data)
 
-    points_aug = aug_settings[
-        ("points_aug", {}, "settings for remove or add noise points")]
-    points_aug["remove_random_points"] = False
-    points_aug["add_random_point_noise"] = True
-    points_aug["add_random_weight_noise"] = True
-    points_aug["remove_random_points_by_ratio"] = 0.01
-    points_aug["add_random_point_noise_by_ratio"] = 0.01
-    points_aug["random_weight_noise_scale"] = 0.05
-    points_aug["random_noise_raidus"] = 0.1
-    points_aug["normalize_weights"] = False
-    points_aug["plot"] = True
 
-    point_aug = PointAug(points_aug)
-    point_aug(source_points,source_weights)
+        # set deformation
+        aug_settings = ParameterDict()
+        aug_settings["do_local_deform_aug"] =  True
+        aug_settings["do_grid_aug"] =  True
+        aug_settings["do_point_aug"] = True
+        aug_settings["do_rigid_aug"] =  False
+        aug_settings["plot"] = False
+        local_deform_aug = aug_settings[
+            ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
+        local_deform_aug["num_sample"] = 1000
+        local_deform_aug["disp_scale"] = 0.03
+        kernel_scale = 0.04
+        spline_param = "cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+            kernel_scale)
+        local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
+            spline_param)
+        grid_spline_aug = aug_settings[("grid_spline_aug", {}, "settings for grid sampling based spline augmentation")]
+        grid_spline_aug["grid_spacing"] = 0.9
+        grid_spline_aug["disp_scale"] = 0.25
+        kernel_scale = 0.25
+        grid_spline_aug[
+            "grid_spline_kernel_obj"] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
+            kernel_scale)
+        rigid_aug_settings = aug_settings[
+            ("rigid_aug", {}, "settings for rigid augmentation")]
+        rigid_aug_settings["rotation_range"] = [-50, 50]
+        rigid_aug_settings["scale_range"] = [0.8, 1.2]
+        rigid_aug_settings["translation_range"] = [-0.3, 0.3]
 
+
+        st = time.time()
+        spline_aug = SplineAug(aug_settings)
+        print("it takes {} s".format(time.time()-st))
+        aug_points, aug_points_weights=spline_aug(source_points,source_weights)
+
+        points_aug = aug_settings[
+            ("points_aug", {}, "settings for remove or add noise points")]
+        points_aug["remove_random_points"] = False
+        points_aug["add_random_point_noise"] = False
+        points_aug["add_random_weight_noise"] = True
+        points_aug["remove_random_points_by_ratio"] = 0.01
+        points_aug["add_random_point_noise_by_ratio"] = 0.01
+        points_aug["random_weight_noise_scale"] = 0.1
+        points_aug["random_noise_raidus"] = 0.1
+        points_aug["normalize_weights"] = False
+        points_aug["plot"] = False
+        point_aug = PointAug(points_aug)
+        aug_points, aug_points_weights, _=point_aug(aug_points, aug_points_weights)
+        aug_shape = Shape().set_data(points=aug_points,weights=aug_points_weights)
+        shape_pair = create_shape_pair(source, target)
+        shape_pair.flowed = aug_shape
+        camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+        shape_name = pair_info_list[pair_id]["source"]["name"]
+        saving_capture_path = os.path.join(saving_output_path,shape_name)
+        os.makedirs(saving_capture_path,exist_ok=True)
+        saving_capture_path = os.path.join(saving_capture_path,"{}_synth.png".format(shape_name))
+        visualize_point_pair_overlap(source_points, aug_points, source_weights, aug_points_weights, "source", "synth", rgb_on=False,  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=False)

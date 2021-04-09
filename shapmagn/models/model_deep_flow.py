@@ -56,18 +56,14 @@ class DeepDiscreteFlow(nn.Module):
 
     def flow(self, shape_pair):
         """
-        if the LDDMM is used, we 1qassume the nstep=1
+        if the LDDMM is used, we assume the nstep=1
         :param shape_pair:
         :return:
         """
 
-        toflow_points = shape_pair.toflow.points
-        control_points = shape_pair.control_points
-        flowed_control_points = shape_pair.flowed_control_points
-        control_weights = shape_pair.control_weights
-        flowed_points = self.flow_model.interp(toflow_points, control_points, flowed_control_points, control_weights,shape_pair.reg_param)
+        flowed_points = self.flow_model.flow(shape_pair)
         flowed = Shape()
-        flowed.set_data_with_refer_to(flowed_points, shape_pair.source)
+        flowed.set_data_with_refer_to(flowed_points, shape_pair.toflow)
         shape_pair.set_flowed(flowed)
         return shape_pair
 
@@ -87,14 +83,15 @@ class DeepDiscreteFlow(nn.Module):
         geomloss_setting["attr"] = "points"
         use_bary_map = geomloss_setting[("use_bary_map",True,"take wasserstein baryceneter if there is little noise or outlier,  otherwise use gradient flow")]
         #in the first epoch, we would output the ot baseline, this is for analysis propose, comment the following two lines if don't needed
-        if self.cur_epoch==0:
-            print("In the first epoch, the validation/debugging output is the baseline ot mapping")
-            shape_pair.flowed= shape_pair.source
+        source_points = shape_pair.source.points
+
+        # if self.cur_epoch==0:
+        #     print("In the first epoch, the validation/debugging output is the baseline ot mapping")
+        #     shape_pair.flowed= Shape().set_data_with_refer_to(source_points,shape_pair.source)
 
         mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target, geomloss_setting)  # BxN
         gt_mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
         mapped_position = bary_mapped_position if use_bary_map else gt_mapped_position
-        source_points = shape_pair.source.points
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
         print("the current data is {}".format("synth" if batch_info["is_synth"] else "real"))
@@ -110,8 +107,10 @@ class DeepDiscreteFlow(nn.Module):
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         if self.external_evaluate_metric is not None:
-            self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param ={"model":self}, alias="")
-            self.external_evaluate_metric(metrics, shape_pair,batch_info, {"mapped_position":mapped_position,"model":self}, "_and_gf")
+            additional_param = {"model":self, "initial_control_points":self.buffer["initial_control_points"]}
+            self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param =additional_param, alias="")
+            additional_param.update({"mapped_position": mapped_position})
+            self.external_evaluate_metric(metrics, shape_pair,batch_info, additional_param, "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 
@@ -141,18 +140,21 @@ class DeepDiscreteFlow(nn.Module):
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
         moving = shape_pair.source
         has_gt = batch_info["has_gt"]
-        gt_flowed_points = shape_pair.target.points if not has_gt else shape_pair.extra_info["gt_flowed"]
-        gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points,moving)
+        gt_flowed = Shape()
+        if has_gt:
+            gt_flowed_points =  shape_pair.extra_info["gt_flowed"]
+            gt_flowed.set_data_with_refer_to(gt_flowed_points,moving)
         sim_loss, reg_loss = 0, 0
         debug_reg_param_list = []
         for s in range(self.n_step):
-            reg_param, additional_param = self.deep_regparam_generator(moving, shape_pair.target)
-            debug_reg_param_list.append(reg_param.abs().mean())
-            reg_param = reg_param*reg_param_scale
-            # moving.points = moving.points.detach()
-            flowed, _reg_loss = self.flow_model(moving, reg_param)
+            shape_pair, additional_param = self.deep_regparam_generator(moving, shape_pair)
+            debug_reg_param_list.append(shape_pair.reg_param.abs().mean())
+            shape_pair.reg_param = shape_pair.reg_param*reg_param_scale
+            flowed, _reg_loss = self.flow_model(moving, shape_pair, additional_param)
+            if s==0:
+                self.buffer = {"initial_control_points":shape_pair.control_points.clone().detach()}
             additional_param.update({"source":shape_pair.source, "moving":moving})
-            sim_loss += self.step_weight_list[s]*self.loss(flowed,gt_flowed,has_gt = has_gt,additional_param=additional_param)
+            sim_loss += self.step_weight_list[s]*self.loss(flowed,shape_pair.target,gt_flowed,has_gt = has_gt,additional_param=additional_param)
             reg_loss += self.step_weight_list[s]*_reg_loss
             moving = Shape().set_data_with_refer_to(flowed.points.clone().detach(), flowed)
         shape_pair.flowed = flowed

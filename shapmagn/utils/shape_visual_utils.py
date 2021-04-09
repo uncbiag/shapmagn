@@ -6,7 +6,7 @@ from shapmagn.datasets.vtk_utils import convert_faces_into_file_format
 
 
 
-def save_shape_into_file(folder_path, name, ftype= "vtk", **args):
+def save_shape_into_file(folder_path, alias,pair_name, ftype= "vtk", **args):
     for key, item in args.items():
         if isinstance(item, torch.Tensor):
             args[key] = item.cpu().detach().numpy()
@@ -31,36 +31,36 @@ def save_shape_into_file(folder_path, name, ftype= "vtk", **args):
         for key, item in args.items():
             if key not in ['points','faces']:
                 data.point_arrays[key] = item[b]
-        fpath = os.path.join(folder_path, name)+"_{}.{}".format(b,ftype)
+        fpath = os.path.join(folder_path,pair_name[b] +'_'+alias+".{}".format(ftype))
         data.save(fpath)
 
 
 
-def save_shape_into_files(folder_path,name, shape):
+def save_shape_into_files(folder_path,alias, pair_name,shape):
 
     attri_dict_to_save = {"points":shape.points, "weights":shape.weights}
     attri_dict_to_save["faces"] = shape.faces if not shape.points_mode_on else None
     if shape.pointfea is not None:
         attri_dict_to_save["pointfea"] = torch.norm(shape.pointfea, 2, dim=2)
-    save_shape_into_file(folder_path,name, **attri_dict_to_save)
+    save_shape_into_file(folder_path,alias,pair_name, **attri_dict_to_save)
 
 
-def save_shape_pair_into_files(folder_path, name, shape_pair):
+def save_shape_pair_into_files(folder_path, stage_name, pair_name,shape_pair):
     if shape_pair.dimension != 3:
         return
-    folder_path = os.path.join(folder_path,name)
-    save_shape_into_files(folder_path,"source_weight",shape_pair.source)
-    save_shape_into_files(folder_path,"target_weight",shape_pair.target)
+    folder_path = os.path.join(folder_path,stage_name)
+    save_shape_into_files(folder_path,"source_weight",pair_name,shape_pair.source)
+    save_shape_into_files(folder_path,"target_weight",pair_name,shape_pair.target)
     if shape_pair.flowed is not None:
-        save_shape_into_files(folder_path, "flowed_weight", shape_pair.flowed)
-        save_shape_into_files(folder_path, "toflow_weight", shape_pair.toflow)
+        save_shape_into_files(folder_path, "flowed_weight",pair_name, shape_pair.flowed)
+        save_shape_into_files(folder_path, "toflow_weight",pair_name, shape_pair.toflow)
     if shape_pair.control_points is not None:
-        save_shape_into_file(folder_path,"control_weight",**{"points":shape_pair.control_points,"weights":shape_pair.control_weights})
+        save_shape_into_file(folder_path,"control_weight",pair_name,**{"points":shape_pair.control_points,"weights":shape_pair.control_weights})
     if shape_pair.flowed_control_points is not None:
-        save_shape_into_file(folder_path,"flowed_control_weight",**{"points":shape_pair.flowed_control_points,"weights":shape_pair.control_weights})
+        save_shape_into_file(folder_path,"flowed_control_weight",pair_name,**{"points":shape_pair.flowed_control_points,"weights":shape_pair.control_weights})
     if shape_pair.reg_param is not None and shape_pair.reg_param.shape[1] == shape_pair.source.npoints:
         reg_param_norm = shape_pair.reg_param.norm(p=2,dim=2,keepdim=True)
-        save_shape_into_file(folder_path,"reg_param",**{"points":shape_pair.control_points,"reg_param_norm":reg_param_norm, "reg_param_vector":shape_pair.reg_param})
+        save_shape_into_file(folder_path,"reg_param",pair_name,**{"points":shape_pair.control_points,"reg_param_norm":reg_param_norm, "reg_param_vector":shape_pair.reg_param})
 
 def make_sphere(npoints=6000, ndim=3,radius=None,center=None):
     if radius is None:

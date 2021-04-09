@@ -208,7 +208,7 @@ def sample_and_group_all(xyz, points):
     return new_xyz, new_points
 
 class PointNetSetAbstraction(nn.Module):
-    def __init__(self, npoint, radius, nsample, in_channel, mlp, mlp2 = [], group_all = False, include_xyz=True):
+    def __init__(self, npoint, radius, nsample, in_channel, mlp, mlp2 = [], group_all = False, include_xyz=True,cov_sigma_scale=0.02,aniso_kernel_scale=0.08, use_aniso_kernel=True):
         super(PointNetSetAbstraction, self).__init__()
         self.npoint = npoint
         self.radius = radius
@@ -227,7 +227,11 @@ class PointNetSetAbstraction(nn.Module):
                                                 nn.BatchNorm1d(out_channel)))
             last_channel = out_channel
         if group_all:
-            self.queryandgroup = pointutils.GroupAll()
+            if use_aniso_kernel:
+                self.queryandgroup =pointutils.AnisoQueryAndGroup(cov_sigma_scale=cov_sigma_scale,aniso_kernel_scale=aniso_kernel_scale, nsample=nsample, use_xyz=include_xyz)
+            else:
+                self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
+            #self.queryandgroup = pointutils.GroupAll(use_xyz=include_xyz)
         else:
             self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
 
@@ -264,7 +268,7 @@ class PointNetSetAbstraction(nn.Module):
 
         for i, conv in enumerate(self.mlp2_convs):
             new_points = F.relu(conv(new_points))
-        return new_xyz, new_points
+        return new_xyz, new_points, fps_idx if not self.group_all else None
 
 class FlowEmbedding(nn.Module):
     def __init__(self, radius, nsample, in_channel, mlp, pooling='max', corr_func='concat', knn = True):

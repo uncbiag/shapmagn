@@ -17,11 +17,12 @@ scale = 1.0
 
 
 class PointConvSceneFlowPWC(nn.Module):
-    def __init__(self, input_channel=3, initial_radius=1.,initial_npoints=2048):
+    def __init__(self, input_channel=3, initial_radius=1.,initial_npoints=2048,predict_at_low_resl=False):
         super(PointConvSceneFlowPWC, self).__init__()
 
         flow_nei = 32
         feat_nei = 16
+        self.predict_at_low_resl = predict_at_low_resl
         self.scale = scale
         # l0: 8192
         self.level0 = Conv1d(input_channel, 32)
@@ -191,9 +192,10 @@ class PointConvSceneFlowPWC(nn.Module):
         floweds =[flow0+ pc1_l0.detach(), flow1+pc1_l1.detach(), flow2+pc1_l2.detach(), flow3+pc1_l3.detach()]
         floweds = [flow.transpose(2,1).contiguous() for flow in floweds]
         fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
+        additional_param = {"control_points": pc1_l1, "control_points_idx": fps_pc1_l1,"predict_at_low_resl":self.predict_at_low_resl}
 
 
-        return flow0.transpose(2,1).contiguous(),{"floweds":floweds, "fps_pc1_idxs":fps_pc1_idxs}
+        return flow0.transpose(2,1).contiguous(),additional_param.update({"floweds":floweds, "fps_pc1_idxs":fps_pc1_idxs})
 
 
 def multiScaleLoss(pred_flows, gt_flow, fps_idxs, alpha=[0.02, 0.04, 0.08, 0.16]):

@@ -34,4 +34,7 @@ python toy_reg.py
 11.  maxpool
 12. rewrite warp2 function in pwc
 14. add transformer to geonet
-16. simplify the anisotropic kernel
+17. update control point strategy (currently farthest point sampling) maybe introduce altas control points for the lung task
+18. make the network more complicate to fit synthesis results
+19. build an atlas distribution for the weight (radius)
+20. anisotropic interpolation on spline kernel

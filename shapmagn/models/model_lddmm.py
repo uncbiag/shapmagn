@@ -96,7 +96,8 @@ class LDDMMOPT(nn.Module):
         control_points = shape_pair.control_points
         toflow_points = shape_pair.get_toflow_points()
         self.lddmm_module.set_mode("flow")
-        _, _, flowed_points = self.integrator.solve((momentum, control_points,toflow_points))
+        _, flowed_control_points, flowed_points = self.integrator.solve((momentum, control_points,toflow_points))
+        shape_pair.flowed_control_points = flowed_control_points
         flowed = Shape()
         flowed.set_data_with_refer_to(flowed_points,shape_pair.source)
         shape_pair.set_flowed(flowed)
@@ -230,9 +231,11 @@ class LDDMMOPT(nn.Module):
 
 
     def forward(self, shape_pair):
-        shape_pair = self.shooting(shape_pair)
-        flowed_has_inferred = shape_pair.infer_flowed()
-        shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
+        if shape_pair.dense_mode:
+            shape_pair = self.shooting(shape_pair)
+            shape_pair.infer_flowed()
+        else:
+            shape_pair = self.flow(shape_pair)
         flowed, target = self.extract_fea(shape_pair.flowed, shape_pair.target)
         if self.use_gradflow_guided:
             flowed, target = self.wasserstein_gradient_flow_guidence(flowed, target)

@@ -76,7 +76,7 @@ scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto
 # normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
 # sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000)"
-sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=30000)"
+sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.001,num_sample=35000)"
 pair_postprocess_obj = "lung_dataloader_utils.lung_pair_postprocess()"
 
 get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device) #reader-> normalized-> pair_post-> sampler

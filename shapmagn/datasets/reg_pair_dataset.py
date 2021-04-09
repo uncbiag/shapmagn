@@ -45,7 +45,7 @@ class RegistrationPairDataset(Dataset):
         self.pair_postprocess =  obj_factory(pair_postprocess_obj) if pair_postprocess_obj else None
         load_training_data_into_memory = option[('load_training_data_into_memory',True, "when train network, load all training sample into memory can relieve disk burden")]
         self.load_into_memory = load_training_data_into_memory if phase == 'train' else False
-        self.enlarge_dataset_size_by_factor =  option[("enlarge_dataset_size_by_factor",1.," during the training, increase the dataset size to  factor*len(dataset) ")]
+        self.enlarge_dataset_size_by_factor =  option[("enlarge_dataset_size_by_factor",100.," during the training, increase the dataset size to  factor*len(dataset) ")]
 
         if self.load_into_memory:
             self._init_data_pool()
@@ -165,7 +165,7 @@ class RegistrationPairDataset(Dataset):
 
     def __len__(self):
         # to make the epoch size always meet the setting, we scale the dataset when training dataset size is too small
-        return int(len(self.pair_name_list)*self.enlarge_dataset_size_by_factor)
+        return int(len(self.pair_name_list)*self.enlarge_dataset_size_by_factor) if self.phase=="train" else len(self.pair_name_list)
 
     def __getitem__(self, idx):
         """

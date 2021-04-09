@@ -85,3 +85,10 @@ class LungFeatureExtractor(object):
         self.iter += 1
         return flowed, target
 
+
+def get_naive_lung_feature():
+    def get_fea(flowed, target):
+        flowed.pointfea = torch.cat([flowed.points,flowed.weights*10000],-1)
+        target.pointfea = torch.cat([target.points,target.weights*10000],-1)
+        return flowed, target
+    return get_fea

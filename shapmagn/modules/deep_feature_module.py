@@ -46,16 +46,16 @@ class PointNet2FeaExtractor(nn.Module):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         pc1, pc2, feature1, feature2 = pc1.transpose(2,1).contiguous(),pc2.transpose(2,1).contiguous(), feature1.transpose(2,1).contiguous(), feature2.transpose(2,1).contiguous()
 
-        l1_pc1, l1_feature1 = self.sa1(pc1, feature1)
-        l2_pc1, l2_feature1 = self.sa2(l1_pc1, l1_feature1)
+        l1_pc1, l1_feature1,_ = self.sa1(pc1, feature1)
+        l2_pc1, l2_feature1,_ = self.sa2(l1_pc1, l1_feature1)
         l1_fnew1 = self.su1(l1_pc1, l2_pc1,l1_feature1, l2_feature1)
         l0_fnew1 = self.fp(pc1, l1_pc1, feature1, l1_fnew1)
         x = F.relu(self.bn1(l0_fnew1))
         sf = self.conv2(x)
 
 
-        l1_pc2, l1_feature2 = self.sa1(pc2, feature2)
-        l2_pc2, l2_feature2 = self.sa2(l1_pc2, l1_feature2)
+        l1_pc2, l1_feature2,_ = self.sa1(pc2, feature2)
+        l2_pc2, l2_feature2,_ = self.sa2(l1_pc2, l1_feature2)
         l1_fnew2 = self.su1(l1_pc2, l2_pc2, l1_feature2, l2_feature2)
         l0_fnew2 = self.fp(pc2, l1_pc2, feature2, l1_fnew2)
         x = F.relu(self.bn1(l0_fnew2))
@@ -108,10 +108,10 @@ class PointNet2FeaExtractor(nn.Module):
         pc1, pc2, feature1, feature2 = pc1.transpose(2, 1).contiguous(), pc2.transpose(2, 1).contiguous(), feature1.transpose(
             2, 1).contiguous(), feature2.transpose(2, 1).contiguous()
 
-        l1_pc1, l1_feature1 = self.sa1(pc1, feature1)
-        l2_pc1, l2_feature1 = self.sa2(l1_pc1, l1_feature1)
-        l3_pc1, l3_feature1 = self.sa3(l2_pc1, l2_feature1)
-        l4_pc1, l4_feature1 = self.sa4(l3_pc1, l3_feature1)
+        l1_pc1, l1_feature1,_ = self.sa1(pc1, feature1)
+        l2_pc1, l2_feature1,_ = self.sa2(l1_pc1, l1_feature1)
+        l3_pc1, l3_feature1,_ = self.sa3(l2_pc1, l2_feature1)
+        l4_pc1, l4_feature1,_ = self.sa4(l3_pc1, l3_feature1)
         l3_fnew1 = self.su1(l3_pc1, l4_pc1, l3_feature1, l4_feature1)
         l2_fnew1 = self.su2(l2_pc1, l3_pc1, l2_feature1, l3_fnew1)
         l1_fnew1 = self.su3(l1_pc1, l2_pc1, l1_feature1, l2_fnew1)
@@ -121,10 +121,10 @@ class PointNet2FeaExtractor(nn.Module):
         sf = sf.transpose(2, 1).contiguous()
 
 
-        l1_pc2, l1_feature2 = self.sa1(pc2, feature2)
-        l2_pc2, l2_feature2 = self.sa2(l1_pc2, l1_feature2)
-        l3_pc2, l3_feature2 = self.sa3(l2_pc2, l2_feature2)
-        l4_pc2, l4_feature2 = self.sa4(l3_pc2, l3_feature2)
+        l1_pc2, l1_feature2,_ = self.sa1(pc2, feature2)
+        l2_pc2, l2_feature2,_ = self.sa2(l1_pc2, l1_feature2)
+        l3_pc2, l3_feature2,_ = self.sa3(l2_pc2, l2_feature2)
+        l4_pc2, l4_feature2,_ = self.sa4(l3_pc2, l3_feature2)
         l3_fnew2 = self.su1(l3_pc2, l4_pc2, l3_feature2, l4_feature2)
         l2_fnew2 = self.su2(l2_pc2, l3_pc2, l2_feature2, l3_fnew2)
         l1_fnew2 = self.su3(l1_pc2, l2_pc2, l1_feature2, l2_fnew2)
@@ -282,6 +282,7 @@ class DeepFeatureLoss(nn.Module):
         self.geomloss_setting["mode"] = "soft"
         flowed,_ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
         geomloss_setting = deepcopy(self.opt["geomloss"])
+        geomloss_setting.print_settings_off()
         geomloss_setting["attr"] = "points"
         geom_loss = GeomDistance(geomloss_setting)
         wasserstein_dist = geom_loss(flowed, gt_flowed)

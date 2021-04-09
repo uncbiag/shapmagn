@@ -115,7 +115,8 @@ class DeepModel(ModelBase):
         batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"],
-                            "is_synth":False, "phase":phase, "epoch":self.cur_epoch}
+                            "is_synth":False, "phase":phase, "epoch":self.cur_epoch,
+                            "record_path":self.record_path}
         input_data["source"] =to_device(input_data["source"],device)
         input_data["target"] =to_device(input_data["target"],device)
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
@@ -195,10 +196,11 @@ class DeepModel(ModelBase):
 
 
 
-    def save_visual_res(self, input_data, eval_res, phase):
+    def save_visual_res(self, save_fig_on,input_data, eval_res, phase):
         scores, shape_pair = eval_res
-        save_shape_pair_into_files(self.shape_folder_3d, "{}_epoch_{}".format(phase,self.cur_epoch), shape_pair)
-        self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair)
+        save_shape_pair_into_files(self.shape_folder_3d, "{}_epoch_{}".format(phase,self.cur_epoch),self.batch_info["pair_name"], shape_pair)
+        if save_fig_on:
+            self.capture_plotter(self.shape_folder_2d, "{}_epoch_{}".format(phase, self.cur_epoch),self.batch_info["pair_name"], shape_pair)
 
 
 

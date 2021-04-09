@@ -23,6 +23,7 @@ def train_model(opt,model, dataloaders,writer, device):
     max_batch_num_per_epoch ={x: max_batch_num_per_epoch_list[i] for i, x in enumerate(phases)}
     period ={x: print_step[i] for i, x in enumerate(phases)}
     check_best_model_period =opt[('check_best_model_period',5,'save best performed model every # epoch')]
+    save_fig_on = opt[('save_fig_on',False, 'save the visualizatio results during the evaluation')]
     tensorboard_print_period = { phase: min(max_batch_num_per_epoch[phase],period[phase]) for phase in phases}
     val_period = opt[('val_period',10,'do validation every num epoch')]
     warmming_up_epoch = opt[('warmming_up_epoch',2,'warming up the model in the first # epoch')]
@@ -95,7 +96,7 @@ def train_model(opt,model, dataloaders,writer, device):
                     score, detailed_scores= model.analyze_res(val_res, cache_res=True)
                     print('val score of batch {} is {}:'.format(model.get_batch_names(),score))
                     print('val detailed scores are {}:'.format(detailed_scores))
-                    model.save_visual_res(input,val_res, phase)
+                    model.save_visual_res(save_fig_on,input,val_res, phase)
                     model.update_loss(epoch,end_of_epoch)
                     update_res(detailed_scores,running_val_score)
                     update_res({"val_score":[score]}, running_val_score)
@@ -110,7 +111,7 @@ def train_model(opt,model, dataloaders,writer, device):
                     score, detailed_scores= model.analyze_res(debug_res, cache_res=True)
                     print('debug score of batch {} is {}:'.format(model.get_batch_names(),score))
                     print('debug detailed scores are {}:'.format(detailed_scores))
-                    model.save_visual_res(input,debug_res, phase)
+                    model.save_visual_res(save_fig_on,input,debug_res, phase)
                     update_res(detailed_scores,running_debug_score)
                     update_res({"debug_score":[score]}, running_debug_score)
                     loss = score

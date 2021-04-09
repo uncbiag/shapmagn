@@ -11,7 +11,7 @@ from shapmagn.modules.networks.pointpwcnet_original import multiScaleChamferSmoo
 from shapmagn.modules.networks.scene_flow import FLOT
 from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
-from shapmagn.modules.networks.flownet3d import FlowNet3D
+from shapmagn.modules.networks.flownet3d import FlowNet3D, FlowNet3DIMP
 from shapmagn.modules.networks.pointpwcnet import PointConvSceneFlowPWC
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
 from shapmagn.metrics.losses import CurvatureReg
@@ -33,33 +33,55 @@ class DeepFlowNetRegParam(nn.Module):
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
         self.param_factor = self.opt[("param_factor",2,"control the number of factor, #params/param_factor")]
+        self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
+        self.use_aniso_kernel =  self.opt[("use_aniso_kernel",True,"use the aniso kernel in first layer feature extraction")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
 
 
     def default_local_pair_feature_extractor(self,cur_source, target):
-        cur_source.pointfea = cur_source.weights
-        target.pointfea = target.weights
+        cur_source.pointfea = cur_source.weights*10000  #todo  lung fix in future
+        target.pointfea = target.weights*10000
         return cur_source, target
 
     def init_deep_feature_extractor(self):
-        self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor)
-
-
+        self.flow_predictor = FlowNet3DIMP(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl,use_aniso_kernel=self.use_aniso_kernel)
+        #self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl)
+        # pretrained_model_path ="/playpen-raid1/zyshen/data/lung_expri/deep_flow_spline_multi_kernel_hybird_twostep_thisiscorrect/checkpoints/epoch_210_"
+        # checkpoint = torch.load(pretrained_model_path, map_location='cpu')
+        # cur_state = self.state_dict()
+        # for key in list(checkpoint["state_dict"].keys()):
+        #     if 'module.deep_regparam_generator' in key:
+        #         replaced_key = key.replace('module.deep_regparam_generator', 'flow_predictor')
+        #         if replaced_key in cur_state:
+        #             cur_state[replaced_key] = checkpoint["state_dict"].pop(key)
+        #         else:
+        #             print("")
+        # self.load_state_dict(cur_state)
     def deep_flow(self,cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         pc1, pc2, feature1, feature2 = pc1.transpose(2,1).contiguous(),pc2.transpose(2,1).contiguous(), feature1.transpose(2,1).contiguous(), feature2.transpose(2,1).contiguous()
         nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
-        return nonp_param, None
+        return nonp_param, additional_param
 
     def normalize_fea(self):
         pass
 
-    def forward(self,cur_source, target, iter=-1):
-        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
-        nonp_param,additional_param = self.deep_flow(cur_source, target)
-        return nonp_param, additional_param
+    def forward(self,cur_source, shape_pair, iter=-1):
+        cur_source, shape_pair.target = self.local_pair_feature_extractor(cur_source, shape_pair.target)
+        shape_pair.reg_param,additional_param = self.deep_flow(cur_source, shape_pair.target)
+        if self.predict_at_low_resl:
+            shape_pair.dense_mode = False
+            shape_pair.control_points = additional_param["control_points"].contiguous()
+            shape_pair.control_weights = index_points(cur_source.weights,additional_param["control_points_idx"].long()).contiguous()
+            shape_pair.toflow = cur_source
+        else:
+            shape_pair.dense_mode = True
+            shape_pair.control_points = cur_source.points
+            shape_pair.control_weights = cur_source.weights
+            shape_pair.toflow = cur_source
+        return shape_pair, additional_param
 
 
 
@@ -75,7 +97,10 @@ class DeepGeoNetRegParam(nn.Module):
         self.initial_npoints = self.opt[("initial_npoints",4096,"num of initial sampling points")]
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
+
         self.init_deep_feature_extractor()
+
         self.buffer = {}
         self.iter = 0
 
@@ -86,7 +111,7 @@ class DeepGeoNetRegParam(nn.Module):
         return cur_source, target
 
     def init_deep_feature_extractor(self):
-        self.flow_predictor =GeoFlowNet(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints)
+        self.flow_predictor =GeoFlowNet(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints,predict_at_low_resl=self.predict_at_low_resl)
 
     def deep_flow(self,cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
@@ -96,10 +121,21 @@ class DeepGeoNetRegParam(nn.Module):
     def normalize_fea(self):
         pass
 
-    def forward(self,cur_source, target, iter=-1):
-        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
-        nonp_param,additional_param = self.deep_flow(cur_source, target)
-        return nonp_param, additional_param
+    def forward(self,cur_source, shape_pair, iter=-1):
+        cur_source, shape_pair.target = self.local_pair_feature_extractor(cur_source, shape_pair.target)
+        shape_pair.reg_param,additional_param = self.deep_flow(cur_source, shape_pair.target)
+        if self.predict_at_low_resl:
+            shape_pair.dense_mode = False
+            shape_pair.control_points = additional_param["control_points"].contiguous()
+            shape_pair.control_weights = index_points(cur_source.weights,
+                                                      additional_param["control_points_idx"].long()).contiguous()
+            shape_pair.toflow = cur_source
+        else:
+            shape_pair.dense_mode = True
+            shape_pair.control_points = cur_source.points
+            shape_pair.control_weights = cur_source.weights
+            shape_pair.toflow = cur_source
+        return shape_pair, additional_param
 
 
 
@@ -116,6 +152,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.initial_npoints = self.opt[("initial_npoints",2048,"num of initial sampling points")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")]
         self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
+        self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
@@ -129,9 +166,9 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.load_pretrained_model = self.opt[("load_pretrained_model",False,"load_pretrained_model")]
         self.pretrained_model_path = self.opt[("pretrained_model_path","","path of pretrained model")]
         if not self.delploy_original_model:
-            self.flow_predictor = PointConvSceneFlowPWC(input_channel=self.input_channel, initial_radius=self.initial_radius, initial_npoints=self.initial_npoints)
+            self.flow_predictor = PointConvSceneFlowPWC(input_channel=self.input_channel, initial_radius=self.initial_radius, initial_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl)
         else:
-            self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints)
+            self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints, predict_at_low_resl= self.predict_at_low_resl)
         if self.load_pretrained_model:
             checkpoint = torch.load(self.pretrained_model_path, map_location='cpu')
             self.flow_predictor.load_state_dict(checkpoint)
@@ -140,11 +177,21 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
         return nonp_param, additional_param
 
-    def forward(self, cur_source, target, iter=-1):
-        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
-        nonp_param, additional_param = self.deep_flow(cur_source, target)
-        return nonp_param, additional_param
-
+    def forward(self, cur_source, shape_pair, iter=-1):
+        cur_source, shape_pair.target = self.local_pair_feature_extractor(cur_source, shape_pair.target)
+        shape_pair.reg_param, additional_param = self.deep_flow(cur_source, shape_pair.target)
+        if self.predict_at_low_resl:
+            shape_pair.dense_mode = False
+            shape_pair.control_points = additional_param["control_points"].contiguous()
+            shape_pair.control_weights = index_points(cur_source.weights,
+                                                      additional_param["control_points_idx"].long()).contiguous()
+            shape_pair.toflow = cur_source
+        else:
+            shape_pair.dense_mode = True
+            shape_pair.control_points = cur_source.points
+            shape_pair.control_weights =cur_source.weights
+            shape_pair.toflow = cur_source
+        return shape_pair, additional_param
 
 
 
@@ -184,7 +231,6 @@ class FlowModel(nn.Module):
         self.opt = opt
         self.model_type = opt[("model_type","spline","model type 'spline'/'lddmm'")]
         if self.model_type=="spline":
-            self.init_spline(opt["spline"])
             self.flow_model = self.spline_forward
             self.regularization = self.spline_reg
         elif self.model_type=="lddmm":
@@ -194,31 +240,45 @@ class FlowModel(nn.Module):
         elif self.model_type == "disp":
             self.flow_model = self.disp_forward
             self.regularization = self.disp_reg
+        self.init_spline(opt["spline",{},"settings for spline"])
         self.init_interp(opt[("interp",{},"settings for interpolation mode")])
 
 
     def init_interp(self,opt_interp):
         if self.model_type== "disp" or self.model_type=="spline":
             interp_kernel_obj = opt_interp[(
-            "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)",
+            "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.005)",
             "shape interpolator")]
             self.interp_kernel = obj_factory(interp_kernel_obj)
 
-    def interp(self,toflow_points, control_points, control_value, control_weights, reg_param=None):
-        if self.model_type== "disp" or self.model_type=="spline":
-            return self.interp_kernel(toflow_points, control_points, control_value, control_weights)
+    def flow(self,shape_pair):
+        toflow_points = shape_pair.toflow.points
+        if self.model_type == "disp" or self.model_type == "spline":
+            control_points = shape_pair.control_points
+            flowed_control_points = shape_pair.flowed_control_points
+            control_weights = shape_pair.control_weights
+            # interp kernel size should be different for dense_mode and non_dense_mode
+            kernel = self.interp_kernel if shape_pair.dense_mode else self.spline_kernel
+            return kernel(toflow_points, control_points, flowed_control_points, control_weights)
         elif self.model_type=="lddmm":
+            control_points = shape_pair.control_points
             self.lddmm_module.set_mode("flow")
-            momentum = reg_param
+            momentum = shape_pair.reg_param
             _, _, flowed_points = self.integrator.solve((momentum, control_points, toflow_points))
             return flowed_points
         else:
             raise NotImplemented
 
 
-    def disp_forward(self,toflow, reg_param):
-        points, weights = toflow.points, toflow.weights
-        flowed_points = points + reg_param
+
+    def disp_forward(self,toflow, shape_pair,additional_param):
+        shape_pair.flowed_control_points = shape_pair.control_points+shape_pair.reg_param
+        if shape_pair.dense_mode:
+            flowed_points = shape_pair.flowed_control_points
+        else:
+            # similar to the spline
+            flow_points = self.spline_kernel(toflow.points,shape_pair.control_points,shape_pair.reg_param, shape_pair.control_weights)
+            flowed_points = toflow.points + flow_points
         return flowed_points, None
 
     def disp_reg(self,reg_param, reg_additional_input=None):
@@ -232,19 +292,28 @@ class FlowModel(nn.Module):
         self.spline_kernel = obj_factory(spline_kernel_obj)
 
 
-    def spline_forward(self,toflow, reg_param):
+    def spline_forward(self,toflow, shape_pair,additional_param):
         """
         input the reg_param and output the displacement
         :param reg_param:
         :return:
         """
-        points, weights = toflow.points, toflow.weights
-        sm_disp = self.spline_kernel(points,points,reg_param,weights) #todo check if detach the points
-        flowed_points = points + sm_disp
-        return flowed_points, sm_disp
+        control_disp = self.spline_kernel(shape_pair.control_points,shape_pair.control_points,shape_pair.reg_param,shape_pair.control_weights)
+        shape_pair.flowed_control_points = shape_pair.control_points + control_disp
+        if shape_pair.dense_mode:
+            sm_disp = control_disp
+            flowed_points = shape_pair.flowed_control_points
+        else:
+            sm_disp = self.spline_kernel(toflow.points,shape_pair.control_points,shape_pair.reg_param,shape_pair.control_weights) #todo check if detach the points
+            flowed_points = toflow.points + sm_disp
+        return flowed_points, (sm_disp, toflow)
 
-    def spline_reg(self,disp, sm_disp):
-        dist = sm_disp * disp
+    def spline_reg(self,disp, reg_additional_input):
+        # sm_disp, toflow = reg_additional_input
+        # toflow_points, to_flow_weights = toflow.points, toflow.weights
+        # sm_disp = self.spline_kernel(toflow_points,toflow_points,disp,to_flow_weights)
+        # dist = disp * sm_disp
+        dist = disp**2
         dist = dist.sum(2).mean(1)
         return dist
 
@@ -256,18 +325,25 @@ class FlowModel(nn.Module):
         self.lddmm_module = LDDMMHamilton(lddmm_opt[("hamiltonian", {}, "settings for hamiltonian")]) \
             if self.module_type == 'hamiltonian' else LDDMMVariational(
             lddmm_opt[("variational", {}, "settings for variational")])
-        self.lddmm_module.set_mode("shooting")
         self.lddmm_kernel = self.lddmm_module.kernel
         self.integrator_opt = lddmm_opt[("integrator", {}, "settings for integrator")]
         self.integrator = ODEBlock(self.integrator_opt)
         self.integrator.set_func(self.lddmm_module)
 
-    def lddmm_forward(self, toflow, reg_param):
+    def lddmm_forward(self, toflow, shape_pair,additional_param):
         toflow_points = toflow.points
-        momentum = reg_param
-        momentum = momentum.clamp(-0.5, 0.5)
-        _, flowed_points = self.integrator.solve((momentum, toflow_points))
-        return flowed_points, toflow_points
+        momentum = shape_pair.reg_param
+        momentum = momentum.clamp(-0.5, 0.5) #todo   should be set in class attribute
+        if shape_pair.dense_mode:
+            self.lddmm_module.set_mode("shooting")
+            _, flowed_control_points = self.integrator.solve((momentum, shape_pair.control_points))
+            flowed_points = flowed_control_points
+            shape_pair.flowed_control_points = flowed_control_points
+        else:
+            self.lddmm_module.set_mode("flow")
+            _, flowed_control_points, flowed_points = self.integrator.solve((momentum, shape_pair.control_points, toflow_points))
+            shape_pair.flowed_control_points = flowed_control_points
+        return flowed_points, shape_pair.control_points
 
     def lddmm_reg(self,momentum, toflow_points):
         momentum = momentum.clamp(-0.5, 0.5)
@@ -276,10 +352,10 @@ class FlowModel(nn.Module):
         return dist
 
 
-    def forward(self, source, reg_param):
-        flowed_points, reg_additional_input = self.flow_model(source,reg_param)
-        reg_loss = self.regularization(reg_param, reg_additional_input)
-        flowed = Shape().set_data_with_refer_to(flowed_points,source)
+    def forward(self, cur_source, shape_pair, additional_param):
+        flowed_points, reg_additional_input = self.flow_model(cur_source,shape_pair,additional_param)
+        reg_loss = self.regularization(shape_pair.reg_param, reg_additional_input)
+        flowed = Shape().set_data_with_refer_to(flowed_points,cur_source)
         return flowed , reg_loss
 
 
@@ -290,7 +366,7 @@ class DeepFlowLoss(nn.Module):
         super(DeepFlowLoss,self).__init__()
         self.opt = opt
         self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_loss")]
-        self.include_curv_constrain =self.opt[("include_curv_constrain", True, "add constrain on the curvature")]
+        self.include_curv_constrain =self.opt[("include_curv_constrain", False, "add constrain on the curvature")]
         self.curv_factor =self.opt[("curv_factor", 1.0, "curv_factor")]
 
 
@@ -317,6 +393,7 @@ class DeepFlowLoss(nn.Module):
         :return:
         """
         geomloss_setting = deepcopy(self.opt["geomloss"])
+        geomloss_setting.print_settings_off()
         geomloss_setting["attr"] = "points"
         self.geom_loss = GeomDistance(geomloss_setting)
         return self.geom_loss(flowed, target)
@@ -343,19 +420,19 @@ class DeepFlowLoss(nn.Module):
 
     def curvature_diff(self,source, flowed, target):
         curloss_setting = deepcopy(self.opt["curloss"])
-        curloss = GeomDistance(curloss_setting)
+        curloss = CurvatureReg(curloss_setting)
         curvature_loss = curloss(source, flowed, target)
         return curvature_loss
 
 
 
-    def forward(self,flowed, target, additional_param=None, has_gt=True):
+    def forward(self,flowed, target, gt_flowed, additional_param=None, has_gt=True):
         curv_reg = self.curv_factor* self.curvature_diff(additional_param["source"], flowed,
                                        target) if self.include_curv_constrain else 0
         if not has_gt:
             return self.ot_distance(flowed, target) + curv_reg
         if self.loss_type == "disp_l2":
-            return self.disp_l2(flowed, target) + curv_reg
+            return self.disp_l2(flowed, gt_flowed) + curv_reg
 
 
 
@@ -402,11 +479,11 @@ class PWCLoss(nn.Module):
 
 
 
-    def forward(self,flowed, target, additional_param=None, has_gt=True):
+    def forward(self,flowed, target,gt_flowed, additional_param=None, has_gt=True):
         if self.use_self_supervised_loss:
             return self.chamfer_self_loss(flowed, target, additional_param)
         elif has_gt:
-            return self.multiScaleLoss(flowed, target, additional_param)
+            return self.multiScaleLoss(flowed, gt_flowed, additional_param)
         else:
             raise NotImplemented
 

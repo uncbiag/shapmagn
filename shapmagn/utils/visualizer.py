@@ -307,7 +307,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
 
 
-def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, show=True):
+def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, add_bg_contrast=True,show=True):
     points1 = format_input(points1)
     points2 = format_input(points2)
     points3 = format_input(points3)
@@ -347,12 +347,13 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
         geom = pv.Arrow(tip_radius=0.03, shaft_radius=0.015)
         arrows =  obj1.glyph( orient="flow",geom=geom)
         p.add_mesh(arrows,color="black",opacity=0.3)
-    p.add_mesh(obj1,
-               color="gray",
-               point_size=10,
-               render_points_as_spheres=True,
-               opacity=0.05,
-               style="points", show_scalar_bar=True)
+    if add_bg_contrast:
+        p.add_mesh(obj1,
+                   color="gray",
+                   point_size=10,
+                   render_points_as_spheres=True,
+                   opacity=0.05,
+                   style="points", show_scalar_bar=True)
 
     p.add_mesh(pv.PolyData(points2),
                scalars=color_adaptive(feas2),
@@ -367,12 +368,13 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
     p.subplot(0, 2)
     p.add_text(title3, font_size=18)
-    p.add_mesh(pv.PolyData(points1),
-               color="gray",
-               point_size=10,
-               render_points_as_spheres=True,
-               opacity=0.05,
-               style="points", show_scalar_bar=True)
+    if add_bg_contrast:
+        p.add_mesh(pv.PolyData(points1),
+                   color="gray",
+                   point_size=10,
+                   render_points_as_spheres=True,
+                   opacity=0.05,
+                   style="points", show_scalar_bar=True)
 
     p.add_mesh(pv.PolyData(points3),
                scalars=color_adaptive(feas3),
@@ -409,10 +411,11 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
         p.camera_position = camera_pos
     # Set a camera position to all linked views
  #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453), (0.0, 0.0, 0.0), (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
-
+ #    [(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
 
     if show:
-        p.show(auto_close=False)
+        cur_pos=p.show(auto_close=False)
+        print(cur_pos)
     if saving_capture_path:
         #p.show(screenshot=saving_capture_path)
         p.screenshot(saving_capture_path)
@@ -490,7 +493,7 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
     return p
 
 
-def capture_plotter(render_by_weight=False, camera_pos=None):
+def capture_plotter(render_by_weight=False, camera_pos=None,add_bg_contrast=True):
     def save(record_path,stage_suffix,pair_name_list, shape_pair):
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
         # due to the bug of vtk 9.0, at most around 200+ plots can be saved, so this function would be safe if calling less than 50 times
@@ -503,12 +506,12 @@ def capture_plotter(render_by_weight=False, camera_pos=None):
             if render_by_weight:
                 visualize_source_flowed_target_overlap(sp,fp, tp,
                                              sw, fw, tw,
-                                             title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path,camera_pos=camera_pos, show=False)
+                                             title1="source",title2="flowed",title3="target", rgb_on=False,saving_capture_path=path,camera_pos=camera_pos,add_bg_contrast=add_bg_contrast, show=False)
             else:
                 visualize_source_flowed_target_overlap(sp, fp, tp,
                                                        sp, sp, tp,
                                                        title1="source", title2="flowed", title3="target", rgb_on=True,
-                                                       saving_capture_path=path, camera_pos=camera_pos,show=False)
+                                                       saving_capture_path=path, camera_pos=camera_pos,add_bg_contrast=add_bg_contrast,show=False)
             cp_command = "cp {} {}".format(path, os.path.join(stage_folder, pair_name + "_flowed_target.png"))
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
     return save

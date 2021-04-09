@@ -96,6 +96,9 @@ class DeepFeature(nn.Module):
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "pointfea"
+        if self.cur_epoch==0:
+            print("In the first epoch, the validation/debugging output is the baseline ")
+            geomloss_setting["attr"] = "points"
         mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(shape_pair.source, shape_pair.target,  geomloss_setting)  # BxN
         mapped_position = bary_mapped_position
         source_points = shape_pair.source.points
@@ -125,8 +128,13 @@ class DeepFeature(nn.Module):
             metrics = {"score": [_ot_dist.item() for _ot_dist in wasserstein_dist],"loss": [_loss.item() for _loss in loss],
                        "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
         if self.external_evaluate_metric is not None:
-            self.external_evaluate_metric(metrics, shape_pair, batch_info, additional_param ={"model":self}, alias="")
-            self.external_evaluate_metric(metrics, shape_pair, batch_info, {"mapped_position": mapped_position, "model":self},
+            shape_pair.control_points = shape_pair.source.points
+            shape_pair.control_weights = shape_pair.source.weights
+            shape_pair.flowed_control_points = shape_pair.flowed.points
+            additional_param = {"model":self, "initial_control_points":shape_pair.source.points}
+            self.external_evaluate_metric(metrics, shape_pair, batch_info, additional_param =additional_param, alias="")
+            additional_param.update({"mapped_position": mapped_position})
+            self.external_evaluate_metric(metrics, shape_pair, batch_info, additional_param,
                                           "_and_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 

@@ -21,15 +21,58 @@ def get_pair(source_path, target_path):
     return source_obj, target_obj
 
 
-def plot_pair_weight_distribution(source_weight, target_weight, use_log=False):
+def plot_pair_weight_distribution(source_weight, target_weight, use_log=False, title="",show=True,save_path=None):
     plt.style.use('bmh')
     fig, ax = plt.subplots()
     source_weight = np.log(source_weight) if use_log else source_weight
     target_weight = np.log(target_weight) if use_log else target_weight
     ax.hist(source_weight, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
     ax.hist(target_weight, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
-    ax.set_title('weight' if not use_log else "log_weight")
-    plt.show()
+    title += 'weight' if not use_log else "log_weight"
+    ax.set_title(title)
+    if show:
+        plt.show()
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+    plt.clf()
+
+def plot_pair_weight_distribution_before_and_after_radius_matching(source_weight1, target_weight1,source_weight2, target_weight2, use_log=False, title="",show=True,save_path=None):
+    plt.style.use('bmh')
+
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    ax0, ax1 ,ax2, ax3= axes.flatten()
+    source_weight_matched1 = matching_np_radius(source_weight1, target_weight1)
+    smw_sum1, sw_sum1, tp_sum1 = source_weight_matched1.sum(), source_weight1.sum(), target_weight1.sum()
+
+    source_weight1 = np.log(source_weight1) if use_log else source_weight1
+    target_weight1 = np.log(target_weight1) if use_log else target_weight1
+    ax0.hist(source_weight1, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
+    ax0.hist(target_weight1, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
+    ax0.set_title("sw_sum: {:.3f}, tp_sum:{:.3f}".format(sw_sum1,tp_sum1),fontsize=10)
+    source_weight_matched1 = np.log(source_weight_matched1) if use_log else source_weight_matched1
+    ax1.hist(source_weight_matched1, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
+    ax1.hist(target_weight1, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
+    ax1.set_title("smw_sum: {:.3f}, tp_sum:{:.3f}".format(smw_sum1,tp_sum1),fontsize=10)
+
+    source_weight_matched2 = matching_np_radius(source_weight2, target_weight2)
+    smw_sum2, sw_sum2, tp_sum2 = source_weight_matched2.sum(), source_weight2.sum(), target_weight2.sum()
+    source_weight2 = np.log(source_weight2) if use_log else source_weight2
+    target_weight2 = np.log(target_weight2) if use_log else target_weight2
+    ax2.hist(source_weight2, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
+    ax2.hist(target_weight2, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
+    ax2.set_title("sw_sum: {:.3f}, tp_sum:{:.3f}".format(sw_sum2, tp_sum2),fontsize=10)
+    source_weight_matched2 = np.log(source_weight_matched2) if use_log else source_weight_matched2
+    ax3.hist(source_weight_matched2, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
+    ax3.hist(target_weight2, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
+    ax3.set_title("smw_sum: {:.3f}, tp_sum:{:.3f}".format(smw_sum2, tp_sum2),fontsize=10)
+
+
+    fig.subplots_adjust(hspace=0.3)
+    fig.suptitle(title)
+    if show:
+        plt.show()
+    if save_path:
+        plt.savefig(save_path, dpi=300)
     plt.clf()
 
 def get_half_lung(lung, normalize_weight=False):
@@ -323,58 +366,62 @@ def analysis_large_vessel(source, target, source_weight_transform=source_weight_
 
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
-    device = torch.device("cuda:0") # cuda:0  cpu
+    device = torch.device("cpu") # cuda:0  cpu
     reader_obj = "lung_dataloader_utils.lung_reader()"
-    scale = 80  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
-    normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
-    sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.001)"
+    normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
+
+
     use_local_mount = True
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
 
-    dataset_json_path = "/home/zyshen/remote/llr11_mount/zyshen/data/point_cloud_expri/train/pair_data.json"
+    dataset_json_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/val/pair_data.json"
     dataset_json_path = path_transfer(dataset_json_path)
     pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
     pair_path_list = [[pair_info["source"]["data_path"], pair_info["target"]["data_path"]] for pair_info in
                       pair_info_list]
     pair_id = 3
-    pair_path = pair_path_list[pair_id]
-    pair_path = [path_transfer(path) for path in pair_path]
-    source, target = get_pair(*pair_path)
-    source_weight, target_weight = source["weights"].squeeze().cpu().numpy(), target["weights"].squeeze().cpu().numpy()
-    #plot_pair_weight_distribution(source_weight, target_weight, use_log=True)
-    #plot_pair_weight_distribution(source_weight/source_weight.sum(), target_weight/target_weight.sum(), use_log=True)
+    output_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_data_analysis/val"
+    for pair_id in range(len(pair_name_list)):
+        pair_path = pair_path_list[pair_id]
+        pair_path = [path_transfer(path) for path in pair_path]
+        sampler_obj = "lung_dataloader_utils.lung_sampler( method='voxelgrid',scale=0.001)"
+        source, target = get_pair(*pair_path)
+        source_vg_weight, target_vg_weight = source["weights"].squeeze().cpu().numpy(), target["weights"].squeeze().cpu().numpy()
+        title = pair_name_list[pair_id] + "_" +"n_sp:{} ".format(len(source_vg_weight))+"n_tp:{}".format(len(target_vg_weight))
+        sampler_obj ="lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
+        source, target = get_pair(*pair_path)
+        source_combined_weight, target_combined_weight = source["weights"].squeeze().cpu().numpy(), target["weights"].squeeze().cpu().numpy()
+        saving_folder_path = os.path.join(output_path,pair_name_list[pair_id])
+        os.makedirs(saving_folder_path,exist_ok=True)
+        saving_file_path = os.path.join(saving_folder_path,pair_name_list[pair_id]+"_weights_distribution.png")
+        #plot_pair_weight_distribution_before_and_after_radius_matching(source_vg_weight, target_vg_weight,source_combined_weight,target_combined_weight, use_log=True,title=title,show=False,save_path=saving_file_path)
 
-    input_data = {"source": source, "target": target}
-    create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
-    source, target = create_shape_pair_from_data_dict(input_data)
-
-
-
-    matching_shape_radius(source, target)
-    source_sampled, target_sampled = sampled_via_radius(source, target)
-    interp_target_weights = hist_match(source_sampled.weights.squeeze().cpu().numpy(),
-                                       target_sampled.weights.squeeze().cpu().numpy())
-    plot_pair_weight_distribution(source_weight, interp_target_weights, use_log=True)
-
-    #plot_pair_weight_distribution(source_sampled.weights.squeeze().cpu().numpy(), target_sampled.weights.squeeze().cpu().numpy(), use_log=True)
-
-
-
-    shape_pair = create_shape_pair(source, target)
-    source_half = get_half_lung(source)
-    target_half = get_half_lung(target)
-    cleaned_source_half = lung_isolated_leaf_clean_up(source_half,radius=0.02, principle_weight=[2,1,1], normalize_weights=False)
-    # visualize_point_pair(source_half.points, cleaned_source_half.points,
-    #                      source_weight_transform(source_half.weights),
-    #                      source_weight_transform(cleaned_source_half.weights),
-    #                      title1="source", title2="cleaned_source", rgb_on=False)
-    #
-    # plot_pair_weight_distribution(source_weight_transform(source_half.weights).cpu().squeeze().numpy(),
-    #                               target_weight_transform(target_half.weights).cpu().squeeze().numpy(),
-    #                               use_log=True)
-
-    visualize_point_pair(source_half.points, target_half.points,
-                         source_weight_transform(source_half.weights),
-                         target_weight_transform(target_half.weights),
+        visualize_point_pair(source["points"], target["points"],
+                        source["weights"],
+                         target["weights"],
                          title1="source", title2="target", rgb_on=False)
+
+
+
+
+
+    #
+    #
+    # shape_pair = create_shape_pair(source, target)
+    # source_half = get_half_lung(source)
+    # target_half = get_half_lung(target)
+    # cleaned_source_half = lung_isolated_leaf_clean_up(source_half,radius=0.02, principle_weight=[2,1,1], normalize_weights=False)
+    # # visualize_point_pair(source_half.points, cleaned_source_half.points,
+    # #                      source_weight_transform(source_half.weights),
+    # #                      source_weight_transform(cleaned_source_half.weights),
+    # #                      title1="source", title2="cleaned_source", rgb_on=False)
+    # #
+    # # plot_pair_weight_distribution(source_weight_transform(source_half.weights).cpu().squeeze().numpy(),
+    # #                               target_weight_transform(target_half.weights).cpu().squeeze().numpy(),
+    # #                               use_log=True)
+    #
+    # visualize_point_pair(source_half.points, target_half.points,
+    #                      source_weight_transform(source_half.weights),
+    #                      target_weight_transform(target_half.weights),
+    #                      title1="source", title2="target", rgb_on=False)

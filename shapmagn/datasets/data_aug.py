@@ -16,10 +16,15 @@ def visualize(points, deformed_points, point_weights=None, deformed_point_weight
     #                              flowed_weight_transform(point_weights, True),
     #                              target_weight_transform(deformed_point_weights, True),
     #                              title1="original", title2="deformed", rgb_on=False)
+
     visualize_point_pair_overlap(points, deformed_points,
-                                 points,
-                                 deformed_points,
-                                 title1="original", title2="deformed", rgb_on=True)
+                                 point_weights,
+                                 deformed_point_weights,
+                                 title1="original", title2="deformed", rgb_on=False)
+    # visualize_point_pair_overlap(points, deformed_points,
+    #                              points,
+    #                              deformed_points,
+    #                              title1="original", title2="deformed", rgb_on=True)
 
 
 

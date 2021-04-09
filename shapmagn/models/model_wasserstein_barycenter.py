@@ -8,22 +8,24 @@ from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
 from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad
-class GradientFlowOPT(nn.Module):
-    """
-    this class implement a gradient flow solver for point cloud registration
-    it is based on the Wasserstein gradient flow
 
-    disp = - \frac{1}{\alpha_{i}} \nabla_{x_{i}} {Loss}\left(\frac{1}{N} \sum_{i=1}^{N} \delta_{x_{i}(t)}, \frac{1}{M} \sum_{j=1}^{M} \delta_{y_{j}}\right)
+
+class WasserBaryCenterOPT(nn.Module):
+    """
+    this class implement Wasserstein Barycenter Mapping for point cloud registration
+    compared with gradient flow, the barycenter supports high dimension feature mapping
 
     """
     def __init__(self, opt):
-        super(GradientFlowOPT, self).__init__()
+        super(WasserBaryCenterOPT, self).__init__()
         self.opt = opt
         interpolator_obj = self.opt[("interpolator_obj","point_interpolator.nadwat_kernel_interpolator(scale=0.1, exp_order=2)", "shape interpolator in multi-scale solver")]
         self.interp_kernel = obj_factory(interpolator_obj)
         assert self.opt["sim_loss"]['loss_list'] == ["geomloss"]
-        self.sim_loss_fn = GeomDistance(self.opt["sim_loss"]["geomloss"])
+        self.geom_loss_setting = self.opt["sim_loss"]["geomloss"]
         self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {}, "settings for sim_loss_opt, the sim_loss here is not used for optimization but for evaluation")]
+        pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
+        self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
         external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "", "external evaluate metric")]
         self.external_evaluate_metric = obj_factory(
             external_evaluate_metric_obj) if external_evaluate_metric_obj else None
@@ -86,17 +88,15 @@ class GradientFlowOPT(nn.Module):
         return flowed, target
 
     def extract_fea(self, flowed, target):
-        """todo disabled, Gradient Flow doesn't support feature extraction"""
-        return self.extract_point_fea(flowed, target)
+        """DiscreteFlowOPT supports feature extraction"""
+        if not self.pair_feature_extractor:
+            return self.extract_point_fea(flowed, target)
+        else:
+            return self.pair_feature_extractor(flowed, target, self.global_iter)
 
 
     def forward(self, shape_pair):
         """
-        reg_param here is the moving points
-        flowed_control(t) = reg_param(t)
-        flowed(t) = interpolate(flowed_control(t))
-        grad_on_reg_param(t) = Gradient(sim_loss(flowed(t),target)
-        reg_param(t) += -(grad_on_reg_param)/control_weights
         :param shape_pair:
         :return:
         """
@@ -105,17 +105,17 @@ class GradientFlowOPT(nn.Module):
         flowed_has_inferred = shape_pair.infer_flowed()
         shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
         shape_pair.flowed, shape_pair.target = self.extract_fea(shape_pair.flowed, shape_pair.target)
-        sim_loss = self.sim_loss_fn( shape_pair.flowed, shape_pair.target)
-        loss = sim_loss
-        print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.item(),))
-        grad_reg_param = grad(loss,shape_pair.reg_param)[0]
-        shape_pair.reg_param = shape_pair.reg_param - grad_reg_param/(shape_pair.control_weights)
+        geom_loss_setting = deepcopy(self.geom_loss_setting)
+        geom_loss_setting["attr"] = "pointfea"
+        geom_loss_setting["mode"] = "soft"
+        flowed, _ = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target, self.geom_loss_setting)  # BxN
+        shape_pair.reg_param = flowed.points
         shape_pair.reg_param.detach_()
         shape_pair.set_flowed_control_points(shape_pair.reg_param.clone())
         shape_pair.infer_flowed()
         shape_pair.reg_param.requires_grad = True
         self.iter +=1
-        return loss.detach()
+        return torch.Tensor(-1)  # todo return the wasserstein distance
 
 
     def model_eval(self, shape_pair, batch_info=None):

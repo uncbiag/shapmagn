@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from shapmagn.global_variable import Shape
 from shapmagn.datasets.vtk_utils import read_vtk
+from shapmagn.shape.point_interpolator import NadWatIsoSpline
+from shapmagn.utils.shape_visual_utils import save_shape_into_files
 
 """
 
@@ -72,13 +74,12 @@ SCALE=100
 
 
 dirlab_landmarks_folder_path  = "/playpen-raid1/Data/copd/processed/landmark_processed"
-def get_flowed(to_flowed_points, shape_pair, flow_fn):
-    toflow = Shape()
-    toflow.set_data(points=to_flowed_points)
-    shape_pair.set_toflow(toflow)
-    shape_pair.control_weights = torch.ones_like(shape_pair.control_weights) / shape_pair.control_weights.shape[1]
-    flowed  = flow_fn(shape_pair)
-    return flowed
+def get_flowed(shape_pair, interp_kernel):
+    flowed_points = interp_kernel(shape_pair.toflow.points, shape_pair.source.points, shape_pair.flowed.points, shape_pair.source.weights)
+    flowed = Shape()
+    flowed.set_data_with_refer_to(flowed_points, shape_pair.toflow)
+    shape_pair.set_flowed(flowed)
+    return shape_pair
 
 
 
@@ -88,7 +89,10 @@ def get_landmarks(source_landmarks_path,target_landmarks_path):
     return source_landmarks, target_landmarks
 
 
-def eval_landmark(model,shape_pair, batch_info):
+
+
+
+def eval_landmark(model,shape_pair, batch_info,alias, eval_ot_map=False):
     s_name_list = batch_info["source_info"]["name"]
     t_name_list = batch_info["target_info"]["name"]
     landmarks_toflow_list, target_landmarks_list = [], []
@@ -96,23 +100,29 @@ def eval_landmark(model,shape_pair, batch_info):
         source_landmarks_path = os.path.join(dirlab_landmarks_folder_path,s_name+".vtk")
         target_landmarks_path = os.path.join(dirlab_landmarks_folder_path,t_name+".vtk")
         landmarks_toflow, target_landmarks = get_landmarks(source_landmarks_path,target_landmarks_path)
-        landmarks_toflow = landmarks_toflow-np.array(CENTER[s_name])/SCALE
-        target_landmarks = target_landmarks-np.array(CENTER[t_name])/SCALE
+        landmarks_toflow = (landmarks_toflow-np.array(CENTER[s_name]))/SCALE
+        target_landmarks = (target_landmarks-np.array(CENTER[t_name]))/SCALE
         landmarks_toflow_list.append(landmarks_toflow)
         target_landmarks_list.append(target_landmarks)
     device =  shape_pair.source.points.device
     flowed_cp = shape_pair.flowed
-    shape_pair.control_points = shape_pair.source.points
-    shape_pair.control_weights = shape_pair.source.weights
-    shape_pair.flowed_control_points = shape_pair.flowed.points
     landmarks_toflow = torch.Tensor(np.stack(landmarks_toflow_list,0)).to(device)
-    target_landmarks = torch.Tensor(np.stack(target_landmarks_list,0)).to(device)
+    target_landmarks_points = torch.Tensor(np.stack(target_landmarks_list,0)).to(device)
     shape_pair.toflow = Shape().set_data(points=landmarks_toflow, weights= torch.ones_like(landmarks_toflow))
-    shape_pair = model.flow(shape_pair)
-    flowed_landmarks = shape_pair.flowed.points
+    gt_landmark = Shape().set_data(points=target_landmarks_points, weights= torch.ones_like(target_landmarks_points))
+    if not eval_ot_map:
+        shape_pair = model.flow(shape_pair)
+    else:
+        flowed_points = NadWatIsoSpline(exp_order=2,kernel_scale=0.005)
+        shape_pair = get_flowed(shape_pair,flowed_points)
+    flowed_landmarks_points = shape_pair.flowed.points
+    record_path = os.path.join(batch_info["record_path"], "3d", "{}_epoch_{}".format(batch_info["phase"],batch_info["epoch"]))
+    save_shape_into_files(record_path, "landmark"+alias+"_toflow",batch_info["pair_name"], shape_pair.toflow)
+    save_shape_into_files(record_path, "landmark"+alias+"_flowed",batch_info["pair_name"], shape_pair.flowed)
+    save_shape_into_files(record_path, "landmark"+alias+"_target",batch_info["pair_name"], gt_landmark)
     shape_pair.flowed  = flowed_cp # compatible to save function
     shape_pair.toflow = None  # compatible to save function
-    return (target_landmarks - flowed_landmarks)*SCALE
+    return (target_landmarks_points - flowed_landmarks_points)*SCALE
 
 
 
@@ -120,16 +130,20 @@ def eval_landmark(model,shape_pair, batch_info):
 def evaluate_res():
     def eval(metrics, shape_pair, batch_info, additional_param=None, alias=''):
         phase = batch_info["phase"]
-        if phase=="val":
+        if phase=="val" or phase=="test":
             model = additional_param["model"]
-            if additional_param is not None and "mapped_position" in additional_param:
+            flowed_points_cp= shape_pair.flowed.points
+            shape_pair.control_points = additional_param["initial_control_points"]
+            eval_ot_map = "mapped_position" in additional_param
+            if additional_param is not None and eval_ot_map:
                 shape_pair.flowed.points = additional_param["mapped_position"]
-            diff = eval_landmark(model, shape_pair,batch_info)
+            diff = eval_landmark(model, shape_pair,batch_info,alias, eval_ot_map=eval_ot_map)
             diff_var = (diff-diff.mean(1,keepdim=True))**2
             diff_var = diff_var.sum(2).mean(1)
             diff_norm_mean = diff.norm(p=2,dim=2).mean(1)
-            metrics.update({"lmk_diff_mean":[_diff_norm_mean.item() for _diff_norm_mean in diff_norm_mean],
-                            "lmk_diff_var":[_diff_var.item() for _diff_var in diff_var]})
+            metrics.update({"lmk_diff_mean"+alias:[_diff_norm_mean.item() for _diff_norm_mean in diff_norm_mean],
+                            "lmk_diff_var"+alias:[_diff_var.item() for _diff_var in diff_var]})
+            shape_pair.flowed.points = flowed_points_cp
         return metrics
     return eval
 

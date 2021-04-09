@@ -10,14 +10,14 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
     since = time()
     record_path = opt['path']['record_path']
     running_range=opt[('running_range',[-1],"max running number, set -1 if not limited")]  # todo should be [-1]
-    save_fig_on = opt[('save_fig_on',False, 'save the visualizatio results during the evaluation')]
+    save_fig_on = True  #opt[('save_fig_on',False, 'save the visualizatio results during the evaluation')]
     running_part_data = running_range[0]>=0
     if running_part_data:
         print("running part of the test data from range {}".format(running_range))
-    phases = ['test']
+    phases = ['debug']
     if len(model_path):
         #todo  check  model loading for data parallel
-        get_test_model(model_path, model.network,  model.optimizer)
+        get_test_model(model_path, model.get_model(),model.optimizer)
     else:
         print("Warning, the model is not manual loaded."
               "Make sure the current run is in 'optimization mode' or  model has been internally initialized")
@@ -42,9 +42,8 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
 
             batch_size = len(data["pair_name"])
             batch_size_list.append(batch_size)
-            is_train = False
             model.set_test()
-            input_data = model.set_input(data, device, is_train)
+            input_data = model.set_input(data, device, phase)
             ex_time = time()
             test_res = model.get_evaluation(input_data)
             batch_time = time() - ex_time

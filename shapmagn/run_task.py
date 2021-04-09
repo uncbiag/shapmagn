@@ -86,11 +86,16 @@ def __do_registration(args):
     task_name = args.task_name
     setting_folder_path = args.setting_folder_path
     task_output_path = os.path.join(output_root_path,task_name)
+    print("debugging {}".format(task_output_path))
+    print("debugging {}".format(task_output_path))
+
+    print("debugging {}".format(task_output_path))
+
     if os.path.isdir(output_root_path):
         print("the output folder {} exists, skipping copying the dataset json files".format(output_root_path))
     else:
         print("copy dataset json files from {} to {}".format(dataset_path,output_root_path))
-        copy_tree(dataset_path,output_root_path)
+        [copy_tree(os.path.join(dataset_path,phase),os.path.join(output_root_path,phase)) for phase in ["train","val","test","debug"]]
     os.makedirs(task_output_path, exist_ok=True)
     tsm = init_task_env(setting_folder_path,output_root_path,task_name)
     if args.eval:

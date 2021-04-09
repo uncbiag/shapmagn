@@ -102,13 +102,13 @@ class HybirdData(object):
         """
 
         if phase=="debug":
-            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
+            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=False)
             return not self.raw_source_target_has_corr, True, True
         elif phase=="val" or phase=="test":
-            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
+            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=False)
             return False, self.corr_sampled_source_target, self.raw_source_target_has_corr
         elif phase=="train":
-            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=False, sampled_by_weight=True)
+            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=False, sampled_by_weight=False)
             synth_ratio = self.synth_ratio if self.ratio_decay_rate==-1 else self.update_synth_ratio(current_epoch)
             use_synth = random.random()< synth_ratio
             return use_synth, self.corr_sampled_source_target, use_synth or self.raw_source_target_has_corr

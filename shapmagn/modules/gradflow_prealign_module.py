@@ -7,7 +7,7 @@ from shapmagn.modules.gradient_flow_module import gradient_flow_guide
 
 class GradFlowPreAlign(nn.Module):
     def __init__(self, opt):
-        super(GradFlowPreAlign).__init__()
+        super(GradFlowPreAlign,self).__init__()
         self.opt = opt
         self.niter = opt[("niter", 10, "self iteration")]
         self.rel_ftol = opt[("rel_ftol", 1e-2, "relative tolerance")]
@@ -24,6 +24,12 @@ class GradFlowPreAlign(nn.Module):
 
     @ staticmethod
     def solve_affine(x,y,w):
+        """
+       :param x: BxNxD
+       :param y: BxNxD
+       :param w: BxNx1
+       :return:
+       """
         # Optimal affine transform: ================================================
         # A = (X^T  @ diag(w) @ X)^-1   @   (X^T  @ diag(w) @ y)
         #    (B,D+1,N)  (B,N,N)  (B,N,D+1)       (B,D+1,N)  (B,N,N)  (B,N,D)
@@ -144,7 +150,7 @@ class GradFlowPreAlign(nn.Module):
 
 
 
-    def __call__(self,source, target):
+    def __call__(self,source, target, init_A=None):
         """
            :param source: Shape with points BxNxD
            :param target_batch: Shape with points BxMxD
@@ -152,7 +158,7 @@ class GradFlowPreAlign(nn.Module):
            """
         toflow = source
         A_prev = None
-        A = None
+        A = init_A if init_A is not None else None
         if self.search_init_transform:
             A_prev, toflow= self.find_initial_transform(source, target)
         for i in range(self.niter):

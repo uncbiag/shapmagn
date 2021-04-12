@@ -21,11 +21,13 @@ def create_source_and_target_shape():
         return source_shape, target_shape
     return create
 
-def create_shape_pair(source, target, toflow=None):
+def create_shape_pair(source, target, toflow=None,pair_name=None):
     shape_pair = ShapePair()
     shape_pair.set_source_and_target(source, target)
     if toflow is not None:
         shape_pair.set_toflow(toflow)
+    if pair_name is not None:
+        shape_pair.set_pair_name(pair_name)
     return shape_pair
 
 

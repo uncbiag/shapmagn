@@ -60,9 +60,9 @@ class PointAug(object):
         return points, weights, torch.cat([index,added_index])
 
     def add_random_noise_to_weights(self, points, point_weights, index=None):
-        noise_std = (torch.min(point_weights) / 5).item()
-        weights_noise = torch.ones_like(point_weights).normal_(0, noise_std)*point_weights
-        point_weights = point_weights+ weights_noise
+        noise_std = (torch.min(point_weights)/5).item()
+        weights_noise = torch.ones_like(point_weights).normal_(0, noise_std)
+        point_weights = torch.clamp(point_weights+ weights_noise,min=1e-8)
         return points, point_weights, index
 
     def __call__(self,batch_points, batch_point_weights):

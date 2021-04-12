@@ -10,7 +10,7 @@ from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, Poi
 from shapmagn.modules.networks.pointpwcnet_original import multiScaleChamferSmoothCurvature, PointConvSceneFlowPWC8192selfglobalPointConv
 from shapmagn.modules.networks.scene_flow import FLOT
 from shapmagn.metrics.losses import GeomDistance
-from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping, positional_based_gradient_flow_guide
 from shapmagn.modules.networks.flownet3d import FlowNet3D, FlowNet3DIMP
 from shapmagn.modules.networks.pointpwcnet import PointConvSceneFlowPWC
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
@@ -230,6 +230,7 @@ class FlowModel(nn.Module):
         super(FlowModel, self).__init__()
         self.opt = opt
         self.model_type = opt[("model_type","spline","model type 'spline'/'lddmm'")]
+        self.use_aniso_postgradientflow = opt[("model_type","spline","model type 'spline'/'lddmm'")]
         if self.model_type=="spline":
             self.flow_model = self.spline_forward
             self.regularization = self.spline_reg
@@ -240,9 +241,10 @@ class FlowModel(nn.Module):
         elif self.model_type == "disp":
             self.flow_model = self.disp_forward
             self.regularization = self.disp_reg
+
         self.init_spline(opt["spline",{},"settings for spline"])
         self.init_interp(opt[("interp",{},"settings for interpolation mode")])
-
+        self.init_aniso_postgradientflow(opt[("aniso_postgradientflow",{},"settings for interpolation mode")])
 
     def init_interp(self,opt_interp):
         if self.model_type== "disp" or self.model_type=="spline":
@@ -250,6 +252,13 @@ class FlowModel(nn.Module):
             "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.005)",
             "shape interpolator")]
             self.interp_kernel = obj_factory(interp_kernel_obj)
+
+    def init_aniso_postgradientflow(self,opt_aniso_postgradientflow):
+        if self.use_aniso_postgradientflow:
+            self.aniso_post_kernel = opt_aniso_postgradientflow[(
+                "aniso_kernel_obj", "point_interpolator.NadWatAnisoSpline(exp_order=2, cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True)",
+                "shape interpolator")]
+
 
     def flow(self,shape_pair):
         toflow_points = shape_pair.toflow.points
@@ -351,11 +360,34 @@ class FlowModel(nn.Module):
         dist = dist.sum(2).mean(1)
         return dist
 
+    def aniso_postgradientflow(self,flowed, target):
+        geomloss_setting = deepcopy(self.geomloss_for_aniso_postgradientflow())
+        geomloss_setting.print_settings_off()
+        geomloss_setting["mode"] = "analysis"
+        geomloss_setting["attr"] = "points"
+        use_bary_map = geomloss_setting[("use_bary_map", False,
+                                         "take wasserstein baryceneter if there is little noise or outlier,  otherwise use gradient flow")]
+
+        if use_bary_map:
+            mapped_target_index, mapped_position, bary_mapped_position = wasserstein_forward_mapping(
+                flowed, target, geomloss_setting)  # BxN
+        else:
+            mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(flowed,
+                                                                                        target, geomloss_setting)
+        disp = mapped_position - flowed.points
+        smoothed_disp = self.aniso_post_kernel(flowed.points, flowed.points, disp,
+                                           flowed.weights)
+        flowed_points = flowed.points + smoothed_disp
+        new_flowed = Shape().set_data_with_refer_to(flowed_points,flowed)
+        return new_flowed
 
     def forward(self, cur_source, shape_pair, additional_param):
         flowed_points, reg_additional_input = self.flow_model(cur_source,shape_pair,additional_param)
+
         reg_loss = self.regularization(shape_pair.reg_param, reg_additional_input)
         flowed = Shape().set_data_with_refer_to(flowed_points,cur_source)
+        if self.use_aniso_postgradientflow:
+            flowed = self.aniso_postgradientflow(flowed, shape_pair.target)
         return flowed , reg_loss
 
 

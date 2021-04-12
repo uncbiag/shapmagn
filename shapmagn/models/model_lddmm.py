@@ -264,7 +264,7 @@ class LDDMMOPT(nn.Module):
         :param batch_info:
         :return:
         """
-        return opt_flow_model_eval(shape_pair, batch_info=batch_info,
+        return opt_flow_model_eval(shape_pair,model=self, batch_info=batch_info,
                                    geom_loss_opt_for_eval=self.geom_loss_opt_for_eval,
                                    external_evaluate_metric=self.external_evaluate_metric)
 

@@ -104,6 +104,7 @@ class OptModel(ModelBase):
                       "is_synth": False, "phase": phase, "epoch": self.cur_epoch}
         input_data["source"] = to_device(input_data["source"], device)
         input_data["target"] = to_device(input_data["target"], device)
+        batch_info["record_path"] = self.record_path
         input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
 
         return input_data
@@ -124,12 +125,13 @@ class OptModel(ModelBase):
         """
         source, target = self.create_shape_pair_from_data_dict(data)
         shape_pair = create_shape_pair(source, target)
+        shape_pair.set_pair_name(self.batch_info["pair_name"])
         if self.run_prealign:
             multi_scale_opt = self.opt[("multi_scale_optimization_prealign",{},"settings for multi_scale_optimization_prealign")]
             multi_scale_opt['record_path'] = self.record_path
             sovler = build_multi_scale_solver(multi_scale_opt,self._prealign_model)
             shape_pair = sovler(shape_pair)
-            save_shape_pair_into_files(self.record_path, "shape_prealigned", shape_pair)
+            save_shape_pair_into_files(self.record_path, "shape_prealigned",shape_pair.get_pair_name(), shape_pair)
             if self.run_nonparametric:
                 shape_pair.control_points = shape_pair.flowed_control_points
         if self.run_nonparametric:
@@ -137,7 +139,7 @@ class OptModel(ModelBase):
             multi_scale_opt['record_path'] = self.record_path
             sovler = build_multi_scale_solver(multi_scale_opt,self._model)
             shape_pair = sovler(shape_pair)
-            save_shape_pair_into_files(self.record_path, "shape_nonparametric", shape_pair)
+            save_shape_pair_into_files(self.record_path, "shape_nonparametric",shape_pair.get_pair_name(), shape_pair)
         return shape_pair
 
     def get_evaluation(self, input_data):
@@ -147,7 +149,10 @@ class OptModel(ModelBase):
         :return:
         """
         shape_pair = self.optimize_parameters(input_data)
-        scores, shape_pair = self._model.model_eval(shape_pair, self.batch_info)
+        if self._prealign_model is not None:
+            scores, shape_pair = self._prealign_model.model_eval(shape_pair, self.batch_info)
+        if self._model is not None:
+            scores, shape_pair = self._model.model_eval(shape_pair, self.batch_info)
         return scores, shape_pair
 
     def save_visual_res(self, save_visual_results, input_data, eval_res, phase):

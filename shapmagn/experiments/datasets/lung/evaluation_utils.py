@@ -113,8 +113,8 @@ def eval_landmark(model,shape_pair, batch_info,alias, eval_ot_map=False):
     if not eval_ot_map:
         shape_pair = model.flow(shape_pair)
     else:
-        flowed_points = NadWatIsoSpline(exp_order=2,kernel_scale=0.005)
-        shape_pair = get_flowed(shape_pair,flowed_points)
+        interp_kernel = NadWatIsoSpline(exp_order=2,kernel_scale=0.005)
+        shape_pair = get_flowed(shape_pair,interp_kernel)
     flowed_landmarks_points = shape_pair.flowed.points
     record_path = os.path.join(batch_info["record_path"], "3d", "{}_epoch_{}".format(batch_info["phase"],batch_info["epoch"]))
     save_shape_into_files(record_path, "landmark"+alias+"_toflow",batch_info["pair_name"], shape_pair.toflow)

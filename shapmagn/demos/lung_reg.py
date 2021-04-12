@@ -119,7 +119,7 @@ shape_pair.set_pair_name(pair_name)
 # model_opt["module_type"] = "gradflow_prealign"
 # model_opt[("gradflow_prealign", {}, "settings for gradflow_prealign")]
 # blur = 0.001
-# model_opt["gradflow_prealign"]["method_name"]="affine"
+# model_opt["gradflow_prealign"]["method_name"]="gradflow_prealign"
 # model_opt["gradflow_prealign"]["gradflow_mode"]="grad_forward"
 # model_opt["gradflow_prealign"]["niter"] = 10
 # model_opt["gradflow_prealign"]["search_init_transform"]=False

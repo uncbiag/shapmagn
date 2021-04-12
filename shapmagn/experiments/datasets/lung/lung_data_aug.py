@@ -28,9 +28,9 @@ from functools import partial
 
 def lung_synth_data(**kwargs):
     aug_settings = ParameterDict()
-    aug_settings["do_local_deform_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
-    aug_settings["do_grid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
-    aug_settings["do_point_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_local_deform_aug"] = kwargs["do_local_deform_aug"] if "do_local_deform_aug" in kwargs else True
+    aug_settings["do_grid_aug"] = kwargs["do_grid_aug"] if "do_grid_aug" in kwargs else True
+    aug_settings["do_point_aug"] = kwargs["do_point_aug"] if "do_point_aug" in kwargs else True
     aug_settings["do_rigid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else False
     aug_settings["plot"] = False
     local_deform_aug = aug_settings[
@@ -90,9 +90,9 @@ def lung_synth_data(**kwargs):
 
 def lung_aug_data(**kwargs):
     aug_settings = ParameterDict()
-    aug_settings["do_local_deform_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
-    aug_settings["do_grid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
-    aug_settings["do_point_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else True
+    aug_settings["do_local_deform_aug"] = kwargs["do_local_deform_aug"] if "do_local_deform_aug" in kwargs else True
+    aug_settings["do_grid_aug"] = kwargs["do_grid_aug"] if "do_grid_aug" in kwargs else True
+    aug_settings["do_point_aug"] = kwargs["do_point_aug"] if "do_point_aug" in kwargs else True
     aug_settings["do_rigid_aug"] = kwargs["do_rigid_aug"] if "do_rigid_aug" in kwargs else False
     aug_settings["plot"] = False
     local_deform_aug = aug_settings[
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     use_local_mount = False
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
-    phase= "val"
+    phase= "train"
     dataset_json_path = "/playpen-raid1/zyshen/data/point_cloud_expri/{}/pair_data.json".format(phase) #home/zyshen/remote/llr11_mount
     saving_output_path = "/playpen-raid1/zyshen/data/lung_data_analysis/{}/aug".format(phase)
     dataset_json_path = path_transfer(dataset_json_path)

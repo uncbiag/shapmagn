@@ -46,7 +46,7 @@ def build_multi_scale_solver(opt, model):
             print("{} th scale optimization begins, with  the strategy '{}' with setting {}".format(i, shape_sampler_type, scale_args_list[i]))
             scale_source = scale_shape_sampler_list[i](source) if scale_args_list[i] > 0 else source
             scale_target = scale_shape_sampler_list[i](target) if scale_args_list[i] > 0 else target
-            toinput_shape_pair = create_shape_pair(scale_source, scale_target)
+            toinput_shape_pair = create_shape_pair(scale_source, scale_target, pair_name=toinput_shape_pair.get_pair_name())
             reg_param_initializer(toinput_shape_pair)
             #save_shape_pair_into_files(opt["record_path"], "debugging".format(iter), toinput_shape_pair)
             if i != 0:
@@ -54,7 +54,7 @@ def build_multi_scale_solver(opt, model):
                 del output_shape_pair
             output_shape_pair = single_scale_solver_list[i](toinput_shape_pair)
         if scale_args_list[-1]!=-1:
-            output_shape_pair = param_updater(output_shape_pair, create_shape_pair(source, target))
+            output_shape_pair = param_updater(output_shape_pair, create_shape_pair(source, target, pair_name=output_shape_pair.get_pair_name()))
             output_shape_pair = update_shape_pair_after_upsampling(output_shape_pair)
         return output_shape_pair
 
@@ -149,7 +149,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
     """
     save_3d_shape_every_n_iter = opt[("save_3d_shape_every_n_iter", 1, "save output every n iteration")]
     save_2d_capture_every_n_iter = opt[
-        ("save_2d_capture_every_n_iter", -1, "save 2d screen capture of the plot every n iteration")]
+        ("save_2d_capture_every_n_iter", 1, "save 2d screen capture of the plot every n iteration")]
     capture_plotter_obj = opt[("capture_plot_obj", "visualizer.capture_plotter()", "factory object for 2d capture plot")]
     capture_plotter = obj_factory(capture_plotter_obj)
     record_path = opt[("record_path", "", "record path")]
@@ -171,7 +171,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
             rel_f = abs(last_energy - cur_energy) / (abs(cur_energy))
             last_energy = cur_energy
             if save_3d_shape_every_n_iter>0 and iter % save_3d_shape_every_n_iter == 0:
-                save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter), shape_pair)
+                save_shape_pair_into_files(shape_folder_3d, "iter_{}".format(iter),shape_pair.get_pair_name(), shape_pair)
             if save_2d_capture_every_n_iter>0 and iter%save_2d_capture_every_n_iter==0:
                 capture_plotter(shape_folder_2d, "iter_{}".format(iter),shape_pair.get_pair_name(), shape_pair)
             if rel_f < rel_ftol:
@@ -182,7 +182,7 @@ def build_single_scale_model_embedded_solver(opt,model, num_iter=1,scale=-1,  lr
                     print('Reached relative function tolerance of = ' + str(rel_ftol))
                     break
 
-        save_shape_pair_into_files(record_path, "iter_last", shape_pair)
+        save_shape_pair_into_files(record_path, "iter_last", shape_pair.get_pair_name(), shape_pair)
         model.reset()
         return shape_pair
     return solve

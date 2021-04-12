@@ -75,7 +75,10 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
         mapped_position = log_P_ij.sumsoftmaxweight(position_to_map,dim=2)
         mapped_mass_ratio = log_P_ij.exp().sum(2)/cur_source.weights
     elif mode == "hard":
-        P_i_index = log_P_ij.argmax(dim=2).long().view(-1) #  over M,  return (B*N)
+        P_i_index = log_P_ij.argmax(dim=2).long().view(B,N) #  over M,  return (B*N)
+        for i in range(B):   #todo not test yet
+            P_i_index[i]+=int(B*i)
+        P_i_index = P_i_index.view(-1)
         points2_flatten = points2.view(-1, D)
         mapped_position = points2_flatten[P_i_index]
         mapped_position = mapped_position.view(B,N,D)

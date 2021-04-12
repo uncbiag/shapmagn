@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+
+from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.modules.teaser_module import Teaser
 #from shapmagn.modules.probreg_module import ProbReg
 from shapmagn.modules.gradflow_prealign_module import GradFlowPreAlign
@@ -22,10 +24,20 @@ class PrealignOPT(nn.Module):
         self.call_thirdparty_package = self.module_type in self.thirdparty_package
         self.sim_loss_fn = Loss(sim_loss_opt) if not self.call_thirdparty_package else lambda x,y: torch.tensor(-1)
         self.reg_loss_fn = self.compute_regularization
+        self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {},
+                                           "settings for sim_loss_opt, the sim_loss here is not used for optimization but for evaluation")]
+        external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "", "external evaluate metric")]
+        self.external_evaluate_metric = obj_factory(
+            external_evaluate_metric_obj) if external_evaluate_metric_obj else None
         self.register_buffer("local_iter", torch.Tensor([0])) # iteration record in single scale
         self.register_buffer("global_iter", torch.Tensor([0])) # iteration record in multi-scale
         self.print_step = self.opt[('print_step',10,"print every n iteration, disabled in teaser")]
         self.drift_buffer = {}
+
+
+    def clean(self):
+        self.local_iter = self.local_iter * 0
+        self.global_iter = self.global_iter * 0
 
 
     def set_record_path(self, record_path):
@@ -65,7 +77,8 @@ class PrealignOPT(nn.Module):
         source = shape_pair.source
         target = shape_pair.target
         control_points = shape_pair.get_control_points()
-        prealign_param = self.prealign_module(source,target)
+        prealign_param = self.prealign_module(source,target,shape_pair.reg_param)
+        shape_pair.reg_param = prealign_param
         flowed_control_points = self.apply_prealign_transform(prealign_param,control_points)
         shape_pair.set_flowed_control_points(flowed_control_points)
         return shape_pair,prealign_param
@@ -77,7 +90,7 @@ class PrealignOPT(nn.Module):
         toflow_points = shape_pair.get_toflow_points()
         flowed_points = self.apply_prealign_transform(prealign_params,toflow_points)
         flowed = Shape()
-        flowed.set_data_with_refer_to(flowed_points,shape_pair.source)
+        flowed.set_data_with_refer_to(flowed_points,shape_pair.toflow)
         shape_pair.set_flowed(flowed)
         return shape_pair
 
@@ -134,7 +147,16 @@ class PrealignOPT(nn.Module):
         self.global_iter +=1
         return loss
 
-
+    def model_eval(self, shape_pair, batch_info=None):
+        """
+        for  deep approach, we assume the source points = control points
+        :param shape_pair:
+        :param batch_info:
+        :return:
+        """
+        return opt_flow_model_eval(shape_pair,model=self, batch_info=batch_info,
+                                   geom_loss_opt_for_eval=self.geom_loss_opt_for_eval,
+                                   external_evaluate_metric=self.external_evaluate_metric)
 
 
 

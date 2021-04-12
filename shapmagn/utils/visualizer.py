@@ -229,7 +229,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     if isinstance(rgb_on,bool):
         rgb_on = [rgb_on]* 2
 
-    p = pv.Plotter(window_size=[1920, 1280], shape=(1, 3), border=False, off_screen= not show)
+    p = pv.Plotter(window_size=[2500, 1024], shape=(1, 3), border=False, off_screen= not show)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
@@ -344,7 +344,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
         index = list(range(0,npoints, 30))
         flow_[index,:]= flow[index]
         obj1.point_arrays['flow'] = flow_
-        geom = pv.Arrow(tip_radius=0.03, shaft_radius=0.015)
+        geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035)
         arrows =  obj1.glyph( orient="flow",geom=geom)
         p.add_mesh(arrows,color="black",opacity=0.3)
     if add_bg_contrast:

@@ -5,7 +5,7 @@ from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping, positional_based_gradient_flow_guide
 
 
-def opt_flow_model_eval(shape_pair, batch_info=None,geom_loss_opt_for_eval=None,external_evaluate_metric=None):
+def opt_flow_model_eval(shape_pair, model, batch_info=None,geom_loss_opt_for_eval=None,external_evaluate_metric=None):
     """
     for  deep approach, we assume the source points = control points
     :param shape_pair:
@@ -38,6 +38,13 @@ def opt_flow_model_eval(shape_pair, batch_info=None,geom_loss_opt_for_eval=None,
         metrics = {"score": [_ot_dist.item() for _ot_dist in wasserstein_dist],
                    "ot_dist": [_ot_dist.item() for _ot_dist in wasserstein_dist]}
     if external_evaluate_metric is not None:
-        external_evaluate_metric(metrics, shape_pair, batch_info, additional_param=None, alias="")
-        external_evaluate_metric(metrics, shape_pair, batch_info, {"mapped_position": mapped_position}, "_and_gf")
+        shape_pair.control_points = shape_pair.source.points
+        shape_pair.control_weights = shape_pair.source.weights
+        shape_pair.flowed_control_points = shape_pair.flowed.points
+        additional_param = {"model": model, "initial_control_points": shape_pair.source.points}
+        external_evaluate_metric(metrics, shape_pair, batch_info, additional_param=additional_param, alias="")
+        additional_param.update({"mapped_position": mapped_position})
+        external_evaluate_metric(metrics, shape_pair, batch_info, additional_param,
+                                      "_and_gf")
+
     return metrics, shape_pair

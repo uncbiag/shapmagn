@@ -38,3 +38,4 @@ python toy_reg.py
 18. make the network more complicate to fit synthesis results
 19. build an atlas distribution for the weight (radius)
 20. anisotropic interpolation on spline kernel
+21. test gmm model, local laplacian, main vessel

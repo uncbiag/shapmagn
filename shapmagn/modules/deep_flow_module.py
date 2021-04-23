@@ -12,12 +12,12 @@ from shapmagn.modules.networks.scene_flow import FLOT
 from shapmagn.metrics.losses import GeomDistance, GMMLoss
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping, positional_based_gradient_flow_guide
 from shapmagn.modules.networks.flownet3d import FlowNet3D, FlowNet3DIMP
-from shapmagn.modules.networks.pointpwcnet2 import PointConvSceneFlowPWC2
+# from shapmagn.modules.networks.pointpwcnet2 import PointConvSceneFlowPWC2
 from shapmagn.modules.networks.pointpwcnet2_2 import PointConvSceneFlowPWC2_2
 from shapmagn.modules.networks.pointpwcnet2_3 import PointConvSceneFlowPWC2_3
 from shapmagn.modules.networks.pointpwcnet2_4 import PointConvSceneFlowPWC2_4
 from shapmagn.modules.networks.pointpwcnet2_5 import PointConvSceneFlowPWC2_5
-from shapmagn.modules.networks.pointpwcnet3 import PointConvSceneFlowPWC3
+#from shapmagn.modules.networks.pointpwcnet3 import PointConvSceneFlowPWC3
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
 from shapmagn.metrics.losses import CurvatureReg
 

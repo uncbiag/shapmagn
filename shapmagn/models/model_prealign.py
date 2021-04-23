@@ -18,7 +18,7 @@ class PrealignOPT(nn.Module):
         # here we treat gradflow_prealign as a self-completed module for affine optimization
         self.thirdparty_package =  ["probreg","teaser","gradflow_prealign"]
         module_dict = {"teaser": Teaser, "gradflow_prealign":GradFlowPreAlign} #"probreg":ProbReg,
-        self.prealign_module = module_dict[self.module_type](self.opt[(self.module_type,{},"settings for teaser")])
+        self.prealign_module = module_dict[self.module_type](self.opt[(self.module_type,{},"settings for prealign module")])
         self.prealign_module.set_mode("prealign")
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.call_thirdparty_package = self.module_type in self.thirdparty_package

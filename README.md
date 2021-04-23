@@ -1,9 +1,20 @@
-## shapmagn
+## Shapmagn
 
 shapmagn is a research project for Shape Registration. The repository provides a general framework for the point cloud/mesh registration task, supporting both optimization and learning
 based approaches. Currently, we are at the early stage of the development.
 
 ## Installation
+
+Please use python=3.6 to workaround a known buffer overflow bug in vtk-9.0,
+Besides, to workaround background plotting issues on remote servers, we need 
+```
+sudo apt-get install xorg 
+sudo apt-get install xvfb
+pip install vtk=8.1.2
+
+``` 
+
+Finally, we can install shapmagn by
 ```
 git clone https://github.com/uncbiag/shapmagn.git
 cd shapmagn/shapmagn
@@ -11,14 +22,18 @@ pip install -r requirement.txt
 cd modules/networks/pointnet2/lib
 python setup.py install
 ```
-Addtionally, torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
+torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
 e.g. for cuda 10.2, 
 ```
 pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cu102.html
 ```
 
+
+
 ## Demo
-For now, we provide two demos: a registration between a lung pair and a registration from sphere to cube.
+We provide a series of demos, which can be found at shapmagn/demos
+Here are two examples on how to run the optimization-based demos :
+
 ```
 cd shapmagn/shapmagn/demos/data
 gdown https://drive.google.com/uc?id=19YG-je_7QfKd-Z8Rhg4R0nL6hVIpEco6
@@ -28,14 +43,22 @@ python lung_reg.py
 python toy_reg.py
 ```
 
+Here is an example on training deep feature learning network based on one case:
+```
+python run_task.py -ds SHAPEMAGN_PATH/shapmagn/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/shapmagn/demos/output/training_one_case -tn deepfeature_pointnet2 -ts SHAPEMAGN_PATH/shapmagn/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0```
+```
+Here is an example on evaluate a pretrained deep LLDDMM flow network on one case:
+
+```
+python run_task.py --eval -ds SHAPEMAGN_PATH/shapmagn/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/shapmagn/demos/output/test_one_case -tn deepflow_pwc_lddmm -ts SHAPEMAGN_PATH/shapmagn/demos/settings/lung/test_deep_lddmm_pwcnet_on_one_case  -m   /SHAPEMAGN_PATH/shapmagn/demos/pretrained_models/pretrained_deep_lddmm -g 0```
+
+```
+
 ## TODO
 7. confidence map
 10. test flot net, prnet
-11.  maxpool
-12. rewrite warp2 function in pwc
-14. add transformer to geonet
+14. add transformer
 17. update control point strategy (currently farthest point sampling) maybe introduce altas control points for the lung task
-18. make the network more complicate to fit synthesis results
-19. build an atlas distribution for the weight (radius)
-20. anisotropic interpolation on spline kernel
 21. test gmm model, local laplacian, main vessel
+22. rewrite backbone of pwcnet and flownet to make them clean and fast
+23. do distribution analysis for the landmarks

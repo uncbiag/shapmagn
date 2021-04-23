@@ -16,6 +16,7 @@ KNOWN_MODULES = {
     "lung_data_eval": "shapmagn.experiments.datasets.lung.evaluation_utils",
     "flyingkitti_nonocc_aug": "shapmagn.experiments.datasets.flying3d_and_kitti.flyingkitti_nonocc.data_aug",
     "flyingkitti_nonocc_eval": "shapmagn.experiments.datasets.flying3d_and_kitti.flyingkitti_nonocc.evaluation_utils",
+    "2d_toy_local_feature_extractor":"shapmagn.experiments.datasets.toy.toy_feature_extractor_2d",
     "local_feature_extractor": "shapmagn.utils.local_feature_extractor",
     "hybird_data": "shapmagn.datasets.hybird_generator",
     "visualizer": "shapmagn.utils.visualizer",

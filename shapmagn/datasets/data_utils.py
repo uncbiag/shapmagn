@@ -249,9 +249,9 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
         else:
             return torch.from_numpy(data).to(device)
 
-    def expand_bch_dim(data):
+    def _expand_bch_dim(data):
         if isinstance(data, dict):
-            return {key: expand_bch_dim(item) for key, item in data.items()}
+            return {key: _expand_bch_dim(item) for key, item in data.items()}
         else:
             return data[None]
 
@@ -267,7 +267,7 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
         data_dict,_= sampler(data_dict) if sampler_obj else data_dict
         obj = to_tensor(data_dict) if return_tensor else data_dict
         if expand_bch_dim:
-            obj= expand_bch_dim(obj)
+            obj= _expand_bch_dim(obj)
         return obj, min_interval
     return _get_obj
 
@@ -280,9 +280,9 @@ def get_pair_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postproces
         else:
             return torch.from_numpy(data).to(device)
 
-    def expand_bch_dim(data):
+    def _expand_bch_dim(data):
         if isinstance(data, dict):
-            return {key: expand_bch_dim(item) for key, item in data.items()}
+            return {key: _expand_bch_dim(item) for key, item in data.items()}
         else:
             return data[None]
 
@@ -307,8 +307,8 @@ def get_pair_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postproces
         source_dict = to_tensor(source_dict) if return_tensor else source_dict
         target_dict = to_tensor(target_dict) if return_tensor else target_dict
         if expand_bch_dim:
-            source_dict = expand_bch_dim(source_dict)
-            target_dict = expand_bch_dim(target_dict)
+            source_dict = _expand_bch_dim(source_dict)
+            target_dict = _expand_bch_dim(target_dict)
         return source_dict, target_dict, source_interval, target_interval
     return _get_pair_obj
 

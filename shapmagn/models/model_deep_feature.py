@@ -4,7 +4,7 @@ from shapmagn.modules.gradient_flow_module import positional_based_gradient_flow
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.metrics.losses import Loss
 
-DEEP_EXTRACTOR = {"pointnet2_extractor": PointNet2FeaExtractor}
+DEEP_EXTRACTOR = {"pointnet2_extractor": PointNet2FeaExtractor, "dgcnn_extractor":DGCNNFeaExtractor}
 
 class DeepFeature(nn.Module):
     """
@@ -148,7 +148,7 @@ class DeepFeature(nn.Module):
         reg_factor_init=self.opt[("reg_factor_init",100,"initial regularization factor")]
         reg_factor_decay = self.opt[("reg_factor_decay",6,"regularization decay factor")]
         static_epoch = self.opt[("static_epoch",5,"first # epoch the factor doesn't change")]
-        min_threshold = 0.01
+        min_threshold = 0
         reg_factor = float(
             max(sigmoid_decay(self.cur_epoch, static=static_epoch, k=reg_factor_decay) * reg_factor_init, min_threshold))
         return sim_factor, reg_factor
@@ -157,22 +157,65 @@ class DeepFeature(nn.Module):
     def forward(self, input_data, batch_info=None):
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
         has_gt = batch_info["has_gt"]
-        gt_flowed_points = shape_pair.target.points if not has_gt else shape_pair.extra_info["gt_flowed"]
+        gt_flowed_points = shape_pair.target.points.clone() if not has_gt else shape_pair.extra_info["gt_flowed"]
         gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points, shape_pair.source)
-        flowed, shape_pair.target = self.pair_feature_extractor(shape_pair.source, shape_pair.target)
-        sim_loss, reg_loss = self.loss(flowed,shape_pair.target, gt_flowed, has_gt=has_gt)
+        cur_source, shape_pair.target = self.pair_feature_extractor(shape_pair.source, shape_pair.target)
+        sim_loss, reg_loss = self.loss(cur_source,shape_pair.target, gt_flowed, has_gt=has_gt)
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()
         sim_factor, reg_factor = self.get_factor()
         sim_loss = sim_loss*sim_factor
         reg_loss = reg_loss*reg_factor
         loss = sim_loss + reg_loss
-        shape_pair.source = flowed
+        shape_pair.source = cur_source
+
         if self.local_iter % self.print_step == 0:
             print("{} th step, {} sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(),"synth_data" if batch_info["is_synth"] else "real_data", sim_loss.mean().item(), reg_loss.mean().item(), sim_factor, reg_factor))
+            #self.debug_mode(shape_pair)
         self.local_iter += 1
 
+
         return loss, self.decompose_shape_pair_into_dict(shape_pair)
+
+    def debug_mode(self, shape_pair):
+        import os
+        from shapmagn.utils.visualizer import visualize_point_pair_overlap, visualize_source_flowed_target_overlap
+        source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
+        if self.local_iter%50!=0:
+            return
+        #saving_capture_path = None if not self.saving_running_result_visualize else os.path.join(self.record_path,"debugging")
+        saving_capture_path = "/playpen-raid1/zyshen/debug/debug_onecase_deepfeature_nonaug"
+
+        geomloss_setting = deepcopy(self.opt["deepfea_loss"]["geomloss"])
+        geomloss_setting.print_settings_off()
+        geomloss_setting["mode"] = "analysis"
+        geomloss_setting["attr"] = "pointfea"
+        if self.cur_epoch == 0:
+            print("In the first epoch, the validation/debugging output is the baseline ")
+            geomloss_setting["attr"] = "points"
+        mapped_target_index, mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(
+            shape_pair.source, shape_pair.target, geomloss_setting)  # BxN
+        mapped_position = bary_mapped_position
+        source_points = shape_pair.source.points
+        source_weights = shape_pair.source.weights
+        disp = mapped_position - source_points
+        flowed_points = source_points + disp
+        flowed = Shape().set_data_with_refer_to(flowed_points, shape_pair.source)
+
+
+        if saving_capture_path:
+            os.makedirs(saving_capture_path, exist_ok=True)
+            saving_capture_path = os.path.join(saving_capture_path,
+                                               "training_iter_{}".format(self.local_iter.item()) + ".png")
+        visualize_source_flowed_target_overlap(source.points[0], flowed.points[0], target.points[0],
+                                               source.weights[0], flowed.weights[0], target.weights[0],
+                                               "cur_source", "flowed", "target",
+                                               camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),
+                                                           (0.0, 0.0, 0.0), (0.40133888001174545, 0.31574165540339943,
+                                                                             0.8597873634998591)],
+                                               rgb_on=[False, False, False],
+                                               show=False,
+                                               saving_capture_path=saving_capture_path)
 
 

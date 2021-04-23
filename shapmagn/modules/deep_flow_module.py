@@ -9,10 +9,15 @@ from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, Poi
     PointNetFeaturePropogation, FlowEmbedding, index_points
 from shapmagn.modules.networks.pointpwcnet_original import multiScaleChamferSmoothCurvature, PointConvSceneFlowPWC8192selfglobalPointConv
 from shapmagn.modules.networks.scene_flow import FLOT
-from shapmagn.metrics.losses import GeomDistance
+from shapmagn.metrics.losses import GeomDistance, GMMLoss
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping, positional_based_gradient_flow_guide
 from shapmagn.modules.networks.flownet3d import FlowNet3D, FlowNet3DIMP
-from shapmagn.modules.networks.pointpwcnet import PointConvSceneFlowPWC
+from shapmagn.modules.networks.pointpwcnet2 import PointConvSceneFlowPWC2
+from shapmagn.modules.networks.pointpwcnet2_2 import PointConvSceneFlowPWC2_2
+from shapmagn.modules.networks.pointpwcnet2_3 import PointConvSceneFlowPWC2_3
+from shapmagn.modules.networks.pointpwcnet2_4 import PointConvSceneFlowPWC2_4
+from shapmagn.modules.networks.pointpwcnet2_5 import PointConvSceneFlowPWC2_5
+from shapmagn.modules.networks.pointpwcnet3 import PointConvSceneFlowPWC3
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
 from shapmagn.metrics.losses import CurvatureReg
 
@@ -32,6 +37,7 @@ class DeepFlowNetRegParam(nn.Module):
         self.initial_npoints = self.opt[("initial_npoints",4096,"num of initial sampling points")]
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.init_neigh_num = self.opt[("init_neigh_num",16,"init_neigh_num")]
         self.param_factor = self.opt[("param_factor",2,"control the number of factor, #params/param_factor")]
         self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
         self.use_aniso_kernel =  self.opt[("use_aniso_kernel",True,"use the aniso kernel in first layer feature extraction")]
@@ -46,7 +52,13 @@ class DeepFlowNetRegParam(nn.Module):
         return cur_source, target
 
     def init_deep_feature_extractor(self):
-        self.flow_predictor = FlowNet3DIMP(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl,use_aniso_kernel=self.use_aniso_kernel)
+        self.flow_predictor = FlowNet3DIMP(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints,init_neigh_num=self.init_neigh_num, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl,use_aniso_kernel=self.use_aniso_kernel)
+        # self.flow_predictor = PointConvSceneFlowPWC3(input_channel=self.input_channel,
+        #                                              initial_input_radius=self.initial_radius,
+        #                                              first_sampling_npoints=self.initial_npoints,
+        #                                              predict_at_low_resl=self.predict_at_low_resl,
+        #                                              param_factor=self.param_factor)
+        #PointConvSceneFlowPWC3
         #self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl)
         # pretrained_model_path ="/playpen-raid1/zyshen/data/lung_expri/deep_flow_spline_multi_kernel_hybird_twostep_thisiscorrect/checkpoints/epoch_210_"
         # checkpoint = torch.load(pretrained_model_path, map_location='cpu')
@@ -151,6 +163,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_npoints = self.opt[("initial_npoints",2048,"num of initial sampling points")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")]
+        self.param_factor = self.opt[("param_factor",2,"control the number of factor, #params/param_factor")]
         self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
         self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
         self.init_deep_feature_extractor()
@@ -166,7 +179,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.load_pretrained_model = self.opt[("load_pretrained_model",False,"load_pretrained_model")]
         self.pretrained_model_path = self.opt[("pretrained_model_path","","path of pretrained model")]
         if not self.delploy_original_model:
-            self.flow_predictor = PointConvSceneFlowPWC(input_channel=self.input_channel, initial_radius=self.initial_radius, initial_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl)
+            self.flow_predictor = PointConvSceneFlowPWC2_4(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_factor=self.param_factor)
         else:
             self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints, predict_at_low_resl= self.predict_at_low_resl)
         if self.load_pretrained_model:
@@ -230,7 +243,7 @@ class FlowModel(nn.Module):
         super(FlowModel, self).__init__()
         self.opt = opt
         self.model_type = opt[("model_type","spline","model type 'spline'/'lddmm'")]
-        self.use_aniso_postgradientflow = opt[("model_type","spline","model type 'spline'/'lddmm'")]
+        self.use_aniso_postgradientflow = opt[("use_aniso_postgradientflow",False,"use_aniso_postgradientflow'")]
         if self.model_type=="spline":
             self.flow_model = self.spline_forward
             self.regularization = self.spline_reg
@@ -247,17 +260,17 @@ class FlowModel(nn.Module):
         self.init_aniso_postgradientflow(opt[("aniso_postgradientflow",{},"settings for interpolation mode")])
 
     def init_interp(self,opt_interp):
-        if self.model_type== "disp" or self.model_type=="spline":
-            interp_kernel_obj = opt_interp[(
-            "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.005)",
-            "shape interpolator")]
-            self.interp_kernel = obj_factory(interp_kernel_obj)
+        interp_kernel_obj = opt_interp[(
+        "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.005)",
+        "shape interpolator")]
+        self.interp_kernel = obj_factory(interp_kernel_obj)
 
     def init_aniso_postgradientflow(self,opt_aniso_postgradientflow):
-        if self.use_aniso_postgradientflow:
-            self.aniso_post_kernel = opt_aniso_postgradientflow[(
-                "aniso_kernel_obj", "point_interpolator.NadWatAnisoSpline(exp_order=2, cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True)",
-                "shape interpolator")]
+        aniso_kernel_obj = opt_aniso_postgradientflow[(
+            "aniso_kernel_obj", "point_interpolator.NadWatAnisoSpline(exp_order=2, cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.2,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True, requires_grad=False)",
+            "shape interpolator")]
+        self.aniso_post_kernel = obj_factory(aniso_kernel_obj)
+        self.geomloss_for_aniso_postgradientflow = opt_aniso_postgradientflow["geomloss",{},"settings for geomloss"]
 
 
     def flow(self,shape_pair):
@@ -273,8 +286,8 @@ class FlowModel(nn.Module):
             control_points = shape_pair.control_points
             self.lddmm_module.set_mode("flow")
             momentum = shape_pair.reg_param
-            _, _, flowed_points = self.integrator.solve((momentum, control_points, toflow_points))
-            return flowed_points
+            _, flowed_control_points, flowed_points = self.integrator.solve((momentum, control_points, toflow_points))
+            return flowed_control_points, flowed_points
         else:
             raise NotImplemented
 
@@ -361,7 +374,7 @@ class FlowModel(nn.Module):
         return dist
 
     def aniso_postgradientflow(self,flowed, target):
-        geomloss_setting = deepcopy(self.geomloss_for_aniso_postgradientflow())
+        geomloss_setting = deepcopy(self.geomloss_for_aniso_postgradientflow)
         geomloss_setting.print_settings_off()
         geomloss_setting["mode"] = "analysis"
         geomloss_setting["attr"] = "points"
@@ -369,7 +382,7 @@ class FlowModel(nn.Module):
                                          "take wasserstein baryceneter if there is little noise or outlier,  otherwise use gradient flow")]
 
         if use_bary_map:
-            mapped_target_index, mapped_position, bary_mapped_position = wasserstein_forward_mapping(
+            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_forward_mapping(
                 flowed, target, geomloss_setting)  # BxN
         else:
             mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(flowed,
@@ -397,9 +410,10 @@ class DeepFlowLoss(nn.Module):
     def __init__(self, opt):
         super(DeepFlowLoss,self).__init__()
         self.opt = opt
-        self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_loss")]
+        self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_loss/gmm")]
         self.include_curv_constrain =self.opt[("include_curv_constrain", False, "add constrain on the curvature")]
         self.curv_factor =self.opt[("curv_factor", 1.0, "curv_factor")]
+        self.use_gmm_as_unsupervised_metric= self.opt[("use_gmm_as_unsupervised_metric", False, "use_gmm_as_unsupervised_metric")]
 
 
 
@@ -449,6 +463,12 @@ class DeepFlowLoss(nn.Module):
         l2_loss = (((fp - tp) ** 2).sum(2, keepdim=True) * fw).sum(1)  # todo test
         return l2_loss[..., 0]
 
+    def gmm(self,flowed, target):
+        gmm_setting = deepcopy(self.opt["gmm"])
+        gmm_setting.print_settings_off()
+        gmm_setting["attr"] = "points"
+        gmm_loss = GMMLoss(gmm_setting)
+        return gmm_loss(flowed, target)[..., 0]*100 #todo fix this factor
 
     def curvature_diff(self,source, flowed, target):
         curloss_setting = deepcopy(self.opt["curloss"])
@@ -462,7 +482,10 @@ class DeepFlowLoss(nn.Module):
         curv_reg = self.curv_factor* self.curvature_diff(additional_param["source"], flowed,
                                        target) if self.include_curv_constrain else 0
         if not has_gt:
-            return self.ot_distance(flowed, target) + curv_reg
+            if not self.use_gmm_as_unsupervised_metric:
+                return self.ot_distance(flowed, target) + curv_reg
+            else:
+                return self.gmm(flowed,target)+curv_reg
         if self.loss_type == "disp_l2":
             return self.disp_l2(flowed, gt_flowed) + curv_reg
 
@@ -500,8 +523,10 @@ class PWCLoss(nn.Module):
         total_loss = 0
         for i in range(num_scale):
             diff_flow = floweds[i] - gt[i+offset]
-            total_loss += alpha[i] * ((diff_flow**2).sum(dim = 2,keepdim=True)*w[i]).sum(1)
-        return total_loss[...,0]
+            total_loss += alpha[i] * ((diff_flow**2).sum(dim = 2,keepdim=True)*w[i+offset]).sum(1)
+        w = flowed.weights/flowed.weights.sum(1,keepdim=True)
+        additional_loss = (((flowed.points-target.points)**2).sum(2,keepdim=True) * w).sum(1) #todo test
+        return total_loss[...,0]+additional_loss[...,0]
 
 
     def chamfer_self_loss(self,flowed, target, additional_param):
@@ -509,6 +534,18 @@ class PWCLoss(nn.Module):
         total_loss, chamfer_loss, curvature_loss, smoothness_loss = multiScaleChamferSmoothCurvature(pc1, pc2, pred_flows)
         return total_loss
 
+    def ot_distance(self,flowed, target):
+        """
+        the gt correspondence can be unknown, the point number can be inconsistent
+        :param flowed: shape,
+        :param target: shape
+        :return:
+        """
+        geomloss_setting = deepcopy(self.opt["geomloss"])
+        geomloss_setting.print_settings_off()
+        geomloss_setting["attr"] = "points"
+        self.geom_loss = GeomDistance(geomloss_setting)
+        return self.geom_loss(flowed, target)
 
 
     def forward(self,flowed, target,gt_flowed, additional_param=None, has_gt=True):
@@ -517,7 +554,7 @@ class PWCLoss(nn.Module):
         elif has_gt:
             return self.multiScaleLoss(flowed, gt_flowed, additional_param)
         else:
-            raise NotImplemented
+            return self.ot_distance(flowed, target)
 
 
 

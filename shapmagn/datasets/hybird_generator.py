@@ -49,7 +49,7 @@ class HybirdData(object):
         input_data["extra_info"] = input_data.get("extra_info",{})
         if self.raw_source_target_has_corr or use_synth:
             input_data["extra_info"]["gt_flow"] = input_data["target"]["points"] - input_data["source"]["points"]
-            input_data["extra_info"]["gt_flowed"] = input_data["target"]["points"]
+            input_data["extra_info"]["gt_flowed"] = input_data["target"]["points"].clone()
         return input_data
 
     def prepare_synth_input(self, input_data, batch_info):

@@ -3,7 +3,7 @@ PointPWC-Net model and losses
 Author: Wenxuan Wu
 Date: May 2020
 """
-
+from functools import partial
 import torch.nn as nn
 import torch
 from pykeops.torch import LazyTensor
@@ -12,66 +12,69 @@ import torch.nn.functional as F
 from shapmagn.modules.networks.pointconv_util import PointConv, PointConvD, PointWarping2, UpsampleFlow2,PointWarping, UpsampleFlow, PointConvFlow, SceneFlowEstimatorPointConv
 from shapmagn.modules.networks.pointconv_util import index_points_gather as index_points, index_points_group, Conv1d, square_distance
 import time
+from shapmagn.utils.utils import shrink_by_factor
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator
 scale = 1.0
 
 
 class PointConvSceneFlowPWC(nn.Module):
-    def __init__(self, input_channel=3, initial_radius=1.,initial_npoints=2048,predict_at_low_resl=False):
+    def __init__(self, input_channel=3, initial_radius=1.,initial_npoints=2048,predict_at_low_resl=False, param_factor=1):
         super(PointConvSceneFlowPWC, self).__init__()
 
         flow_nei = 32
         feat_nei = 16
+        sbf = partial(shrink_by_factor, factor=param_factor)
         self.predict_at_low_resl = predict_at_low_resl
         self.scale = scale
         # l0: 8192
-        self.level0 = Conv1d(input_channel, 32)
-        self.level0_1 = Conv1d(32, 32)
-        self.cost0 = PointConvFlow(flow_nei, 32 + 32 + 32 + 32 + 3, [32, 32])
-        self.flow0 = SceneFlowEstimatorPointConv(32 + 64, 32)
-        self.level0_2 = Conv1d(32, 64)
+        self.level0 = Conv1d(input_channel, sbf(32))
+        self.level0_1 = Conv1d(sbf(32), sbf(32))
+        self.cost0 = PointConvFlow(flow_nei, sbf(32 + 32 + 32 + 32) + 3, sbf([32, 32]))
+        self.flow0 = SceneFlowEstimatorPointConv(sbf(32 + 64), sbf(32))
+        self.level0_2 = Conv1d(sbf(32), sbf(64))
 
         # l1: 2048
-        self.level1 = PointConvD(initial_npoints, feat_nei, 64 + 3, 64)
-        self.cost1 = PointConvFlow(flow_nei, 64 + 32 + 64 + 32 + 3, [64, 64])
-        self.flow1 = SceneFlowEstimatorPointConv(64 + 64, 64)
-        self.level1_0 = Conv1d(64, 64)
-        self.level1_1 = Conv1d(64, 128)
+        self.level1 = PointConvD(initial_npoints, feat_nei, sbf(64 + 3), sbf(64))
+        self.cost1 = PointConvFlow(flow_nei, sbf(64 + 32 + 64 + 32) + 3, sbf([64, 64]))
+        self.flow1 = SceneFlowEstimatorPointConv(sbf(64 + 64), sbf(64))
+        self.level1_0 = Conv1d(sbf(64), sbf(64))
+        self.level1_1 = Conv1d(sbf(64), sbf(128))
 
         # l2: 512
-        self.level2 = PointConvD(int(initial_npoints/4), feat_nei, 128 + 3, 128)
-        self.cost2 = PointConvFlow(flow_nei, 128 + 64 + 128 + 64 + 3, [128, 128])
-        self.flow2 = SceneFlowEstimatorPointConv(128 + 64, 128)
-        self.level2_0 = Conv1d(128, 128)
-        self.level2_1 = Conv1d(128, 256)
+        self.level2 = PointConvD(int(initial_npoints/4), feat_nei, sbf(128) + 3, sbf(128))
+        self.cost2 = PointConvFlow(flow_nei, sbf(128 + 64 + 128 + 64) + 3, sbf([128, 128]))
+        self.flow2 = SceneFlowEstimatorPointConv(sbf(128 + 64), sbf(128))
+        self.level2_0 = Conv1d(sbf(128), sbf(128))
+        self.level2_1 = Conv1d(sbf(128), sbf(256))
 
         # l3: 256
-        self.level3 = PointConvD(int(initial_npoints/8), feat_nei, 256 + 3, 256)
-        self.cost3 = PointConvFlow(flow_nei, 256 + 64 + 256 + 64 + 3, [256, 256])
-        self.flow3 = SceneFlowEstimatorPointConv(256, 256, flow_ch=0)
-        self.level3_0 = Conv1d(256, 256)
-        self.level3_1 = Conv1d(256, 512)
+        self.level3 = PointConvD(int(initial_npoints/8), feat_nei, sbf(256) + 3, sbf(256))
+        self.cost3 = PointConvFlow(flow_nei, sbf(256 + 64 + 256 + 64) + 3, sbf([256, 256]))
+        self.flow3 = SceneFlowEstimatorPointConv(sbf(256), sbf(256), flow_ch=0)
+        self.level3_0 = Conv1d(sbf(256), sbf(256))
+        self.level3_1 = Conv1d(sbf(256), sbf(512))
 
         # l4: 64
-        self.level4 = PointConvD(int(initial_npoints/32), feat_nei, 512 + 3, 256)
+        self.level4 = PointConvD(int(initial_npoints/32), feat_nei, sbf(512) + 3, sbf(256))
 
         # deconv
-        self.deconv4_3 = Conv1d(256, 64)
-        self.deconv3_2 = Conv1d(256, 64)
-        self.deconv2_1 = Conv1d(128, 32)
-        self.deconv1_0 = Conv1d(64, 32)
+        self.deconv4_3 = Conv1d(sbf(256), sbf(64))
+        self.deconv3_2 = Conv1d(sbf(256), sbf(64))
+        self.deconv2_1 = Conv1d(sbf(128), sbf(32))
+        self.deconv1_0 = Conv1d(sbf(64), sbf(32))
 
         # warping
         self.warping = PointWarping2(initial_radius)
 
         # upsample
-        self.upsample = UpsampleFlow()
+        self.upsample = UpsampleFlow2(initial_radius)
 
     def forward(self, xyz1, xyz2, color1, color2):
         # xyz1, xyz2: B, N, 3
         # color1, color2: B, N, 3
 
         # l0
+        scale = 2**(1/3)
         pc1_l0 = xyz1.permute(0, 2, 1)
         pc2_l0 = xyz2.permute(0, 2, 1)
         color1 = color1.permute(0, 2, 1)  # B 3 N
@@ -113,11 +116,11 @@ class PointConvSceneFlowPWC(nn.Module):
 
         # l4
         pc1_l4, feat1_l4, _ = self.level4(pc1_l3, feat1_l3_4)
-        feat1_l4_3 = self.upsample(pc1_l3, pc1_l4, feat1_l4,resol_factor=128)
+        feat1_l4_3 = self.upsample(pc1_l3, pc1_l4, feat1_l4,resol_factor=scale**7)
         feat1_l4_3 = self.deconv4_3(feat1_l4_3)
 
         pc2_l4, feat2_l4, _ = self.level4(pc2_l3, feat2_l3_4)
-        feat2_l4_3 = self.upsample(pc2_l3, pc2_l4, feat2_l4,resol_factor=128)
+        feat2_l4_3 = self.upsample(pc2_l3, pc2_l4, feat2_l4,resol_factor=scale**7)
         feat2_l4_3 = self.deconv4_3(feat2_l4_3)
 
         # l3
@@ -127,76 +130,81 @@ class PointConvSceneFlowPWC(nn.Module):
         feat3, resid_flow3 = self.flow3(pc1_l3, feat1_l3, cost3)
         flow3 = resid_flow3
 
-        feat1_l3_2 = self.upsample(pc1_l2, pc1_l3, feat1_l3,resol_factor=32)
+        feat1_l3_2 = self.upsample(pc1_l2, pc1_l3, feat1_l3,resol_factor=scale**5)
         feat1_l3_2 = self.deconv3_2(feat1_l3_2)
 
-        feat2_l3_2 = self.upsample(pc2_l2, pc2_l3, feat2_l3,resol_factor=32)
+        feat2_l3_2 = self.upsample(pc2_l2, pc2_l3, feat2_l3,resol_factor=scale**5)
         feat2_l3_2 = self.deconv3_2(feat2_l3_2)
 
         c_feat1_l2 = torch.cat([feat1_l2, feat1_l3_2], dim=1)
         c_feat2_l2 = torch.cat([feat2_l2, feat2_l3_2], dim=1)
 
-        feat1_l2_1 = self.upsample(pc1_l1, pc1_l2, feat1_l2,resol_factor=16)
+        feat1_l2_1 = self.upsample(pc1_l1, pc1_l2, feat1_l2,resol_factor=scale**4)
         feat1_l2_1 = self.deconv2_1(feat1_l2_1)
 
-        feat2_l2_1 = self.upsample(pc2_l1, pc2_l2, feat2_l2,resol_factor=16)
+        feat2_l2_1 = self.upsample(pc2_l1, pc2_l2, feat2_l2,resol_factor=scale**4)
         feat2_l2_1 = self.deconv2_1(feat2_l2_1)
 
         c_feat1_l1 = torch.cat([feat1_l1, feat1_l2_1], dim=1)
         c_feat2_l1 = torch.cat([feat2_l1, feat2_l2_1], dim=1)
 
-        feat1_l1_0 = self.upsample(pc1_l0, pc1_l1, feat1_l1,resol_factor=4)
+        feat1_l1_0 = self.upsample(pc1_l0, pc1_l1, feat1_l1,resol_factor=scale**3)
         feat1_l1_0 = self.deconv1_0(feat1_l1_0)
 
-        feat2_l1_0 = self.upsample(pc2_l0, pc2_l1, feat2_l1,resol_factor=4)
+        feat2_l1_0 = self.upsample(pc2_l0, pc2_l1, feat2_l1,resol_factor=scale**3)
         feat2_l1_0 = self.deconv1_0(feat2_l1_0)
 
         c_feat1_l0 = torch.cat([feat1_l0, feat1_l1_0], dim=1)
         c_feat2_l0 = torch.cat([feat2_l0, feat2_l1_0], dim=1)
 
         # l2
-        up_flow2 = self.upsample(pc1_l2, pc1_l3, self.scale * flow3,resol_factor=32)
-        pc2_l2_warp = self.warping(pc1_l2, pc2_l2, up_flow2,resol_factor=16)
+        up_flow2 = self.upsample(pc1_l2, pc1_l3, self.scale * flow3,resol_factor=scale**5)
+        pc2_l2_warp = self.warping(pc1_l2, pc2_l2, up_flow2,resol_factor=scale**4)
         cost2 = self.cost2(pc1_l2, pc2_l2_warp, c_feat1_l2, c_feat2_l2)
 
-        feat3_up = self.upsample(pc1_l2, pc1_l3, feat3,resol_factor=32)
+        feat3_up = self.upsample(pc1_l2, pc1_l3, feat3,resol_factor=scale**5)
         new_feat1_l2 = torch.cat([feat1_l2, feat3_up], dim=1)
         feat2, resid_flow2 = self.flow2(pc1_l2, new_feat1_l2, cost2, up_flow2)
         flow2 = up_flow2 + resid_flow2
 
 
         # l1
-        up_flow1 = self.upsample(pc1_l1, pc1_l2, self.scale * flow2,resol_factor=16)
-        pc2_l1_warp = self.warping(pc1_l1, pc2_l1, up_flow1,resol_factor=4)
+        up_flow1 = self.upsample(pc1_l1, pc1_l2, self.scale * flow2,resol_factor=scale**4)
+        pc2_l1_warp = self.warping(pc1_l1, pc2_l1, up_flow1,resol_factor=scale**3)
         cost1 = self.cost1(pc1_l1, pc2_l1_warp, c_feat1_l1, c_feat2_l1)
 
-        feat2_up = self.upsample(pc1_l1, pc1_l2, feat2,resol_factor=16)
+        feat2_up = self.upsample(pc1_l1, pc1_l2, feat2,resol_factor=scale**4)
         new_feat1_l1 = torch.cat([feat1_l1, feat2_up], dim=1)
         feat1, resid_flow1 = self.flow1(pc1_l1, new_feat1_l1, cost1,
                                   up_flow1)
         flow1 = up_flow1 + resid_flow1
+        if not self.predict_at_low_resl:
+            # l0
+            up_flow0 = self.upsample(pc1_l0, pc1_l1,
+                                     self.scale * flow1,resol_factor=scale**3) # todo interpolate the resid flow and then add it with the interoplated prev flow
+            pc2_l0_warp = self.warping(pc1_l0, pc2_l0, up_flow0,resol_factor=1)
+            cost0 = self.cost0(pc1_l0, pc2_l0_warp, c_feat1_l0, c_feat2_l0)
 
+            feat1_up = self.upsample(pc1_l0, pc1_l1, feat1,resol_factor=scale**3)
+            new_feat1_l0 = torch.cat([feat1_l0, feat1_up], dim=1)
+            _, resid_flow0 = self.flow0(pc1_l0, new_feat1_l0, cost0, up_flow0)
+            flow0 = up_flow0 + resid_flow0
+            floweds =[flow0+ pc1_l0.detach(), flow1+pc1_l1.detach(), flow2+pc1_l2.detach(), flow3+pc1_l3.detach()]
+            floweds = [flow.transpose(2,1).contiguous() for flow in floweds]
+            fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
+            additional_param = {"control_points": pc1_l1, "control_points_idx": fps_pc1_l1,"predict_at_low_resl":self.predict_at_low_resl}
 
-        # l0
-        up_flow0 = self.upsample(pc1_l0, pc1_l1,
-                                 self.scale * flow1,resol_factor=4) # todo interpolate the resid flow and then add it with the interoplated prev flow
-        pc2_l0_warp = self.warping(pc1_l0, pc2_l0, up_flow0,resol_factor=1)
-        cost0 = self.cost0(pc1_l0, pc2_l0_warp, c_feat1_l0, c_feat2_l0)
+            return flow0.transpose(2,1).contiguous(),additional_param.update({"floweds":floweds, "fps_pc1_idxs":fps_pc1_idxs})
+        else:
+            floweds = [flow1 + pc1_l1.detach(), flow2 + pc1_l2.detach(),
+                       flow3 + pc1_l3.detach()]
+            floweds = [flow.transpose(2, 1).contiguous() for flow in floweds]
+            fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
+            additional_param = {"control_points": pc1_l1, "control_points_idx": fps_pc1_l1,
+                                "predict_at_low_resl": self.predict_at_low_resl}
 
-        feat1_up = self.upsample(pc1_l0, pc1_l1, feat1,resol_factor=4)
-        new_feat1_l0 = torch.cat([feat1_l0, feat1_up], dim=1)
-        _, resid_flow0 = self.flow0(pc1_l0, new_feat1_l0, cost0, up_flow0)
-        flow0 = up_flow0 + resid_flow0
-
-
-        floweds =[flow0+ pc1_l0.detach(), flow1+pc1_l1.detach(), flow2+pc1_l2.detach(), flow3+pc1_l3.detach()]
-        floweds = [flow.transpose(2,1).contiguous() for flow in floweds]
-        fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
-        additional_param = {"control_points": pc1_l1, "control_points_idx": fps_pc1_l1,"predict_at_low_resl":self.predict_at_low_resl}
-
-
-        return flow0.transpose(2,1).contiguous(),additional_param.update({"floweds":floweds, "fps_pc1_idxs":fps_pc1_idxs})
-
+            return flow1.transpose(2, 1).contiguous(), additional_param.update(
+                {"floweds": floweds, "fps_pc1_idxs": fps_pc1_idxs})
 
 def multiScaleLoss(pred_flows, gt_flow, fps_idxs, alpha=[0.02, 0.04, 0.08, 0.16]):
     # num of scale

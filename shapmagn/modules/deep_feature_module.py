@@ -8,7 +8,7 @@ from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, PointNetFeaturePropogation
 from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
-
+from shapmagn.modules.networks.dgcnn import DGCNN
 
 
 class PointNet2FeaExtractor(nn.Module):
@@ -17,10 +17,12 @@ class PointNet2FeaExtractor(nn.Module):
         self.opt = opt
         self.local_pair_feature_extractor = obj_factory(self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")])
         self.input_channel = self.opt[("input_channel",10,"input channel")]
+        self.output_channel = self.opt[("output_channel",12, "output channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
-        self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos")]
+        self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos, here the pos refers to the relative postion not xyz")]
         self.include_pos_info_network = self.opt[("include_pos_info_network",True,"include_pos")]
         self.use_complex_network = self.opt[("use_complex_network",False,"use a complex pointnet to extract feature ")]
+
         if not self.use_complex_network:
             self.init_simple_deep_feature_extractor()
             self.deep_pair_feature_extractor = self.simple_deep_pair_feature_extractor
@@ -36,10 +38,10 @@ class PointNet2FeaExtractor(nn.Module):
                                           group_all=False, include_xyz=self.include_pos_info_network)
         self.sa2 = PointNetSetAbstraction(npoint=1024, radius=self.initial_radius*40, nsample=32, in_channel=32, mlp=[32, 64],
                                           group_all=False, include_xyz=self.include_pos_info_network)
-        self.su1 = PointNetSetUpConv(nsample=8, radius=self.initial_radius*24, f1_channel=64, f2_channel=64, mlp=[32], mlp2=[32])
+        self.su1 = PointNetSetUpConv(nsample=8, radius=self.initial_radius*120, f1_channel=32, f2_channel=64, mlp=[32], mlp2=[32])
         self.fp = PointNetFeaturePropogation(in_channel=32+self.input_channel, mlp=[32])
         self.bn1 = nn.BatchNorm1d(32)
-        self.conv2 = nn.Conv1d(32, 12, kernel_size=1, bias=True)
+        self.conv2 = nn.Conv1d(32, self.output_channel, kernel_size=1, bias=True)
 
 
     def simple_deep_pair_feature_extractor(self,cur_source, target):
@@ -101,7 +103,7 @@ class PointNet2FeaExtractor(nn.Module):
 
         self.conv1 = nn.Conv1d(128, 64, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm1d(64)
-        self.conv2 = nn.Conv1d(64, 12, kernel_size=1, bias=True)
+        self.conv2 = nn.Conv1d(64, self.output_channel, kernel_size=1, bias=True)
 
     def complex_deep_pair_feature_extractor(self, cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
@@ -153,6 +155,37 @@ class PointNet2FeaExtractor(nn.Module):
 
 
 
+class DGCNNFeaExtractor(nn.Module):
+    def __init__(self,opt):
+        super(DGCNNFeaExtractor,self).__init__()
+        self.opt = opt
+        self.local_pair_feature_extractor = obj_factory(self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")])
+        self.input_channel = self.opt[("input_channel",4,"input channel")]
+        self.output_channel = self.opt[("output_channel",16, "output channel")]
+        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.K_neigh = self.opt[("K_neigh",20,"K_neigh")]
+        self.param_shrink_factor = self.opt[("param_factor",2,"network parameter shrink factor")]
+        self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos")]
+        self.init_deep_feature_extractor()
+        self.buffer = {}
+        self.iter = 0
+
+
+    def init_deep_feature_extractor(self):
+        self.extractor = DGCNN(input_channel=self.input_channel,output_channels=self.output_channel,k=self.K_neigh,param_shrink_factor=self.param_shrink_factor)
+
+    def deep_pair_feature_extractor(self, cur_source, target):
+        sf = self.extractor(cur_source.points, cur_source.pointfea)
+        tf = self.extractor(target.points, target.pointfea)
+        new_cur_source = Shape().set_data(points=cur_source.points, weights=cur_source.weights, pointfea=sf)
+        new_target = Shape().set_data(points=target.points, weights=target.weights, pointfea=tf)
+        return new_cur_source, new_target
+
+    def __call__(self,cur_source, target, iter=-1):
+        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
+        cur_source, target = self.deep_pair_feature_extractor(cur_source, target)
+        return cur_source, target
+
 class DeepFeatureLoss(nn.Module):
     def __init__(self, opt):
         super(DeepFeatureLoss,self).__init__()
@@ -163,6 +196,9 @@ class DeepFeatureLoss(nn.Module):
         self.pos_is_in_fea = self.opt["pos_is_in_fea",True,"the position info is in the feature this should be consistent with 'include_pos_in_final_feature' in the feature extractor model"]
         self.soften_gt_sigma = self.opt[("soften_gt_sigma",0.005,"sigma to soften the one-hot gt")]
         self.buffer = {"gt_one_hot":None, "gt_plan":None,"soften_gt_one_hot":None}
+        kernel_obj = self.opt[("kernel_obj",{},"settings for interpolation mode")]
+        self.kernel = obj_factory(kernel_obj)
+
 
 
 
@@ -281,6 +317,11 @@ class DeepFeatureLoss(nn.Module):
     def unsupervised_mapped_bary_center(self,cur_source, target,gt_flowed):
         self.geomloss_setting["mode"] = "soft"
         flowed,_ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
+        disp = flowed.points - cur_source.points
+        smoothed_disp = self.kernel(cur_source.points, cur_source.points, disp,
+                                               cur_source.weights)
+        flowed_points = flowed.points + smoothed_disp
+        flowed = Shape().set_data_with_refer_to(flowed_points,flowed)
         geomloss_setting = deepcopy(self.opt["geomloss"])
         geomloss_setting.print_settings_off()
         geomloss_setting["attr"] = "points"

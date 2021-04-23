@@ -142,7 +142,7 @@ visualize_source_flowed_target_overlap(
 # else:
 #     model_opt["spline_kernel_obj"] ="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
 # model_opt["interp_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(exp_order=2)"  # only used for multi-scale registration
-# model_opt["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], radius=0.05,include_pos=True)"
+# model_opt["pair_feature_extractor_obj"] ="2d_toy_local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], radius=0.05,include_pos=True)"
 # model_opt["gradient_flow_mode"] = gradient_flow_mode
 # model_opt["running_result_visualize"] = True
 # model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
@@ -229,7 +229,7 @@ def update_sigma(sigma, iter):
 # else:
 #     model_opt["spline_kernel_obj"] ="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
 # model_opt["interp_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(exp_order=2)"  # only used for multi-scale registration
-# #model_opt["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], std_normalize=False, radius=0.05,include_pos=True)"
+# #model_opt["pair_feature_extractor_obj"] ="2d_toy_local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], std_normalize=False, radius=0.05,include_pos=True)"
 # model_opt["gradient_flow_mode"] = gradient_flow_mode
 # model_opt["running_result_visualize"] = True
 # model_opt[("gradflow_guided", {}, "settings for gradflow guidance")]
@@ -279,7 +279,7 @@ def update_sigma(sigma, iter):
 # else:
 #     model_opt["spline_kernel_obj"] ="point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
 # model_opt["interp_kernel_obj"] ="point_interpolator.nadwat_kernel_interpolator(exp_order=2)"  # only used for multi-scale registration
-# #model_opt["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], std_normalize=False, radius=0.05,include_pos=True)"
+# #model_opt["pair_feature_extractor_obj"] ="2d_toy_local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue_prod'],weight_list=[1], std_normalize=False, radius=0.05,include_pos=True)"
 # model_opt["gradient_flow_mode"] = gradient_flow_mode
 #
 

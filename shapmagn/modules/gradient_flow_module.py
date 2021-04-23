@@ -8,6 +8,7 @@ from torch.autograd import grad
 
 def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter=-1):
     geomloss_setting = deepcopy(geomloss_setting)
+    geomloss_setting.print_settings_off()
     geomloss_setting['attr'] = "points"
     mode = geomloss_setting[("mode","flow", "flow/analysis")]
     grad_enable_record = torch.is_grad_enabled()
@@ -77,7 +78,7 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     elif mode == "hard":
         P_i_index = log_P_ij.argmax(dim=2).long().view(B,N) #  over M,  return (B*N)
         for i in range(B):   #todo not test yet
-            P_i_index[i]+=int(B*i)
+            P_i_index[i]+=int(N*i)
         P_i_index = P_i_index.view(-1)
         points2_flatten = points2.view(-1, D)
         mapped_position = points2_flatten[P_i_index]

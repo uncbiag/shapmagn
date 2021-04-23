@@ -12,7 +12,7 @@ from time import time
 import numpy as np
 import shapmagn.modules.networks.pointnet2.lib.pointnet2_utils as pointnet2_utils
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator
-
+from shapmagn.modules.keops_utils import KNN
 LEAKY_RATE = 0.1
 use_bn = False
 
@@ -185,12 +185,12 @@ class WeightNet(nn.Module):
         return weights
 
 class PointConv(nn.Module):
-    def __init__(self, nsample, in_channel, out_channel, weightnet = 16, bn = use_bn, use_leaky = True):
+    def __init__(self, nsample, in_channel, out_channel,  bn = use_bn, use_leaky = True):
         super(PointConv, self).__init__()
         self.bn = bn
         self.nsample = nsample
-        self.weightnet = WeightNet(3, weightnet)
-        self.linear = nn.Linear(weightnet * in_channel, out_channel)
+        self.weightnet = WeightNet(3, nsample)
+        self.linear = nn.Linear(nsample * in_channel, out_channel)
         if bn:
             self.bn_linear = nn.BatchNorm1d(out_channel)
 
@@ -228,13 +228,13 @@ class PointConv(nn.Module):
         return new_points
 
 class PointConvD(nn.Module):
-    def __init__(self, npoint, nsample, in_channel, out_channel, weightnet = 16, bn = use_bn, use_leaky = True):
+    def __init__(self, npoint, nsample, in_channel, out_channel,  bn = use_bn, use_leaky = True):
         super(PointConvD, self).__init__()
         self.npoint = npoint
         self.bn = bn
         self.nsample = nsample
-        self.weightnet = WeightNet(3, weightnet)
-        self.linear = nn.Linear(weightnet * in_channel, out_channel)
+        self.weightnet = WeightNet(3, nsample)
+        self.linear = nn.Linear(nsample * in_channel, out_channel)
         if bn:
             self.bn_linear = nn.BatchNorm1d(out_channel)
 
@@ -253,8 +253,8 @@ class PointConvD(nn.Module):
         #import ipdb; ipdb.set_trace()
         B = xyz.shape[0]
         N = xyz.shape[2]
-        xyz = xyz.permute(0, 2, 1)
-        points = points.permute(0, 2, 1)
+        xyz = xyz.permute(0, 2, 1).contiguous()
+        points = points.permute(0, 2, 1).contiguous()
 
         fps_idx = pointnet2_utils.furthest_point_sample(xyz, self.npoint)
         new_xyz = index_points_gather(xyz, fps_idx)
@@ -349,6 +349,17 @@ class PointConvFlow(nn.Module):
         return patch_to_patch_cost
 
 
+class ContiguousBackward(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, input):
+        return input
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output.contiguous()
+
+
 
 class PointWarping(nn.Module):
 
@@ -398,21 +409,47 @@ class PointWarping2(nn.Module):
         xyz2 = xyz2.permute(0, 2, 1).contiguous() # B N2  3
         flow1 = flow1.permute(0, 2, 1).contiguous()
         weight = torch.ones(B,N2,1,device=xyz1.device)
-
-
-        #
-        # knn_idx = knn_point(3, xyz1_to_2, xyz2)
-        # grouped_xyz_norm = index_points_group(xyz1_to_2, knn_idx) - xyz2.view(B, N2, 1, C) # B N2 3 C
-        # dist = torch.norm(grouped_xyz_norm, dim = 3).clamp(min = 1e-10)
-        # norm = torch.sum(1.0 / dist, dim = 2, keepdim = True)
-        # weight = (1.0 / dist) / norm
-        #
-        # grouped_flow1 = index_points_group(flow1, knn_idx)
-        # flow2 = torch.sum(weight.view(B, N2, 3, 1) * grouped_flow1, dim = 2)
-        # warped_xyz2 = (xyz2 - flow2).permute(0, 2, 1) # B 3 N2
         interpolator = nadwat_kernel_interpolator(scale=self.initial_radius*resol_factor)
-        warped_xyz2 = interpolator(xyz2, xyz1_to_2,xyz1,weight)
-        return warped_xyz2.permute(0, 2, 1)
+        flow2 = ContiguousBackward.apply(interpolator(xyz2, xyz1_to_2,flow1,weight))
+        warped_xyz2 = (xyz2 - flow2).permute(0, 2, 1)
+        return warped_xyz2
+
+
+class PointWarping3(nn.Module):
+    def __init__(self, initial_radius):
+        super(PointWarping3,self).__init__()
+        self.initial_radius = initial_radius
+        self.knn = KNN(return_value=False)
+
+
+    def forward(self, xyz1, xyz2, flow1 = None, resol_factor=1,K=5):
+        if flow1 is None:
+            return xyz2
+
+        # move xyz1 to xyz2'
+        xyz1_to_2 = xyz1 + flow1
+
+        # interpolate flow
+        B, C, N1 = xyz1.shape
+        _, _, N2 = xyz2.shape
+        xyz1 = xyz1.permute(0, 2, 1).contiguous() # B N1 3
+        xyz1_to_2 = xyz1_to_2.permute(0, 2, 1).contiguous() # B N1 3
+        xyz2 = xyz2.permute(0, 2, 1).contiguous() # B N2  3
+        flow1 = flow1.permute(0, 2, 1).contiguous()
+        weight = torch.ones(B,N2,1,device=xyz1.device)
+
+        if self.initial_radius>0:
+            interpolator = nadwat_kernel_interpolator(scale=self.initial_radius * resol_factor)
+            flow2 = ContiguousBackward.apply(interpolator(xyz2, xyz1_to_2, flow1, weight))
+            warped_xyz2 = (xyz2 - flow2).permute(0, 2, 1)
+        else:
+            index = self.knn(xyz2, xyz1_to_2, K)
+            grouped_flow2 = index_points_group(flow1, index)
+            flow2 = torch.mean(grouped_flow2, dim=2)
+            warped_xyz2 = (xyz2 - flow2).permute(0, 2, 1)
+        return warped_xyz2
+
+
 
 class UpsampleFlow(nn.Module):
     def forward(self, xyz, sparse_xyz, sparse_flow,resol_factor=None):
@@ -435,6 +472,7 @@ class UpsampleFlow(nn.Module):
 
 
 
+
 class UpsampleFlow2(nn.Module):
     def __init__(self, initial_radius):
         super(UpsampleFlow2,self).__init__()
@@ -448,8 +486,32 @@ class UpsampleFlow2(nn.Module):
         sparse_weight = torch.ones(B,S,1,device=xyz.device)
 
         interpolator = nadwat_kernel_interpolator(scale=radius)
-        dense_flow = interpolator(xyz, sparse_xyz, sparse_flow,sparse_weight)
+        dense_flow = ContiguousBackward.apply(interpolator(xyz, sparse_xyz, sparse_flow,sparse_weight))
         return dense_flow.permute(0, 2, 1)
+
+
+class UpsampleFlow3(nn.Module):
+    def __init__(self, initial_radius,):
+        super(UpsampleFlow3,self).__init__()
+        self.initial_radius = initial_radius
+        self.knn = KNN(return_value=False if self.initial_radius<0 else True)
+
+    def forward(self,xyz, sparse_xyz, sparse_flow, resol_factor=1,K=5):
+        xyz = xyz.permute(0, 2, 1).contiguous()  # B N 3
+        sparse_xyz = sparse_xyz.permute(0, 2, 1).contiguous()  # B S 3
+        sparse_flow = sparse_flow.permute(0, 2, 1).contiguous()
+        if self.initial_radius>0:
+            sigma = self.initial_radius*resol_factor
+            K_dist, index = self.knn(xyz/sigma, sparse_xyz/sigma, K)
+            grouped_flow =index_points_group(sparse_flow,index)
+            K_w = torch.nn.functional.softmax(-K_dist,dim=2)
+            dense_flow = torch.sum(K_w[...,None] * grouped_flow, dim=2)
+        else:
+            index = self.knn(xyz, sparse_xyz, K)
+            grouped_flow = index_points_group(sparse_flow, index)
+            dense_flow = torch.mean(grouped_flow, dim=2)
+        return dense_flow.permute(0, 2, 1)
+
 
 
 
@@ -493,3 +555,48 @@ class SceneFlowEstimatorPointConv(nn.Module):
 
         flow = self.fc(new_points)
         return new_points, flow.clamp(self.clamp[0], self.clamp[1])
+
+
+class SceneFlowEstimatorPointConv2(nn.Module):
+
+    def __init__(self, feat_ch, cost_ch, flow_ch=3, channels=[128, 128], mlp=[128, 64], neighbors=9, clamp=[-200, 200],
+                 use_leaky=True):
+        super(SceneFlowEstimatorPointConv2, self).__init__()
+        self.clamp = clamp
+        self.use_leaky = use_leaky
+        self.pointconv_list = nn.ModuleList()
+        last_channel = feat_ch + cost_ch + flow_ch
+
+        for _, ch_out in enumerate(channels):
+            pointconv = PointConv(neighbors, last_channel + 3, ch_out, bn=True, use_leaky=True)
+            self.pointconv_list.append(pointconv)
+            last_channel = ch_out
+
+        self.mlp_convs = nn.ModuleList()
+        for _, ch_out in enumerate(mlp):
+            self.mlp_convs.append(Conv1d(last_channel, ch_out))
+            last_channel = ch_out
+
+        self.fc = nn.Conv1d(last_channel, 3, 1)
+        self.fea_fc = nn.Conv1d(last_channel, 3, 1)
+
+    def forward(self, xyz, feats, cost_volume, flow=None):
+        '''
+        feats: B C1 N
+        cost_volume: B C2 N
+        flow: B 3 N
+        '''
+        if flow is None:
+            new_points = torch.cat([feats, cost_volume], dim=1)
+        else:
+            new_points = torch.cat([feats, cost_volume, flow], dim=1)
+
+        for _, pointconv in enumerate(self.pointconv_list):
+            new_points = pointconv(xyz, new_points)
+
+        for conv in self.mlp_convs:
+            new_points = conv(new_points)
+
+        flow = self.fc(new_points)
+        fea_flow = self.fea_fc(new_points)
+        return new_points, flow.clamp(self.clamp[0], self.clamp[1]),fea_flow

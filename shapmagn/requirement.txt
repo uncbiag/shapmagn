@@ -15,3 +15,5 @@ blosc
 torchdiffeq
 future
 pandas
+tensorboard
+pyvista

@@ -1,11 +1,19 @@
 import os, sys
+import subprocess
+os.environ['DISPLAY'] = ':99.0'
+os.environ['PYVISTA_OFF_SCREEN'] = 'true'
+os.environ['PYVISTA_USE_IPYVTK'] = 'true'
+bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
+process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+process.wait()
 sys.path.insert(0, os.path.abspath('../../../..'))
 from copy import deepcopy
 import numpy as np
 import torch
+import pyvista as pv
 import matplotlib.pyplot as plt
 from shapmagn.global_variable import Shape, shape_type
-from shapmagn.datasets.data_utils import read_json_into_list, get_obj
+from shapmagn.datasets.data_utils import read_json_into_list, get_obj, get_file_name
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_multi_point
@@ -13,9 +21,9 @@ from shapmagn.utils.local_feature_extractor import *
 
 
 
-def get_pair(source_path, target_path):
+def get_pair(source_path, target_path, expand_bch_dim=True,return_tensor=True):
 
-    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device,expand_bch_dim=True)
+    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device,expand_bch_dim=expand_bch_dim,return_tensor=return_tensor)
     source_obj, source_interval = get_obj_func(source_path)
     target_obj, target_interval = get_obj_func(target_path)
     return source_obj, target_obj
@@ -49,8 +57,8 @@ def plot_pair_weight_distribution_before_and_after_radius_matching(source_weight
     ax0.hist(source_weight1, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
     ax0.hist(target_weight1, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
     ax0.set_title("sw_sum: {:.3f}, tp_sum:{:.3f}".format(sw_sum1,tp_sum1),fontsize=10)
-    source_weight_matched1 = np.log(source_weight_matched1) if use_log else source_weight_matched1
-    ax1.hist(source_weight_matched1, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
+    source_weight_matched1_norm = np.log(source_weight_matched1) if use_log else source_weight_matched1
+    ax1.hist(source_weight_matched1_norm, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
     ax1.hist(target_weight1, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
     ax1.set_title("smw_sum: {:.3f}, tp_sum:{:.3f}".format(smw_sum1,tp_sum1),fontsize=10)
 
@@ -61,8 +69,8 @@ def plot_pair_weight_distribution_before_and_after_radius_matching(source_weight
     ax2.hist(source_weight2, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
     ax2.hist(target_weight2, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
     ax2.set_title("sw_sum: {:.3f}, tp_sum:{:.3f}".format(sw_sum2, tp_sum2),fontsize=10)
-    source_weight_matched2 = np.log(source_weight_matched2) if use_log else source_weight_matched2
-    ax3.hist(source_weight_matched2, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
+    source_weight_matched2_norm = np.log(source_weight_matched2) if use_log else source_weight_matched2
+    ax3.hist(source_weight_matched2_norm, bins=1000, density=0, histtype='stepfilled', alpha=0.7)
     ax3.hist(target_weight2, bins=1000, density=0, histtype='stepfilled', alpha=0.5)
     ax3.set_title("smw_sum: {:.3f}, tp_sum:{:.3f}".format(smw_sum2, tp_sum2),fontsize=10)
 
@@ -74,7 +82,7 @@ def plot_pair_weight_distribution_before_and_after_radius_matching(source_weight
     if save_path:
         plt.savefig(save_path, dpi=300)
     plt.clf()
-
+    return source_weight_matched1, source_weight_matched2
 def get_half_lung(lung, normalize_weight=False):
     weights = lung.weights.detach()
     points = lung.points.detach()
@@ -364,43 +372,121 @@ def analysis_large_vessel(source, target, source_weight_transform=source_weight_
                          target_weight_transform(target_weights),
                          title1=title1, title2=title2, rgb_on=False)
 
+
+def compute_atlas(weight_list):
+    atlas_weight = np.concatenate(weight_list)
+    return atlas_weight
+
+def transfer_radius_and_save_sample(cur_obj, atlas_distri,radius_transfered_saing_path):
+    cur_obj["weights"] = matching_np_radius(cur_obj["weights"],atlas_distri)
+    data = pv.PolyData(cur_obj["points"])
+    for key, item in cur_obj.items():
+        if key not in ['points']:
+            data.point_arrays[key] = item
+    data.save(radius_transfered_saing_path)
+    return cur_obj
+
+
+
 if __name__ == "__main__":
     assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
     device = torch.device("cpu") # cuda:0  cpu
     reader_obj = "lung_dataloader_utils.lung_reader()"
     normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
+    phase = "train"
 
-
-    use_local_mount = True
+    use_local_mount = False
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
 
-    dataset_json_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/val/pair_data.json"
+    dataset_json_path = "/playpen-raid1/zyshen/data/lung_expri/{}/pair_data.json".format(phase)
     dataset_json_path = path_transfer(dataset_json_path)
+
+    sampler_obj = "lung_dataloader_utils.lung_sampler( method='voxelgrid',scale=0.0003)"
+    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device, expand_bch_dim=False, return_tensor=False)
+    altas_path = "/playpen-raid1/Data/UNC_vesselParticles/10067M_INSP_STD_MSM_COPD_wholeLungVesselParticles.vtk"
+    altas_path = path_transfer(altas_path)
+    atlas,_ = get_obj_func(altas_path)
+    sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
+    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device, expand_bch_dim=False, return_tensor=False)
+    sampled_atlas, _ = get_obj_func(altas_path)
+
+    radius_transfered_saing_path = "/playpen-raid1/zyshen/data/lung_atlas/{}".format(phase)
+    radius_transfered_saing_path = path_transfer(radius_transfered_saing_path)
+    os.makedirs(radius_transfered_saing_path,exist_ok=True)
+
     pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
     pair_path_list = [[pair_info["source"]["data_path"], pair_info["target"]["data_path"]] for pair_info in
                       pair_info_list]
     pair_id = 3
-    output_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_data_analysis/val"
+    output_path = "/playpen-raid1/zyshen/data/lung_data_analysis/val"
     for pair_id in range(len(pair_name_list)):
         pair_path = pair_path_list[pair_id]
         pair_path = [path_transfer(path) for path in pair_path]
-        sampler_obj = "lung_dataloader_utils.lung_sampler( method='voxelgrid',scale=0.001)"
-        source, target = get_pair(*pair_path)
-        source_vg_weight, target_vg_weight = source["weights"].squeeze().cpu().numpy(), target["weights"].squeeze().cpu().numpy()
-        title = pair_name_list[pair_id] + "_" +"n_sp:{} ".format(len(source_vg_weight))+"n_tp:{}".format(len(target_vg_weight))
-        sampler_obj ="lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
-        source, target = get_pair(*pair_path)
-        source_combined_weight, target_combined_weight = source["weights"].squeeze().cpu().numpy(), target["weights"].squeeze().cpu().numpy()
-        saving_folder_path = os.path.join(output_path,pair_name_list[pair_id])
-        os.makedirs(saving_folder_path,exist_ok=True)
-        saving_file_path = os.path.join(saving_folder_path,pair_name_list[pair_id]+"_weights_distribution.png")
-        #plot_pair_weight_distribution_before_and_after_radius_matching(source_vg_weight, target_vg_weight,source_combined_weight,target_combined_weight, use_log=True,title=title,show=False,save_path=saving_file_path)
+        sampler_obj = "lung_dataloader_utils.lung_sampler( method='voxelgrid',scale=0.0003)"
 
+        ########################
+        plot_saving_path = os.path.join(radius_transfered_saing_path,"origin_plots")
+        os.makedirs(plot_saving_path,exist_ok=True)
+
+        source_path, target_path = pair_path_list[pair_id]
+        source, target = get_pair(source_path, target_path, expand_bch_dim=False, return_tensor=False)
+
+        saving_path = os.path.join(plot_saving_path, pair_name_list[pair_id] + ".png")
+        camera_pos = [(-4.924379645467042, 2.17374925796456, 1.5003730890759344), (0.0, 0.0, 0.0),
+                      (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
         visualize_point_pair(source["points"], target["points"],
-                        source["weights"],
-                         target["weights"],
-                         title1="source", title2="target", rgb_on=False)
+                             source["weights"],
+                             target["weights"],
+                             title1="source", title2="target", rgb_on=False, saving_capture_path=saving_path,
+                             camera_pos=camera_pos, show=False)
+        plot_saving_path = os.path.join(radius_transfered_saing_path, "plots")
+        os.makedirs(plot_saving_path, exist_ok=True)
+
+
+        # vtk_saving_path = os.path.join(radius_transfered_saing_path,"data")
+        # os.makedirs(vtk_saving_path,exist_ok=True)
+        # saving_path = os.path.join(vtk_saving_path,get_file_name(source_path)+".vtk")
+        # mapped_source = transfer_radius_and_save_sample(source, atlas["weights"], saving_path)
+        # saving_path = os.path.join(vtk_saving_path,get_file_name(target_path)+".vtk")
+        # mapped_target = transfer_radius_and_save_sample(target, atlas["weights"], saving_path)
+        # plot_saving_path = os.path.join(radius_transfered_saing_path, "plots")
+        # source_vg_weight, target_vg_weight = source["weights"], target["weights"]
+        # sampler_obj ="lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
+        # source, target = get_pair(source_path, target_path, expand_bch_dim=False, return_tensor=False)
+        # source_combined_weight, target_combined_weight = source["weights"], target["weights"]
+        # os.makedirs(plot_saving_path,exist_ok=True)
+        # saving_file_path = os.path.join(plot_saving_path,pair_info_list[pair_id]["source"]["name"]+"_weights_distribution.png")
+        # title = pair_info_list[pair_id]["source"]["name"] + "_" +"n_sp:{} ".format(len(source_vg_weight))+"n_tp:{}".format(len(atlas["weights"]))
+        # _,source_combined_mapped_weight =plot_pair_weight_distribution_before_and_after_radius_matching(source_vg_weight, atlas["weights"],source_combined_weight,sampled_atlas["weights"], use_log=True,title=title,show=False,save_path=saving_file_path)
+        # saving_file_path = os.path.join(plot_saving_path,    pair_info_list[pair_id]["target"]["name"] + "_weights_distribution.png")
+        # title = pair_info_list[pair_id]["target"]["name"] + "_" + "n_sp:{} ".format(len(target_vg_weight)) + "n_tp:{}".format(len(atlas["weights"]))
+        # _,target_combined_mapped_weight =plot_pair_weight_distribution_before_and_after_radius_matching(target_vg_weight, atlas["weights"], target_combined_weight, sampled_atlas["weights"],use_log=True, title=title, show=False,save_path=saving_file_path)
+
+        # saving_path = os.path.join(plot_saving_path, pair_name_list[pair_id]+"_mapped.png")
+        # camera_pos = [(-4.924379645467042, 2.17374925796456, 1.5003730890759344), (0.0, 0.0, 0.0),
+        #               (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+        # visualize_point_pair(source["points"], target["points"],
+        #                      source_combined_mapped_weight,
+        #                      target_combined_mapped_weight,
+        #                      title1="source", title2="target", rgb_on=False,saving_capture_path=saving_path,camera_pos=camera_pos,show=False )
+
+    # source, target = get_pair(*pair_path)
+        # source_vg_weight, target_vg_weight = source["weights"], target["weights"]
+        # title = pair_name_list[pair_id] + "_" +"n_sp:{} ".format(len(source_vg_weight))+"n_tp:{}".format(len(target_vg_weight))
+        # sampler_obj ="lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
+        # source, target = get_pair(source_path, target_path, expand_bch_dim=False, return_tensor=False)
+        # source_combined_weight, target_combined_weight = source["weights"], target["weights"]
+        # plot_saving_path = os.path.join(radius_transfered_saing_path,"plots")
+        # saving_folder_path = os.path.join(output_path,pair_name_list[pair_id])
+        # os.makedirs(saving_folder_path,exist_ok=True)
+        # saving_file_path = os.path.join(saving_folder_path,pair_name_list[pair_id]+"_weights_distribution.png")
+        # plot_pair_weight_distribution_before_and_after_radius_matching(source_vg_weight, target_vg_weight,source_combined_weight,target_combined_weight, use_log=True,title=title,show=False,save_path=saving_file_path)
+        #
+        # visualize_point_pair(source["points"], target["points"],
+        #                 source["weights"],
+        #                  target["weights"],
+        #                  title1="source", title2="target", rgb_on=False)
 
 
 

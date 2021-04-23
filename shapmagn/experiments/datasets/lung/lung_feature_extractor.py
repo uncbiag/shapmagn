@@ -71,8 +71,8 @@ class LungFeatureExtractor(object):
         if not self.fixed or self.iter==0:
             flowed_pointfea, mean, std, _ = self.feature_extractor(flowed.points,flowed.weights, weight_list=cur_weight_list, gamma=flowed_gamma, return_stats=True)
             target_pointfea, _ = self.feature_extractor(target.points,target.weights, weight_list=cur_weight_list, gamma=target_gamma, mean=mean, std=std)
-            self.buffer["flowed_pointfea"] = flowed_pointfea
-            self.buffer["target_pointfea"] = target_pointfea
+            self.buffer["flowed_pointfea"] = flowed_pointfea.detach()
+            self.buffer["target_pointfea"] = target_pointfea.detach()
         elif self.fixed and self.iter>0:
             flowed_pointfea = self.buffer["flowed_pointfea"]
             target_pointfea = self.buffer["target_pointfea"]
@@ -86,9 +86,13 @@ class LungFeatureExtractor(object):
         return flowed, target
 
 
-def get_naive_lung_feature():
+def get_naive_lung_feature(include_xyz=True, weight_factor=10000):
     def get_fea(flowed, target):
-        flowed.pointfea = torch.cat([flowed.points,flowed.weights*10000],-1)
-        target.pointfea = torch.cat([target.points,target.weights*10000],-1)
+        if include_xyz:
+            flowed.pointfea = torch.cat([flowed.points,flowed.weights*weight_factor],-1)
+            target.pointfea = torch.cat([target.points,target.weights*weight_factor],-1)
+        else:
+            flowed.pointfea = flowed.weights * weight_factor
+            target.pointfea = target.weights * weight_factor
         return flowed, target
     return get_fea

@@ -49,14 +49,14 @@ def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
             try:
                 rand_ind = np.random.choice(np.arange(npoints),num_sample,replace=False,p=weights_np/weights_np.sum())
             except:
-                print("failed to sample {} from {} points".format(num_sample,npoints))
+                #print("failed to sample {} from {} points".format(num_sample,npoints))
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True,
                                             p=weights_np / weights_np.sum())
         else:
             try:
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=False)
             except:
-                print("failed to sample {} from {} points".format(num_sample,npoints))
+                #print("failed to sample {} from {} points".format(num_sample,npoints))
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True)
         rand_ind.sort()
         points = points[rand_ind]

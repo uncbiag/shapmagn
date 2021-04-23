@@ -1,7 +1,8 @@
 import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
-
+from shapmagn.utils.obj_factory import obj_factory
+from shapmagn.modules.keops_utils import KNN
 
 
 
@@ -215,7 +216,7 @@ def nadwat_interpolator_with_aniso_kernel_extractor_embedded(exp_order=2,cov_sig
 
 
 class NadWatAnisoSpline(object):
-    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,aniso_kernel_weight=1.,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False, mass_thres=2.5, self_center=False):
+    def __init__(self, exp_order=2,cov_sigma_scale=0.05,aniso_kernel_scale=0.05,aniso_kernel_weight=1.,principle_weight=None,eigenvalue_min=0.1,iter_twice=False,leaf_decay=False, fixed=False,is_interp=False, mass_thres=2.5, self_center=False,requires_grad=True):
         self.exp_order = exp_order
         self.cov_sigma_scale = cov_sigma_scale
         self.aniso_kernel_scale = aniso_kernel_scale
@@ -234,6 +235,7 @@ class NadWatAnisoSpline(object):
         self.fixed = fixed
         self.is_interp = is_interp
         self.iter = 0
+        self.requires_grad = requires_grad
 
     def initialize(self, points, weights=None):
         self.Gamma = compute_anisotropic_gamma_from_points(points,
@@ -244,6 +246,7 @@ class NadWatAnisoSpline(object):
                                                         iter_twice=self.iter_twice,
                                                         leaf_decay = self.leaf_decay,
                                                         mass_thres = self.mass_thres)
+        self.Gamma = self.Gamma if self.requires_grad else self.Gamma.detach()
         if self.fixed and self.iter== 0:
             if not isinstance(self.relative_scale,list):
                 compute_kernel = compute_nadwat_kernel(scale=1.0,exp_order=self.exp_order, iso=False, self_center=self.self_center)
@@ -316,6 +319,26 @@ class NadWatIsoSpline(object):
         return spline_value
 
 
+
+
+class KNNInterpolater(object):
+    def __init__(self, initial_radius, use_aniso=False, aniso_knn_obj=None):
+        super(KNNInterpolater,self).__init__()
+        self.initial_radius = initial_radius
+        if use_aniso:
+            self.knn = obj_factory(aniso_knn_obj)
+        else:
+            self.knn = KNN()
+
+    def forward(self,pc1, pc2, pc2_fea,resol_factor=1, K=9):
+        from shapmagn.modules.networks.pointconv_util import index_points_group
+
+        sigma = self.initial_radius*resol_factor
+        K_dist, index = self.knn(pc1/sigma, pc2/sigma, K)
+        grouped_pc2_fea =index_points_group(pc2_fea,index)
+        K_w = torch.nn.functional.softmax(-K_dist,dim=2)
+        pc1_interp_fea = torch.sum(K_w[...,None] * grouped_pc2_fea, dim=2)
+        return pc1_interp_fea
 
 
 #

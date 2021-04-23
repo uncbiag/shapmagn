@@ -46,3 +46,6 @@ def AnisoKNN(cov_sigma_scale=0.02, aniso_kernel_scale=0.08,principle_weight=None
         else:
             return index.long().view(B, N, K)
     return compute
+
+
+

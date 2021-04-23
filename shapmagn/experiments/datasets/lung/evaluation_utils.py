@@ -1,10 +1,12 @@
 import os
 import numpy as np
 import torch
+import pyvista as pv
 from shapmagn.global_variable import Shape
 from shapmagn.datasets.vtk_utils import read_vtk
 from shapmagn.shape.point_interpolator import NadWatIsoSpline
 from shapmagn.utils.shape_visual_utils import save_shape_into_files
+from shapmagn.utils.visualizer import capture_plotter, visualize_source_flowed_target_overlap
 
 """
 
@@ -73,7 +75,7 @@ SCALE=100
 
 
 
-dirlab_landmarks_folder_path  = "/playpen-raid1/Data/copd/processed/landmark_processed"
+dirlab_landmarks_folder_path  = "/playpen-raid1/Data/copd/processed/landmark_processed2"
 def get_flowed(shape_pair, interp_kernel):
     flowed_points = interp_kernel(shape_pair.toflow.points, shape_pair.source.points, shape_pair.flowed.points, shape_pair.source.weights)
     flowed = Shape()
@@ -110,27 +112,71 @@ def eval_landmark(model,shape_pair, batch_info,alias, eval_ot_map=False):
     target_landmarks_points = torch.Tensor(np.stack(target_landmarks_list,0)).to(device)
     shape_pair.toflow = Shape().set_data(points=landmarks_toflow, weights= torch.ones_like(landmarks_toflow))
     gt_landmark = Shape().set_data(points=target_landmarks_points, weights= torch.ones_like(target_landmarks_points))
+    record_path = os.path.join(batch_info["record_path"], "3d", "{}_epoch_{}".format(batch_info["phase"],batch_info["epoch"]))
+    save_shape_into_files(record_path, "landmark"+alias+"_toflow",batch_info["pair_name"], shape_pair.toflow)
     if not eval_ot_map:
         shape_pair = model.flow(shape_pair)
     else:
         interp_kernel = NadWatIsoSpline(exp_order=2,kernel_scale=0.005)
         shape_pair = get_flowed(shape_pair,interp_kernel)
     flowed_landmarks_points = shape_pair.flowed.points
-    record_path = os.path.join(batch_info["record_path"], "3d", "{}_epoch_{}".format(batch_info["phase"],batch_info["epoch"]))
-    save_shape_into_files(record_path, "landmark"+alias+"_toflow",batch_info["pair_name"], shape_pair.toflow)
+    diff =  (target_landmarks_points - flowed_landmarks_points)*SCALE
+    shape_pair.flowed.weights, gt_landmark.weights = diff, diff
     save_shape_into_files(record_path, "landmark"+alias+"_flowed",batch_info["pair_name"], shape_pair.flowed)
     save_shape_into_files(record_path, "landmark"+alias+"_target",batch_info["pair_name"], gt_landmark)
+
     shape_pair.flowed  = flowed_cp # compatible to save function
     shape_pair.toflow = None  # compatible to save function
-    return (target_landmarks_points - flowed_landmarks_points)*SCALE
+
+    return diff
+
+def visualize_feature(shape_pair, batch_info):
+    from sklearn.manifold import TSNE
+    flowed_fea = shape_pair.flowed.pointfea.detach().cpu().numpy()
+    target_fea = shape_pair.target.pointfea.detach().cpu().numpy()
+    nbatch, npoints = flowed_fea.shape[0], flowed_fea.shape[1]
+    camera_pos = [(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+    record_path = os.path.join(batch_info["record_path"],"fea_visual")
+    os.makedirs(record_path,exist_ok=True)
+    for b in range(nbatch):
+        fea_high = np.concatenate([flowed_fea[b,:,3:],target_fea[b,:,3:]],0)
+        fea_embedded = TSNE(n_components=2,perplexity=30,n_jobs=5).fit_transform(fea_high)
+        fea_normalized = (fea_embedded-fea_embedded.min())/(fea_embedded.max()-fea_embedded.min()+1e-7)*3
+        flowed_embedding, target_embedded = fea_normalized[:npoints], fea_normalized[npoints:]
+        pair_name = batch_info["pair_name"][b]
+        saving_path = os.path.join(record_path,pair_name+".png")
+        visualize_source_flowed_target_overlap(shape_pair.source.points, shape_pair.flowed.points, shape_pair.target.points,
+                                               flowed_embedding, flowed_embedding, target_embedded,
+                                               title1="source", title2="flowed", title3="target", rgb_on=True,
+                                               saving_capture_path=saving_path, camera_pos=camera_pos,
+                                               add_bg_contrast=False, show=False)
+        data = pv.PolyData(shape_pair.source.points[b].detach().cpu().numpy())
+        data.point_arrays["pointfea"] = flowed_embedding
+        dcn = lambda x: x.detach().cpu().numpy()
+        data.point_arrays["weights"] = dcn(shape_pair.source.weights[b])
+        saving_path = os.path.join(record_path,pair_name+"_source.vtk")
+        data.save(saving_path)
+        data = pv.PolyData(dcn(shape_pair.flowed.points[b]))
+        data.point_arrays["pointfea"] = flowed_embedding
+        data.point_arrays["weights"] = dcn(shape_pair.source.weights[b])
+        saving_path = os.path.join(record_path, pair_name + "_flowed.vtk")
+        data.save(saving_path)
+        data = pv.PolyData(dcn(shape_pair.target.points[b]))
+        data.point_arrays["pointfea"] = target_embedded
+        data.point_arrays["weights"] = dcn(shape_pair.target.weights[b])
+        saving_path = os.path.join(record_path, pair_name + "_target.vtk")
+        data.save(saving_path)
 
 
 
 
-def evaluate_res():
+
+def evaluate_res(visualize_fea=False):
     def eval(metrics, shape_pair, batch_info, additional_param=None, alias=''):
         phase = batch_info["phase"]
         if phase=="val" or phase=="test":
+            if visualize_fea and "mapped_position" not in additional_param:
+                visualize_feature(shape_pair, batch_info)
             model = additional_param["model"]
             flowed_points_cp= shape_pair.flowed.points
             shape_pair.control_points = additional_param["initial_control_points"]

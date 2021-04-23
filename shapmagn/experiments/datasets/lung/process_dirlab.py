@@ -64,6 +64,25 @@ COPD_shape = {"copd1": [512, 512, 121],
               "copd9": [512, 512, 116],
               "copd10":[512, 512, 135]}
 
+
+
+"""
+before mapping
+current COPD_ID;copd1 , and the current_mean 26.33421393688401                      current COPD_ID;copd1 , and the current_mean 26.33421393688401
+current COPD_ID;copd2 , and the current_mean 21.785988375950623                     current COPD_ID;copd2 , and the current_mean 21.77096701290744
+current COPD_ID;copd3 , and the current_mean 12.6391693237195                       current COPD_ID;copd3 , and the current_mean 12.641456423304232
+current COPD_ID;copd4 , and the current_mean 29.583560337310402                     current COPD_ID;copd4 , and the current_mean 29.580001001346986
+current COPD_ID;copd5 , and the current_mean 30.082670091996842                     current COPD_ID;copd5 , and the current_mean 30.066294774082003
+current COPD_ID;copd6 , and the current_mean 28.456016850531874                     current COPD_ID;copd6 , and the current_mean 28.44935880947926
+current COPD_ID;copd7 , and the current_mean 21.601714709640365                     current COPD_ID;copd7 , and the current_mean 16.04527530944317 #
+current COPD_ID;copd8 , and the current_mean 26.456861641390127                     current COPD_ID;copd8 , and the current_mean 25.831153412715352 #
+current COPD_ID;copd9 , and the current_mean 14.860263389215536                     current COPD_ID;copd9 , and the current_mean 14.860883966778562
+current COPD_ID;copd10 , and the current_mean 21.805702262166907                    current COPD_ID;copd10 , and the current_mean 27.608698637477584 #
+"""
+
+
+
+
 def read_dirlab(file_path, shape):
     dtype = np.dtype("<i2")
     fid = open(file_path, 'rb')
@@ -199,7 +218,7 @@ def get_img_info(img_path):
 
 def transfer_landmarks_from_dirlab_to_high(dirlab_index, high_shape):
     new_index= dirlab_index.copy()
-    new_index[:,-1] =(high_shape[-1]- dirlab_index[:,-1]*4)+0.5
+    new_index[:,-1] =(high_shape[-1]- dirlab_index[:,-1]*4) + 2
     return new_index
 
 
@@ -209,16 +228,25 @@ def transfer_landmarks_from_dirlab_to_high(dirlab_index, high_shape):
 def process_points(point_path, img_path, case_id, output_folder, is_insp):
     index = read_landmark_index(point_path)
     img_shape_itk, spacing_itk, origin_itk = get_img_info(img_path)
+    copd = ID_COPD[case_id]
+
+    print("origin {}_{}:{}".format(copd,"insp" if is_insp else "exp",origin_itk))
+    print("size {}_{}:{}".format(copd,"insp" if is_insp else "exp",img_shape_itk))
+    downsampled_spacing_itk = np.copy(spacing_itk)
+    downsampled_spacing_itk[-1] = downsampled_spacing_itk[-1]*4
+    print("spatial ratio corrections:")
+    print("{} : {},".format(copd,np.array(COPD_spacing[copd])/downsampled_spacing_itk))
     transfered_index = transfer_landmarks_from_dirlab_to_high(index, img_shape_itk)
     physical_points = transfered_index*spacing_itk+origin_itk
-    data = pv.PolyData(physical_points)
-    suffix = "_INSP_STD_USD_COPD.vtk" if is_insp else "_EXP_STD_USD_COPD.vtk"
-    fpath = os.path.join(output_folder,case_id+suffix)
-    data.save(fpath)
-    suffix = "_iBHCT.vtk" if is_insp else "_eBHCT.vtk"
-    fpath = os.path.join(output_folder,ID_COPD[case_id]+suffix)
-    data.save(fpath)
-    return fpath
+    ####physical_points = index* COPD_spacing[copd]
+    # data = pv.PolyData(physical_points)
+    # suffix = "_INSP_STD_USD_COPD.vtk" if is_insp else "_EXP_STD_USD_COPD.vtk"
+    # fpath = os.path.join(output_folder,case_id+suffix)
+    # data.save(fpath)
+    # suffix = "_iBHCT.vtk" if is_insp else "_eBHCT.vtk"
+    # fpath = os.path.join(output_folder,ID_COPD[case_id]+suffix)
+    # data.save(fpath)
+    return physical_points
 
 
 def get_center(point_path,case_id, is_insp):
@@ -234,7 +262,8 @@ def get_center(point_path,case_id, is_insp):
 save_dirlab_IMG_into_niigz = False
 get_dirlab_high_shape_info = False
 map_high_to_dirlab = False
-project_landmarks_from_dirlab_to_high = False
+project_landmarks_from_dirlab_to_high = True
+save_cleaned_pointcloud = False
 pc_folder_path = "/playpen-raid1/Data/DIRLABVascular"
 low_folder_path = "/playpen-raid1/Data/copd"
 high_folder_path = "/playpen-raid1/Data/DIRLABCasesHighRes"
@@ -284,19 +313,31 @@ if map_high_to_dirlab:
 
 
 
-landmark_processed_folder =  os.path.join(processed_output_path, "landmark_processed")
+landmark_processed_folder =  os.path.join(processed_output_path, "landmark_processed2")
 os.makedirs(landmark_processed_folder, exist_ok=True)
 if project_landmarks_from_dirlab_to_high:
-    landmark_insp_processed_path_list = [ process_points(landmark_insp_path_list[i], high_img_insp_path_list[i], id_list[i],landmark_processed_folder, is_insp=True) for i in range(len(id_list))]
-    landmark_exp_processed_path_list = [ process_points(landmark_exp_path_list[i], high_img_exp_path_list[i],id_list[i],landmark_processed_folder, is_insp=False) for i in range(len(id_list))]
+    landmark_insp_physical_pos_list = [ process_points(landmark_insp_path_list[i], high_img_insp_path_list[i], id_list[i],landmark_processed_folder, is_insp=True) for i in range(len(id_list))]
+    landmark_exp_physical_pos_list = [ process_points(landmark_exp_path_list[i], high_img_exp_path_list[i],id_list[i],landmark_processed_folder, is_insp=False) for i in range(len(id_list))]
+    init_diff_list = []
+    for i in range(len(id_list)):
+        copid = "copd{}".format(i+1)
+        index = id_list.index(COPD_ID[copid])
+        diff = np.linalg.norm(landmark_insp_physical_pos_list[index]-landmark_exp_physical_pos_list[index],2,1).mean()
+        init_diff_list.append(diff)
+        print("current COPD_ID;{} , and the current_mean {}".format(copid,diff))
+    print("average mean {}".format(np.mean(init_diff_list)))
 
-# cleaned_pc_folder = os.path.join(processed_output_path, "cleaned_pointcloud")
-# os.makedirs(cleaned_pc_folder, exist_ok=True)
+cleaned_pc_folder = os.path.join(processed_output_path, "cleaned_pointcloud")
+os.makedirs(cleaned_pc_folder, exist_ok=True)
+if save_cleaned_pointcloud:
+    for i, _id in enumerate(id_list):
+        try:
+            clean_and_save_pointcloud(pc_insp_path_list[i], cleaned_pc_folder)
+            clean_and_save_pointcloud(pc_exp_path_list[i], cleaned_pc_folder)
+        except:
+            continue
+#
 # for i, _id in enumerate(id_list):
-#     clean_and_save_pointcloud(pc_insp_path_list[i], cleaned_pc_folder)
-#     clean_and_save_pointcloud(pc_exp_path_list[i], cleaned_pc_folder)
-
-for i, _id in enumerate(id_list):
-    get_center(pc_insp_path_list[i],_id, is_insp=True)
-    get_center(pc_exp_path_list[i],_id,is_insp=False)
-
+#     get_center(pc_insp_path_list[i],_id, is_insp=True)
+#     get_center(pc_exp_path_list[i],_id,is_insp=False)
+#

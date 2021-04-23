@@ -12,10 +12,10 @@ from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction,Poin
 
 
 class FlowNet3D(nn.Module):
-    def __init__(self, input_channel=3, initial_radius=0.001, initial_npoints=4096, param_factor=1.,predict_at_low_resl=False):
+    def __init__(self, input_channel=3, initial_radius=0.001, initial_npoints=4096, param_factor=1.,init_neigh_num=16,predict_at_low_resl=False):
         super(FlowNet3D,self).__init__()
         sbf = partial(shrink_by_factor,factor=param_factor)
-        self.sa1 = PointNetSetAbstraction(npoint=initial_npoints, radius=20*initial_radius, nsample=16, in_channel=input_channel, mlp=sbf([32,32,64]), group_all=False)
+        self.sa1 = PointNetSetAbstraction(npoint=initial_npoints, radius=20*initial_radius, nsample=init_neigh_num, in_channel=input_channel, mlp=sbf([32,32,64]), group_all=False)
         self.sa2 = PointNetSetAbstraction(npoint=shrink_by_factor(initial_npoints,4), radius=40*initial_radius, nsample=16, in_channel=sbf(64), mlp=sbf([64, 64, 128]), group_all=False)
         self.sa3 = PointNetSetAbstraction(npoint=shrink_by_factor(initial_npoints,16), radius=80*initial_radius, nsample=8, in_channel=sbf(128), mlp=sbf([128, 128, 256]), group_all=False)
         self.sa4 = PointNetSetAbstraction(npoint=shrink_by_factor(initial_npoints,64), radius=160*initial_radius, nsample=8, in_channel=sbf(256), mlp=sbf([256,256,512]), group_all=False)
@@ -55,13 +55,13 @@ class FlowNet3D(nn.Module):
 
 
 class FlowNet3DIMP(nn.Module):
-    def __init__(self, input_channel=3, initial_radius=0.001, initial_npoints=4096, param_factor=1.,predict_at_low_resl=False,use_aniso_kernel=True):
+    def __init__(self, input_channel=3, initial_radius=0.001, initial_npoints=4096, param_factor=1.,predict_at_low_resl=False,init_neigh_num=16,use_aniso_kernel=True):
         super(FlowNet3DIMP, self).__init__()
         sbf = partial(shrink_by_factor, factor=param_factor)
         self.predict_at_low_resl = predict_at_low_resl
         self.sa0 = PointNetSetAbstraction(npoint=initial_npoints, radius=20 * initial_radius, nsample=16,
                                           in_channel=input_channel, mlp=sbf([16, 16, 24]), group_all=True, use_aniso_kernel=use_aniso_kernel, cov_sigma_scale=initial_radius*20,aniso_kernel_scale=initial_radius*80)
-        self.sa1 = PointNetSetAbstraction(npoint=initial_npoints, radius=20 * initial_radius, nsample=16,
+        self.sa1 = PointNetSetAbstraction(npoint=initial_npoints, radius=20 * initial_radius, nsample=init_neigh_num,
                                           in_channel=sbf(24), mlp=sbf([64, 64, 64]), group_all=False)
         self.sa2 = PointNetSetAbstraction(npoint=shrink_by_factor(initial_npoints, 4), radius=40 * initial_radius,
                                           nsample=16, in_channel=sbf(64), mlp=sbf([64, 64, 128]), group_all=False)
@@ -110,7 +110,6 @@ class FlowNet3DIMP(nn.Module):
         nonp_param = self.conv2(x)
         nonp_param = nonp_param.transpose(2, 1).contiguous()
         return nonp_param, {"control_points": l1_pc1.transpose(2, 1), "control_points_idx": low_idx,"predict_at_low_resl":True} if self.predict_at_low_resl else {"predict_at_low_resl":False}
-
 
         
 if __name__ == '__main__':

@@ -1,0 +1,93 @@
+{
+    "dataset": {
+        "name": "pair_dataset",
+        "pair_dataset": {
+            "reader" : "lung_dataloader_utils.lung_reader()",
+            "sampler" : "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)",
+            "normalizer": "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])",
+            "pair_postprocess_obj": "lung_dataloader_utils.lung_pair_postprocess()",
+            "max_num_for_loading": [1,20,20,-1],
+            "enlarge_dataset_size_by_factor": 100,
+            "load_training_data_into_memory": true,
+            "aug_data_via_inverse_reg_direction": false
+        }
+    },
+    "tsk_set": {
+        "batch_sz": [
+            1,
+            1,
+            1,
+            1
+        ],
+        "epoch": 300,
+        "gpu_ids": 0,
+        "max_batch_num_per_epoch": [
+            100,
+            1,
+            1
+        ],
+        "model": "deep_learning",
+        "method_name": "feature_deep",
+        "capture_plot_obj": "visualizer.capture_plotter(render_by_weight=True,add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])",
+        "val_period": 5,
+        "feature_deep": {
+            "deep_extractor": "pointnet2_extractor",
+            "pointnet2_extractor": {
+                "local_pair_feature_extractor_obj": "lung_feature_extractor.get_naive_lung_feature(include_xyz=False, weight_factor=1000)",
+                "use_complex_network": false,
+                "input_channel": 1,
+                "output_channel": 16,
+                "initial_radius": 0.001,
+                "include_pos_in_final_feature": false,
+                "include_pos_info_network": true
+            },
+            "deepfea_loss": {
+                "loss_type": "ot_map",
+                "kernel_obj":"point_interpolator.NadWatAnisoSpline(exp_order=2, cov_sigma_scale=0.02,aniso_kernel_scale=0.05,eigenvalue_min=0.2,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True, self_center=True, requires_grad=False)",
+                "geomloss": {
+                    "attr": "pointfea",
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=None,debias=False, backend='online')",
+                    "mode": "soft"
+                }
+            },
+            "sim_factor": 100.0,
+            "reg_factor_init":0,
+
+            "reg_factor_decay": 6,
+            "static_epoch": 5,
+            "spline_kernel_obj": "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)",
+            "interp_kernel_obj": "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.005)",
+            "external_evaluate_metric_obj": "lung_data_eval.evaluate_res()",
+            "print_step": 10,
+            "saving_running_result_visualize": true,
+            "geom_loss_opt_for_eval": {
+                "attr": "points",
+                "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=None, debias=False, backend='online')"
+            }
+        },
+        "optim": {
+            "type": "adam",
+            "lr": 1e-3,
+            "adam": {
+                "betas": [
+                    0.9,
+                    0.999
+                ]
+            }
+        },
+        "scheduler": {
+            "type": "step_lr",
+            "step_lr": {
+                "gamma": 0.5,
+                "step_size": 60
+            }
+        },
+        "save_fig_on": true,
+        "is_train": true,
+        "reset_train_epoch": true,
+        "load_model_but_train_from_epoch": 0,
+        "continue_train": false,
+        "continue_train_lr": 5e-4,
+        "model_path":"/playpen-raid1/zyshen/data/lung_expri/deep_feature_complexnet_fixreg_npos/checkpoints/epoch_290_"
+    }
+}

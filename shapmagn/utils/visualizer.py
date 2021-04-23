@@ -136,6 +136,7 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
                      opacity="linear",
                      lighting=True,
                      style="points", show_scalar_bar=True)
+    p.link_views()  # link all the views
 
     if camera_pos is not None:
         p.camera_position = camera_pos

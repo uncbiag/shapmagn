@@ -157,8 +157,8 @@ class GradFlowPreAlign(nn.Module):
            :return: Bx(D+1)xD transform matrix
            """
         toflow = source
-        A_prev = None
-        A = init_A if init_A is not None else None
+        A_prev = init_A if init_A is not None else None
+        A = None
         if self.search_init_transform:
             A_prev, toflow= self.find_initial_transform(source, target)
         for i in range(self.niter):

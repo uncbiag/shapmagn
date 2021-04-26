@@ -6,9 +6,12 @@ import subprocess
 from shapmagn.utils.visualizer import visualize_point_pair_overlap
 
 sys.path.insert(0, os.path.abspath('../../../..'))
-cache_path ="/playpen/zyshen/keops_cachev2"
-os.makedirs(cache_path,exist_ok=True)
-pykeops.set_bin_folder(cache_path)  # change the build folder
+try:
+    cache_path ="/playpen/zyshen/keops_cachev2"
+    os.makedirs(cache_path,exist_ok=True)
+    pykeops.set_bin_folder(cache_path)  # change the build folder
+except:
+    pass
 os.environ['DISPLAY'] = ':99.0'
 os.environ['PYVISTA_OFF_SCREEN'] = 'true'
 os.environ['PYVISTA_USE_IPYVTK'] = 'true'

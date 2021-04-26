@@ -57,7 +57,6 @@
             "static_epoch": 5,
             "spline_kernel_obj": "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)",
             "interp_kernel_obj": "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.005)",
-            "external_evaluate_metric_obj": "lung_data_eval.evaluate_res()",
             "print_step": 10,
             "saving_running_result_visualize": true,
             "geom_loss_opt_for_eval": {

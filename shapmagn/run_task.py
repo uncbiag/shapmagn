@@ -14,11 +14,15 @@ process.wait()
 
 sys.path.insert(0, os.path.abspath('..'))
 import pykeops
-print(pykeops.config.bin_folder)  # display default build_folder
-cache_path ="/playpen/zyshen/keops_cachev2"
-os.makedirs(cache_path,exist_ok=True)
-pykeops.set_bin_folder(cache_path)  # change the build folder
-print(pykeops.config.bin_folder)  # display new build_folder
+try:
+    # hard coding for keops cache path
+    cache_path ="/playpen/zyshen/keops_cachev2"
+    os.makedirs(cache_path,exist_ok=True)
+    pykeops.set_bin_folder(cache_path)  # change the build folder
+    print("change keops cache path into  {}".format(pykeops.config.bin_folder))
+except:
+    print("using keops default cache path {}".format(pykeops.config.bin_folder))
+
 import torch
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark=True

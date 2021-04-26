@@ -199,6 +199,8 @@ class RegistrationPairDataset(Dataset):
         source_dict, ind = self.sampler(source_dict, ind=None, fixed_random_seed=self.phase != "train")
         target_dict, _ = self.sampler(target_dict, ind=ind, fixed_random_seed=self.phase != "train")
 
+        # if self.pair_postprocess is not None:
+        #     source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
 
 
         if self.transform:

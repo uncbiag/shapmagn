@@ -135,12 +135,12 @@ def do_registration(args):
 if __name__ == '__main__':
     """
         An interface for shape registration approaches.
-        Assume there is two level folder, task_root_folder/task_name
+        Assume there is two level folder, output_root_folder/task_name
         Arguments: 
             --eval: run in inference mode
             --dataset_folder/ -ds: the path including the dataset splits, which contains train/val/test/debug subfolders
             --output_root_folder/ -o: the path of output root folder, we assume the tasks under this folder share the same dataset
-            --task_name / -tn: task name i.e. run_training_vsvf_task, run_training_rdmm_task
+            --task_name / -tn: task name 
             --setting_folder_path/ -ts: path of the folder where settings are saved,should include task_setting.json
             --gpu_id/ -g: gpu_id to use
     """

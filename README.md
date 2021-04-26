@@ -28,7 +28,7 @@ e.g. for cuda 10.2,
 pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cu102.html
 ```
 
-
+Make sure the torch use the same cuda version as keops and torch-scatter.
 
 ## Demo
 We provide a series of demos, which can be found at shapmagn/demos
@@ -45,12 +45,12 @@ python toy_reg.py
 
 Here is an example on training deep feature learning network based on one case:
 ```
-python run_task.py -ds SHAPEMAGN_PATH/shapmagn/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/shapmagn/demos/output/training_one_case -tn deepfeature_pointnet2 -ts SHAPEMAGN_PATH/shapmagn/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0
+python run_task.py -ds SHAPEMAGN_PATH/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/demos/output/training_one_case -tn deepfeature_pointnet2 -ts SHAPEMAGN_PATH/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0
 ```
 Here is an example on evaluating a pretrained deep LDDMM flow network on one case:
 
 ```
-python run_task.py --eval -ds SHAPEMAGN_PATH/shapmagn/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/shapmagn/demos/output/test_one_case -tn deepflow_pwc_lddmm -ts SHAPEMAGN_PATH/shapmagn/demos/settings/lung/test_deep_lddmm_pwcnet_on_one_case  -m   /SHAPEMAGN_PATH/shapmagn/demos/pretrained_models/pretrained_deep_lddmm -g 0
+python run_task.py --eval -ds SHAPEMAGN_PATH/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/demos/output/test_one_case -tn deepflow_pwc_lddmm -ts SHAPEMAGN_PATH/demos/settings/lung/test_deep_lddmm_pwcnet_on_one_case  -m   /SHAPEMAGN_PATH/demos/pretrained_models/pretrained_deep_lddmm -g 0
 ```
 
 ## TODO
@@ -61,3 +61,5 @@ python run_task.py --eval -ds SHAPEMAGN_PATH/shapmagn/demos/data/lung_dataset_sp
 21. test gmm model, local laplacian, main vessel
 22. rewrite backbone of pwcnet and flownet to make them clean and fast
 23. do distribution analysis for the landmarks
+24. fix lung data util
+25. fix postprocess order

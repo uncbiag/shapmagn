@@ -13,6 +13,7 @@ from shapmagn.shape.point_sampler import grid_sampler, uniform_sampler
 from shapmagn.shape.shape_utils import get_scale_and_center
 from shapmagn.datasets.data_utils import compute_interval, get_obj
 from shapmagn.experiments.datasets.lung.lung_data_analysis import matching_np_radius
+from shapmagn.utils.obj_factory import obj_factory
 
 """
 attri points with size (73412, 3)
@@ -45,7 +46,8 @@ def lung_reader():
         raw_data_dict = reader(path)
         data_dict = {}
         data_dict["points"] = raw_data_dict["points"]
-        data_dict["weights"] = raw_data_dict["dnn_radius"][:,None]
+        data_dict["weights"] = raw_data_dict["dnn_radius"][:,None]  #todo fixed this
+        #data_dict["weights"] = raw_data_dict["weights"][:,None]
         fea_list = [norm_fea(exp_dim_fn(raw_data_dict[fea_name])) for fea_name in fea_to_merge]
         data_dict["pointfea"] = np.concatenate(fea_list,1)
         return data_dict
@@ -149,20 +151,21 @@ try:
     get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device="cpu", expand_bch_dim=False, return_tensor=False)
     altas_path = "/playpen-raid1/Data/UNC_vesselParticles/10067M_INSP_STD_MSM_COPD_wholeLungVesselParticles.vtk"
     atlas,_ = get_obj_func(altas_path)
+    print("take {} as atlas ")
 except:
     print("the atlas weight matching doesn't work. Ignore this if the altas radius matching is not used")
 
 def get_atlas_distbribution(**kwargs):
-    sampler_obj = kwargs["sampler"]
+    sampler_obj ="lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
     sampler = obj_factory(sampler_obj)
-    sampled_atlas, _ = sampler(atlas["points",atlas["weights"]])
+    sampled_atlas, _ = sampler(atlas)
     return sampled_atlas
 
 def lung_pair_atlas_postprocess(**kwargs):
     sampled_atlas = get_atlas_distbribution(**kwargs)
     def postprocess(source_dict, target_dict):
         source_dict["weights"] = matching_np_radius(source_dict["weights"],sampled_atlas["weights"])
-        target_dict["weights"] = matching_np_radius(source_dict["weights"],sampled_atlas["weights"])
+        target_dict["weights"] = matching_np_radius(target_dict["weights"],sampled_atlas["weights"])
         return source_dict, target_dict
     return postprocess
 

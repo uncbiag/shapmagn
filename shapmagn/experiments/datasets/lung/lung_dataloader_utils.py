@@ -46,8 +46,10 @@ def lung_reader():
         raw_data_dict = reader(path)
         data_dict = {}
         data_dict["points"] = raw_data_dict["points"]
-        data_dict["weights"] = raw_data_dict["dnn_radius"][:,None]  #todo fixed this
-        #data_dict["weights"] = raw_data_dict["weights"][:,None]
+        try:  #todo fixed this, this is a temporaily fix for the one-synth-pair diagnosis
+            data_dict["weights"] = raw_data_dict["dnn_radius"][:,None]
+        except:
+            data_dict["weights"] = raw_data_dict["weights"][:,None]
         fea_list = [norm_fea(exp_dim_fn(raw_data_dict[fea_name])) for fea_name in fea_to_merge]
         data_dict["pointfea"] = np.concatenate(fea_list,1)
         return data_dict
@@ -65,12 +67,14 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
     """
     def uniform_sample(data_dict,ind=None, fixed_random_seed=True):
         num_sample = args["num_sample"]
+        index = None
         if num_sample !=-1:
             points = data_dict["points"]
             weights = data_dict["weights"]
             pointfea = data_dict["pointfea"]
             sampler= uniform_sampler(num_sample, fixed_random_seed, sampled_by_weight=sampled_by_weight)
             sampled_points, sampled_weights, index = sampler(torch.tensor(points),torch.tensor(weights))
+
             index = index.numpy()
             data_dict["points"] = sampled_points.numpy()
             data_dict["weights"] = sampled_weights.numpy()
@@ -79,6 +83,7 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
 
     def voxelgrid_sample(data_dict,ind=None, fixed_random_seed=None):
         scale = args["scale"]
+        index = None
         if scale != -1:
             points = torch.Tensor(data_dict["points"])
             weights = torch.Tensor(data_dict["weights"])
@@ -96,6 +101,7 @@ def lung_sampler(method="uniform", sampled_by_weight=True, **args):
         return data_dict, index
 
     def combine_sample(data_dict,ind=None, fixed_random_seed=True):
+
         data_dict, _ = voxelgrid_sample(data_dict,ind,fixed_random_seed)
         return uniform_sample(data_dict,ind, fixed_random_seed)
 
@@ -129,9 +135,9 @@ def lung_normalizer(**args):
 
         points = data_dict["points"]
         weights = data_dict["weights"]
-        data_dict["points"] = (points-shift)/scale
+        data_dict["points"] = ((points-shift)/scale).astype(np.float32)
         weight_scale = args["weight_scale"] if 'weight_scale' in args and args['weight_scale']!=-1 else weights.sum()
-        data_dict["weights"] = weights/weight_scale  #/50000
+        data_dict["weights"] = (weights/weight_scale).astype(np.float32)  #/50000
         return data_dict
     return normalize
 

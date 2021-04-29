@@ -12,7 +12,8 @@ from time import time
 import numpy as np
 import shapmagn.modules.networks.pointnet2.lib.pointnet2_utils as pointnet2_utils
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator
-from shapmagn.modules.keops_utils import KNN
+from shapmagn.modules.keops_utils import KNN, AnisoKNN
+
 LEAKY_RATE = 0.1
 use_bn = False
 
@@ -135,7 +136,7 @@ def group_query(nsample, s_xyz, xyz, s_points):
         xyz: input points position data, [B, S, C]
     Return:
         new_xyz: sampled points position data, [B, 1, C]
-        new_points: sampled points data, [B, 1, N, C+D]
+        new_points: sampled points data, [B, S, N, C+D]
     """
     B, N, C = s_xyz.shape
     S = xyz.shape[1]
@@ -150,6 +151,38 @@ def group_query(nsample, s_xyz, xyz, s_points):
         new_points = grouped_xyz_norm
 
     return new_points, grouped_xyz_norm
+
+
+def aniso_group_query(cov_sigma_scale,   aniso_kernel_scale):
+    # compatible to code in pointnet2
+    aniso_knn = AnisoKNN(cov_sigma_scale=cov_sigma_scale, aniso_kernel_scale=aniso_kernel_scale,
+                              return_value=False)
+    def group_query(nsample, s_xyz, xyz, s_points):
+        """
+            Input:
+                nsample: scalar
+                s_xyz: input points position data, [B, N, C]
+                s_points: input points data, [B, N, D]
+                xyz: input points position data, [B, S, C]
+            Return:
+                new_xyz: sampled points position data, [B, 1, C]
+                new_points: sampled points data, [B, S, N, C+D]
+            """
+        B, N, C = s_xyz.shape
+        S = xyz.shape[1]
+        new_xyz = xyz
+        idx = aniso_knn(new_xyz,s_xyz,nsample)
+        grouped_xyz = index_points_group(s_xyz, idx)  # [B, npoint, nsample, C]
+        grouped_xyz_norm = grouped_xyz - new_xyz.view(B, S, 1, C)
+        if s_points is not None:
+            grouped_points = index_points_group(s_points, idx)
+            new_points = torch.cat([grouped_xyz_norm, grouped_points], dim=-1)  # [B, npoint, nsample, C+D]
+        else:
+            new_points = grouped_xyz_norm
+        return new_points, grouped_xyz_norm
+
+    return group_query
+
 
 class WeightNet(nn.Module):
 
@@ -228,13 +261,16 @@ class PointConv(nn.Module):
         return new_points
 
 class PointConvD(nn.Module):
-    def __init__(self, npoint, nsample, in_channel, out_channel,  bn = use_bn, use_leaky = True):
+    def __init__(self, npoint, nsample, in_channel, out_channel,  bn = use_bn, use_leaky = True, group_all=False,use_aniso_kernel=False,cov_sigma_scale=0.02,aniso_kernel_scale=0.08):
         super(PointConvD, self).__init__()
         self.npoint = npoint
         self.bn = bn
         self.nsample = nsample
         self.weightnet = WeightNet(3, nsample)
         self.linear = nn.Linear(nsample * in_channel, out_channel)
+        self.group_all = group_all
+        self.use_aniso_kernel = use_aniso_kernel
+        self.group_query = group_query if not self.use_aniso_kernel else aniso_group_query(cov_sigma_scale=cov_sigma_scale, aniso_kernel_scale=aniso_kernel_scale)
         if bn:
             self.bn_linear = nn.BatchNorm1d(out_channel)
 
@@ -251,18 +287,22 @@ class PointConvD(nn.Module):
             new_points_concat: sample points feature data, [B, D', S]
         """
         #import ipdb; ipdb.set_trace()
+        npoint = self.npoint if self.npoint>0 else xyz.shape[1]
         B = xyz.shape[0]
         N = xyz.shape[2]
         xyz = xyz.permute(0, 2, 1).contiguous()
         points = points.permute(0, 2, 1).contiguous()
-
-        fps_idx = pointnet2_utils.furthest_point_sample(xyz, self.npoint)
-        new_xyz = index_points_gather(xyz, fps_idx)
-        new_points, grouped_xyz_norm = group_query(self.nsample, xyz, new_xyz, points)
+        if not self.group_all:
+            fps_idx = pointnet2_utils.furthest_point_sample(xyz,npoint)
+            new_xyz = index_points_gather(xyz, fps_idx)
+        else:
+            fps_idx = torch.arange(N, device=xyz.device).repeat(B,1)
+            new_xyz = xyz
+        new_points, grouped_xyz_norm = self.group_query(self.nsample, xyz, new_xyz, points)
 
         grouped_xyz = grouped_xyz_norm.permute(0, 3, 2, 1)
         weights = self.weightnet(grouped_xyz)
-        new_points = torch.matmul(input=new_points.permute(0, 1, 3, 2), other = weights.permute(0, 3, 2, 1)).view(B, self.npoint, -1)
+        new_points = torch.matmul(input=new_points.permute(0, 1, 3, 2), other = weights.permute(0, 3, 2, 1)).view(B, npoint, -1)
         new_points = self.linear(new_points)
         if self.bn:
             new_points = self.bn_linear(new_points.permute(0, 2, 1))

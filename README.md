@@ -43,11 +43,11 @@ python lung_reg.py
 python toy_reg.py
 ```
 
-Here is an example on training deep feature learning network based on one case:
+Here is an example on training deep feature learning network based on one synthesized pair:
 ```
-python run_task.py -ds SHAPEMAGN_PATH/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/demos/output/training_one_case -tn deepfeature_pointnet2 -ts SHAPEMAGN_PATH/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0
+python run_task.py -ds SHAPEMAGN_PATH/demos/data/lung_synth_dataset_splits -o SHAPEMAGN_PATH/demos/output/training_one_synth_case -tn deepfeature_pointconv -ts SHAPEMAGN_PATH/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0
 ```
-Here is an example on evaluating a pretrained deep LDDMM flow network on one case:
+Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair:
 
 ```
 python run_task.py --eval -ds SHAPEMAGN_PATH/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/demos/output/test_one_case -tn deepflow_pwc_lddmm -ts SHAPEMAGN_PATH/demos/settings/lung/test_deep_lddmm_pwcnet_on_one_case  -m   /SHAPEMAGN_PATH/demos/pretrained_models/pretrained_deep_lddmm -g 0

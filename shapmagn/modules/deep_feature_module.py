@@ -1,4 +1,6 @@
 from copy import deepcopy
+from functools import partial
+
 import torch
 import torch.nn as nn
 from pykeops.torch import LazyTensor
@@ -7,8 +9,10 @@ from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, PointNetFeaturePropogation
 from shapmagn.metrics.losses import GeomDistance
-from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping
 from shapmagn.modules.networks.dgcnn import DGCNN
+from shapmagn.modules.networks.pointpwc_feature_net import PointConvFeature
+from shapmagn.utils.utils import shrink_by_factor
 
 
 class PointNet2FeaExtractor(nn.Module):
@@ -20,8 +24,9 @@ class PointNet2FeaExtractor(nn.Module):
         self.output_channel = self.opt[("output_channel",12, "output channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
         self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos, here the pos refers to the relative postion not xyz")]
-        self.include_pos_info_network = self.opt[("include_pos_info_network",True,"include_pos")]
+        self.include_pos_info_network = self.opt[("include_pos_info_network",True,"include_pos, xyz")]
         self.use_complex_network = self.opt[("use_complex_network",False,"use a complex pointnet to extract feature ")]
+        self.param_shrink_factor = self.opt[("param_shrink_factor",2,"shrink factor the model parameter, #params/param_shrink_factor")]
 
         if not self.use_complex_network:
             self.init_simple_deep_feature_extractor()
@@ -78,39 +83,46 @@ class PointNet2FeaExtractor(nn.Module):
         return new_cur_source, new_target
 
     def init_complex_deep_feature_extractor(self):
+        sbf = partial(shrink_by_factor, factor=self.param_shrink_factor)
+
+        self.sa0 = PointNetSetAbstraction(npoint=4096, radius=20 * self.initial_radius, nsample=16,
+                                          in_channel=self.input_channel, mlp=(sbf([16, 16, 16])), group_all=True,
+                                          use_aniso_kernel=True, cov_sigma_scale=self.initial_radius * 20,
+                                          aniso_kernel_scale=self.initial_radius * 80)
         self.sa1 = PointNetSetAbstraction(npoint=4096, radius=20 * self.initial_radius, nsample=16,
-                                          in_channel=self.input_channel, mlp=[16, 16, 32],
+                                          in_channel=sbf(16), mlp=sbf([16, 16, 32]),
                                           group_all=False, include_xyz=self.include_pos_info_network)
-        self.sa2 = PointNetSetAbstraction(npoint=1024, radius=40 * self.initial_radius, nsample=16, in_channel=32,
-                                          mlp=[32, 32, 64],
+        self.sa2 = PointNetSetAbstraction(npoint=1024, radius=40 * self.initial_radius, nsample=16, in_channel=sbf(32),
+                                          mlp=sbf([32, 32, 64]),
                                           group_all=False, include_xyz=self.include_pos_info_network)
-        self.sa3 = PointNetSetAbstraction(npoint=256, radius=80 * self.initial_radius, nsample=8, in_channel=64,
-                                          mlp=[64, 64, 128],
+        self.sa3 = PointNetSetAbstraction(npoint=256, radius=80 * self.initial_radius, nsample=8, in_channel=sbf(64),
+                                          mlp=sbf([64, 64, 128]),
                                           group_all=False, include_xyz=self.include_pos_info_network)
-        self.sa4 = PointNetSetAbstraction(npoint=64, radius=160 * self.initial_radius, nsample=8, in_channel=128,
-                                          mlp=[128, 128, 256],
+        self.sa4 = PointNetSetAbstraction(npoint=64, radius=160 * self.initial_radius, nsample=8, in_channel=sbf(128),
+                                          mlp=sbf([128, 128, 256]),
                                           group_all=False, include_xyz=self.include_pos_info_network)
 
-        self.su1 = PointNetSetUpConv(nsample=8, radius=96 * self.initial_radius, f1_channel=128, f2_channel=256, mlp=[],
-                                     mlp2=[128, 128])
-        self.su2 = PointNetSetUpConv(nsample=8, radius=48 * self.initial_radius, f1_channel=64, f2_channel=128,
-                                     mlp=[64, 64, 128],
-                                     mlp2=[128])
-        self.su3 = PointNetSetUpConv(nsample=8, radius=24 * self.initial_radius, f1_channel=32, f2_channel=128,
-                                     mlp=[64, 64, 128],
-                                     mlp2=[128])
-        self.fp = PointNetFeaturePropogation(in_channel=128 + self.input_channel, mlp=[128, 128])
+        self.su1 = PointNetSetUpConv(nsample=8, radius=96 * self.initial_radius, f1_channel=sbf(128), f2_channel=sbf(256), mlp=[],
+                                     mlp2=sbf([128, 128]))
+        self.su2 = PointNetSetUpConv(nsample=8, radius=48 * self.initial_radius, f1_channel=sbf(64), f2_channel=sbf(128),
+                                     mlp=sbf([64, 64, 128]),
+                                     mlp2=sbf([128]))
+        self.su3 = PointNetSetUpConv(nsample=8, radius=24 * self.initial_radius, f1_channel=sbf(32), f2_channel=sbf(128),
+                                     mlp=sbf([64, 64, 128]),
+                                     mlp2=sbf([128]))
+        self.fp = PointNetFeaturePropogation(in_channel=sbf(128) + self.input_channel, mlp=sbf([128, 128]))
 
-        self.conv1 = nn.Conv1d(128, 64, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.conv2 = nn.Conv1d(64, self.output_channel, kernel_size=1, bias=True)
+        self.conv1 = nn.Conv1d(sbf(128), sbf(64), kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm1d(sbf(64))
+        self.conv2 = nn.Conv1d(sbf(64), self.output_channel, kernel_size=1, bias=True)
 
     def complex_deep_pair_feature_extractor(self, cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         pc1, pc2, feature1, feature2 = pc1.transpose(2, 1).contiguous(), pc2.transpose(2, 1).contiguous(), feature1.transpose(
             2, 1).contiguous(), feature2.transpose(2, 1).contiguous()
 
-        l1_pc1, l1_feature1,_ = self.sa1(pc1, feature1)
+        l0_pc1, l0_feature1, _ = self.sa0(pc1,feature1)
+        l1_pc1, l1_feature1,_ = self.sa1(l0_pc1, l0_feature1)
         l2_pc1, l2_feature1,_ = self.sa2(l1_pc1, l1_feature1)
         l3_pc1, l3_feature1,_ = self.sa3(l2_pc1, l2_feature1)
         l4_pc1, l4_feature1,_ = self.sa4(l3_pc1, l3_feature1)
@@ -122,8 +134,8 @@ class PointNet2FeaExtractor(nn.Module):
         sf = self.conv2(x)
         sf = sf.transpose(2, 1).contiguous()
 
-
-        l1_pc2, l1_feature2,_ = self.sa1(pc2, feature2)
+        l0_pc2, l0_feature2, _ = self.sa0(pc2,feature2)
+        l1_pc2, l1_feature2,_ = self.sa1(l0_pc2, l0_feature2)
         l2_pc2, l2_feature2,_ = self.sa2(l1_pc2, l1_feature2)
         l3_pc2, l3_feature2,_ = self.sa3(l2_pc2, l2_feature2)
         l4_pc2, l4_feature2,_ = self.sa4(l3_pc2, l3_feature2)
@@ -164,7 +176,7 @@ class DGCNNFeaExtractor(nn.Module):
         self.output_channel = self.opt[("output_channel",16, "output channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
         self.K_neigh = self.opt[("K_neigh",20,"K_neigh")]
-        self.param_shrink_factor = self.opt[("param_factor",2,"network parameter shrink factor")]
+        self.param_shrink_factor = self.opt[("param_shrink_factor",2,"network parameter shrink factor")]
         self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos")]
         self.init_deep_feature_extractor()
         self.buffer = {}
@@ -177,6 +189,12 @@ class DGCNNFeaExtractor(nn.Module):
     def deep_pair_feature_extractor(self, cur_source, target):
         sf = self.extractor(cur_source.points, cur_source.pointfea)
         tf = self.extractor(target.points, target.pointfea)
+        sf = (sf - sf.mean(2, keepdim=True)) / (sf.std(2, keepdim=True) + 1e-7)
+        tf = (tf - tf.mean(2, keepdim=True)) / (tf.std(2, keepdim=True) + 1e-7)
+
+        if self.include_pos_in_final_feature:
+            sf = torch.cat([cur_source.points, sf], 2)
+            tf = torch.cat([target.points, tf], 2)
         new_cur_source = Shape().set_data(points=cur_source.points, weights=cur_source.weights, pointfea=sf)
         new_target = Shape().set_data(points=target.points, weights=target.weights, pointfea=tf)
         return new_cur_source, new_target
@@ -186,14 +204,64 @@ class DGCNNFeaExtractor(nn.Module):
         cur_source, target = self.deep_pair_feature_extractor(cur_source, target)
         return cur_source, target
 
+
+
+
+class PointConvFeaExtractor(nn.Module):
+    def __init__(self,opt):
+        super(PointConvFeaExtractor,self).__init__()
+        self.opt = opt
+        self.local_pair_feature_extractor = obj_factory(self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")])
+        self.input_channel = self.opt[("input_channel",1,"input channel")]
+        self.output_channel = self.opt[("output_channel",6, "output channel")]
+        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
+        self.param_shrink_factor = self.opt[("param_shrink_factor",2,"network parameter shrink factor")]
+        self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos")]
+        self.use_aniso_kernel = self.opt[("use_aniso_kernel",False,"use the aniso kernel in first sampling layer")]
+        self.init_deep_feature_extractor()
+        self.buffer = {}
+        self.iter = 0
+
+
+    def init_deep_feature_extractor(self):
+        self.extractor = PointConvFeature(input_channel=self.input_channel,output_channels=self.output_channel,param_shrink_factor=self.param_shrink_factor, use_aniso_kernel=self.use_aniso_kernel)
+
+    def deep_pair_feature_extractor(self, cur_source, target):
+        sf = self.extractor(cur_source.points, cur_source.pointfea)
+        tf = self.extractor(target.points, target.pointfea)
+
+        sf = (sf-sf.mean(2,keepdim=True))/(sf.std(2,keepdim=True)+1e-7)
+        tf = (tf-tf.mean(2,keepdim=True))/(tf.std(2,keepdim=True)+1e-7)
+
+        # sf = (sf ) / (sf.norm(2,2, keepdim=True) + 1e-7)
+        # tf = (tf ) / (tf.norm(2,2, keepdim=True) + 1e-7)
+        if self.include_pos_in_final_feature:
+            sf = torch.cat([cur_source.points, sf], 2)
+            tf = torch.cat([target.points, tf], 2)
+
+
+        new_cur_source = Shape().set_data(points=cur_source.points, weights=cur_source.weights, pointfea=sf)
+        new_target = Shape().set_data(points=target.points, weights=target.weights, pointfea=tf)
+        return new_cur_source, new_target
+
+    def __call__(self,cur_source, target, iter=-1):
+        cur_source, target = self.local_pair_feature_extractor(cur_source, target)
+        cur_source, target = self.deep_pair_feature_extractor(cur_source, target)
+        return cur_source, target
+
+
+
+
+
+
 class DeepFeatureLoss(nn.Module):
     def __init__(self, opt):
         super(DeepFeatureLoss,self).__init__()
         self.opt = opt
-        self.loss_type = self.opt[("loss_type", "ot_map","naive_corres / ot_corres /ot_ce/ot_soften_ce/ ot_distance/ot_map/unsup_ot_map")]
+        self.loss_type = self.opt[("loss_type", "ot_map","naive_corres/ot_ce/ot_soften_ce/ot_map")]
         self.geomloss_setting = deepcopy(self.opt["geomloss"])
         self.geomloss_setting.print_settings_off()
-        self.pos_is_in_fea = self.opt["pos_is_in_fea",True,"the position info is in the feature this should be consistent with 'include_pos_in_final_feature' in the feature extractor model"]
+        self.pos_is_in_fea = self.opt["pos_is_in_fea",False,"if the position info is in the feature this should be consistent with 'include_pos_in_final_feature' in the feature extractor model"]
         self.soften_gt_sigma = self.opt[("soften_gt_sigma",0.005,"sigma to soften the one-hot gt")]
         self.buffer = {"gt_one_hot":None, "gt_plan":None,"soften_gt_one_hot":None}
         kernel_obj = self.opt[("kernel_obj",{},"settings for interpolation mode")]
@@ -214,7 +282,6 @@ class DeepFeatureLoss(nn.Module):
         pointfea2 = target.pointfea
         weights = cur_source.weights
         sigma = 0.005
-
         x_i = LazyTensor(points[:, :, None] / sigma)  # BxNx1xD
         x_j = LazyTensor(points[:, None] / sigma)  # Bx1xNxD
         point_dist2 = -x_i.sqdist(x_j)  # BxNxNx1
@@ -224,8 +291,6 @@ class DeepFeatureLoss(nn.Module):
         fea_j = LazyTensor(pointfea2[:, None])  # Bx1xNxd
         fea_dist2 = -fea_i.sqdist(fea_j)  # BxNxNx1
         fea_logsoftmax = fea_dist2 - LazyTensor(fea_dist2.logsumexp(dim=2)[..., None])  # BxNxNx1
-
-        #l2_loss = (((point_loggauss.exp() - fea_logsoftmax.exp())) ** 2 * weight_i).sum(2)
         ce_loss = -(point_loggauss.exp()*fea_logsoftmax).sum(2)*weights
         return ce_loss.sum(1)[...,0]  # B
 
@@ -272,21 +337,6 @@ class DeepFeatureLoss(nn.Module):
 
 
 
-    def ot_corres(self, cur_source, target):
-        """
-        cur_source and target should have one-to-one ordered correspondence
-        """
-        points = cur_source.points
-        weights = cur_source.weights  # BxNx1
-        gt_corres = self.compute_gt_plan(points, weights)
-        self.geomloss_setting["mode"] = "trans_plan"
-        lazy_transport_plan, _ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
-        factor = 1000
-        l2_loss = ((factor*(gt_corres - lazy_transport_plan)) ** 2).sum(2)  # BxN
-        l2_loss = torch.dot(l2_loss.view(-1), torch.ones_like(l2_loss).view(-1))
-        B = points.shape[0]
-        return torch.stack([l2_loss / B] * B, 0)
-
 
     def ot_ce(self,cur_source, target):
         """
@@ -300,7 +350,7 @@ class DeepFeatureLoss(nn.Module):
         weights = cur_source.weights # BxNx1
         lazy_gt_one_hot = self.compute_gt_one_hot(points) if self.loss_type=="ot_ce" else self.compute_soften_gt_one_hot(points)
         self.geomloss_setting["mode"] = "prob"
-        _,lazy_log_prob = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  #BxNxM
+        _,lazy_log_prob = wasserstein_barycenter_mapping(cur_source, target, self.geomloss_setting)  #BxNxM
         ce_loss =  -(lazy_gt_one_hot* lazy_log_prob).sum(2)*weights # BxN
         ce_loss = torch.dot(ce_loss.view(-1), torch.ones_like(ce_loss).view(-1))
         B =  points.shape[0]
@@ -311,12 +361,15 @@ class DeepFeatureLoss(nn.Module):
     def mapped_bary_center(self,cur_source, target,gt_flowed):
 
         self.geomloss_setting["mode"] = "soft"
-        flowed,_ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
+        # if torch.is_grad_enabled():
+        #     cur_source.pointfea.register_hook(grad_hook)
+        #     #target.pointfea.register_hook(grad_hook)
+        flowed,_ = wasserstein_barycenter_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
         return (((gt_flowed.points-flowed.points)**2).sum(2)*flowed.weights[...,0]).sum(1)
 
     def unsupervised_mapped_bary_center(self,cur_source, target,gt_flowed):
         self.geomloss_setting["mode"] = "soft"
-        flowed,_ = wasserstein_forward_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
+        flowed,_ = wasserstein_barycenter_mapping(cur_source, target, self.geomloss_setting)  # BxNxM
         disp = flowed.points - cur_source.points
         smoothed_disp = self.kernel(cur_source.points, cur_source.points, disp,
                                                cur_source.weights)
@@ -342,9 +395,6 @@ class DeepFeatureLoss(nn.Module):
         return (reg_s+reg_t).mean(2).mean(1)
 
 
-    def ot_distance(self, cur_source, target):
-        geom_loss = GeomDistance(self.geomloss_setting)
-        return geom_loss(cur_source, target)
 
 
     def __call__(self,cur_source, target, gt_flowed, has_gt=True):
@@ -353,40 +403,23 @@ class DeepFeatureLoss(nn.Module):
         if has_gt:
             if self.loss_type=="ot_map":
                 return self.mapped_bary_center(cur_source,target,gt_flowed), reg_loss
-            if self.loss_type == "ot_distance":
-                return self.ot_distance(cur_source, target), reg_loss
-            elif self.loss_type == "ot_corres":
-                return self.ot_corres(cur_source, target), reg_loss
             elif self.loss_type=="ot_ce" or self.loss_type=="ot_soften_ce":
                 return self.ot_ce(cur_source, target), reg_loss
-            else:
+            elif self.loss_type=="naive_corres":
                 return self.naive_corres(cur_source, target), reg_loss
+            else:
+                raise NotImplemented
         else:
             return self.unsupervised_mapped_bary_center(cur_source, target,gt_flowed), reg_loss
 
 
 
 
+def grad_hook(grad):
+    # import pydevd
+    # pydevd.settrace(suspend=False, trace_only_current_thread=True)
+    print("debugging info, the grad_norm is {} ".format(grad.norm()))
+    return grad
 
-if __name__ == "__main__":
-    import torch
-    from pykeops.torch import LazyTensor
-    def deep_corres(points, weights, pointfea):
-        x_i = LazyTensor(points[:, :, None])  # BxNx1xD
-        x_j = LazyTensor(points[:, None])  # Bx1xNxD
-        fea_i = LazyTensor(pointfea[:, :, None])  # BxNx1xd
-        fea_j = LazyTensor(pointfea[:, None])  # Bx1xNxd
-        weight = LazyTensor(weights[:, None])  # Bx1xNx1
-        point_dist2 = x_i.sqdist(x_j)  # BxNxNx1
-        fea_dist2 = fea_i.sqdist(fea_j)  # BxNxNx1
-        point_dist2 = point_dist2 - point_dist2.max()  # BxNxN
-        fea_dist2 = fea_dist2 - fea_dist2.max()  # BxNxN
-        point_logsoftmax = point_dist2 - LazyTensor(point_dist2.logsumexp(dim=2)[...,None])  # BxNxN
-        fea_logsoftmax = fea_dist2 - LazyTensor(fea_dist2.logsumexp(dim=2)[...,None])  # BxNxN
-        loss = ((point_logsoftmax.exp() - fea_logsoftmax.exp()) * weight) ** 2
-        return loss.sum(2).sum(1)
 
-    points = torch.rand(2,1000,3)
-    fea = torch.rand(2,1000,5)
-    weights = torch.rand(2,1000,1)
-    deep_corres(points, weights, fea)
+

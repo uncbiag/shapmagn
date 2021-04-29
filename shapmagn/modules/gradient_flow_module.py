@@ -6,7 +6,7 @@ from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.metrics.losses import GeomDistance
 from torch.autograd import grad
 
-def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter=-1):
+def point_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_iter=-1):
     geomloss_setting = deepcopy(geomloss_setting)
     geomloss_setting.print_settings_off()
     geomloss_setting['attr'] = "points"
@@ -38,13 +38,13 @@ def positional_based_gradient_flow_guide(cur_source,target,geomloss_setting, loc
 
 
 
-def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
+def wasserstein_barycenter_mapping(cur_source, target,gemloss_setting):
     from pykeops.torch import LazyTensor
     grad_enable_record =torch.is_grad_enabled()
     geom_obj = gemloss_setting["geom_obj"].replace(")", ",potentials=True)")
     blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
     blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
-    p = gemloss_setting[("p", 2,"cost order")]  # though can be generalized to arbitrary order, here we assume the order is 2
+    # though can be generalized to arbitrary order, here we assume the order is 2
     mode = gemloss_setting[("mode", 'hard',"soft, hard, mapped_index,analysis,trans_plan")]
     geomloss = obj_factory(geom_obj)
     attr =gemloss_setting[("attr", 'pointfea',"points/pointfea/landmarks")]
@@ -107,22 +107,8 @@ def wasserstein_forward_mapping(cur_source, target,gemloss_setting):
     return mapped_shape, mapped_mass_ratio
 
 
-# xx_i = LazyTensor(x_i[:, None, :] / (np.sqrt(2) * blur))
-# yy_j = LazyTensor(y_j[None, :, :] / (np.sqrt(2) * blur))
-# f_i = LazyTensor(A_i.log()[:, None, None] + F_i[:, None, None] / blur ** 2)
-# g_j = LazyTensor(B_j.log()[None, :, None] + G_j[None, :, None] / blur ** 2)
-#
-# C_ij = ((xx_i - yy_j) ** 2).sum(-1)
-# log_P_ij = (f_i + g_j - C_ij)  # P_ij = A_i * B_j * exp((F_i + G_j - .5 * |x_i-y_j|^2) / blur**2)
-#
-# # Compute the offset to the barycenters:
-# g_i = (np.sqrt(2) * blur) * log_P_ij.sumsoftmaxweight(yy_j - xx_i, dim=1)
-# # And the sums along the lines of the transport plan:
-# weight_i = log_P_ij.exp().sum(dim=1)
 
-#
-#
-# def wasserstein_forward_mapping(cur_source, target,gemloss_setting,local_iter=None):
+# def wasserstein_barycenter_mapping(cur_source, target,gemloss_setting,local_iter=None):
 #     from pykeops.torch import LazyTensor
 #     geom_obj = gemloss_setting["geom_obj"].replace(")", ",potentials=True)")
 #     blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
@@ -174,9 +160,9 @@ def gradient_flow_guide(mode="grad_forward"):
     postion_based = mode =="grad_forward"
     def guide(cur_source,target,geomloss_setting, local_iter=None):
         if postion_based:
-            return positional_based_gradient_flow_guide(cur_source, target, geomloss_setting, local_iter)
+            return point_based_gradient_flow_guide(cur_source, target, geomloss_setting, local_iter)
         else:
-            return wasserstein_forward_mapping(cur_source, target, geomloss_setting)
+            return wasserstein_barycenter_mapping(cur_source, target, geomloss_setting)
     return guide
 
 

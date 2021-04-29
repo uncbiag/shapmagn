@@ -10,7 +10,7 @@ from shapmagn.modules.networks.pointnet2.util import PointNetSetAbstraction, Poi
 from shapmagn.modules.networks.pointpwcnet_original import multiScaleChamferSmoothCurvature, PointConvSceneFlowPWC8192selfglobalPointConv
 from shapmagn.modules.networks.scene_flow import FLOT
 from shapmagn.metrics.losses import GeomDistance, GMMLoss
-from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping, positional_based_gradient_flow_guide
+from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping, point_based_gradient_flow_guide
 from shapmagn.modules.networks.flownet3d import FlowNet3D, FlowNet3DIMP
 # from shapmagn.modules.networks.pointpwcnet2 import PointConvSceneFlowPWC2
 from shapmagn.modules.networks.pointpwcnet2_2 import PointConvSceneFlowPWC2_2
@@ -38,7 +38,7 @@ class DeepFlowNetRegParam(nn.Module):
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
         self.init_neigh_num = self.opt[("init_neigh_num",16,"init_neigh_num")]
-        self.param_factor = self.opt[("param_factor",2,"control the number of factor, #params/param_factor")]
+        self.param_shrink_factor = self.opt[("param_shrink_factor",2,"shrink factor the model parameter, #params/param_shrink_factor")]
         self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
         self.use_aniso_kernel =  self.opt[("use_aniso_kernel",True,"use the aniso kernel in first layer feature extraction")]
         self.init_deep_feature_extractor()
@@ -52,14 +52,14 @@ class DeepFlowNetRegParam(nn.Module):
         return cur_source, target
 
     def init_deep_feature_extractor(self):
-        self.flow_predictor = FlowNet3DIMP(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints,init_neigh_num=self.init_neigh_num, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl,use_aniso_kernel=self.use_aniso_kernel)
+        self.flow_predictor = FlowNet3DIMP(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints,init_neigh_num=self.init_neigh_num, param_shrink_factor=self.param_shrink_factor,predict_at_low_resl=self.predict_at_low_resl,use_aniso_kernel=self.use_aniso_kernel)
         # self.flow_predictor = PointConvSceneFlowPWC3(input_channel=self.input_channel,
         #                                              initial_input_radius=self.initial_radius,
         #                                              first_sampling_npoints=self.initial_npoints,
         #                                              predict_at_low_resl=self.predict_at_low_resl,
-        #                                              param_factor=self.param_factor)
+        #                                              param_shrink_factor=self.param_shrink_factor)
         #PointConvSceneFlowPWC3
-        #self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_factor=self.param_factor,predict_at_low_resl=self.predict_at_low_resl)
+        #self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_shrink_factor=self.param_shrink_factor,predict_at_low_resl=self.predict_at_low_resl)
         # pretrained_model_path ="/playpen-raid1/zyshen/data/lung_expri/deep_flow_spline_multi_kernel_hybird_twostep_thisiscorrect/checkpoints/epoch_210_"
         # checkpoint = torch.load(pretrained_model_path, map_location='cpu')
         # cur_state = self.state_dict()
@@ -163,9 +163,10 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_npoints = self.opt[("initial_npoints",2048,"num of initial sampling points")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")]
-        self.param_factor = self.opt[("param_factor",2,"control the number of factor, #params/param_factor")]
+        self.param_shrink_factor = self.opt[("param_shrink_factor",2,"control the number of factor, #params/param_shrink_factor")]
         self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
         self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
+        self.use_aniso_kernel =  self.opt[("use_aniso_kernel",False,"use the aniso kernel in first sampling layer")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
@@ -179,7 +180,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.load_pretrained_model = self.opt[("load_pretrained_model",False,"load_pretrained_model")]
         self.pretrained_model_path = self.opt[("pretrained_model_path","","path of pretrained model")]
         if not self.delploy_original_model:
-            self.flow_predictor = PointConvSceneFlowPWC2_4(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_factor=self.param_factor)
+            self.flow_predictor = PointConvSceneFlowPWC2_4(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_shrink_factor=self.param_shrink_factor,use_aniso_kernel=self.use_aniso_kernel)
         else:
             self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints, predict_at_low_resl= self.predict_at_low_resl)
         if self.load_pretrained_model:
@@ -382,10 +383,10 @@ class FlowModel(nn.Module):
                                          "take wasserstein baryceneter if there is little noise or outlier,  otherwise use gradient flow")]
 
         if use_bary_map:
-            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_forward_mapping(
+            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
                 flowed, target, geomloss_setting)  # BxN
         else:
-            mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(flowed,
+            mapped_position, wasserstein_dist = point_based_gradient_flow_guide(flowed,
                                                                                         target, geomloss_setting)
         disp = mapped_position - flowed.points
         smoothed_disp = self.aniso_post_kernel(flowed.points, flowed.points, disp,

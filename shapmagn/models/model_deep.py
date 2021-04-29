@@ -111,7 +111,6 @@ class DeepModel(ModelBase):
                 return {key: to_device(_item, device) for key, _item in item.items()}
             else:
                 return item.to(device)
-
         batch_info = {"pair_name":input_data["pair_name"],
                            "source_info":input_data["source_info"],
                            "target_info":input_data["target_info"],

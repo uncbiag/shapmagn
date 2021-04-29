@@ -18,12 +18,12 @@ scale = 1.0
 
 
 class PointConvSceneFlowPWC2_2(nn.Module):
-    def __init__(self, input_channel=3, initial_input_radius=1.,initial_input_npoints=40000,first_sampling_npoints=2048,predict_at_low_resl=False, param_factor=1):
+    def __init__(self, input_channel=3, initial_input_radius=1.,initial_input_npoints=40000,first_sampling_npoints=2048,predict_at_low_resl=False, param_shrink_factor=1,use_aniso_kernel=False):
         super(PointConvSceneFlowPWC2_2, self).__init__()
 
         flow_nei = 32
         feat_nei = 16
-        sbf = partial(shrink_by_factor, factor=param_factor)
+        sbf = partial(shrink_by_factor, factor=param_shrink_factor)
         self.predict_at_low_resl = predict_at_low_resl
         self.scale = np.log2((initial_input_npoints/first_sampling_npoints)**(1/3))
         # l0: 8192

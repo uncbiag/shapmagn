@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import GeomDistance
-from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping
 from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad

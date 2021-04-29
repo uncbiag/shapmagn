@@ -2,7 +2,7 @@ from copy import deepcopy
 import torch
 
 from shapmagn.metrics.losses import GeomDistance
-from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping, positional_based_gradient_flow_guide
+from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping, point_based_gradient_flow_guide
 
 
 def opt_flow_model_eval(shape_pair, model, batch_info=None,geom_loss_opt_for_eval=None,external_evaluate_metric=None):
@@ -19,10 +19,10 @@ def opt_flow_model_eval(shape_pair, model, batch_info=None,geom_loss_opt_for_eva
     geomloss_setting["mode"] = "analysis"
     geomloss_setting["attr"] = "points"
 
-    mapped_target_index, mapped_topK_target_index, _ = wasserstein_forward_mapping(shape_pair.flowed,
+    mapped_target_index, mapped_topK_target_index, _ = wasserstein_barycenter_mapping(shape_pair.flowed,
                                                                                                  shape_pair.target,
                                                                                                  geomloss_setting)  # BxN
-    mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target,geomloss_setting)
+    mapped_position, wasserstein_dist = point_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target,geomloss_setting)
     source_points = shape_pair.source.points
     B, N = source_points.shape[0], source_points.shape[1]
     device = source_points.device

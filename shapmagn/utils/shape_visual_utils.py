@@ -49,15 +49,15 @@ def save_shape_pair_into_files(folder_path, stage_name, pair_name,shape_pair):
     if shape_pair.dimension != 3:
         return
     folder_path = os.path.join(folder_path,stage_name)
-    save_shape_into_files(folder_path,"source_weight",pair_name,shape_pair.source)
-    save_shape_into_files(folder_path,"target_weight",pair_name,shape_pair.target)
+    save_shape_into_files(folder_path,"source",pair_name,shape_pair.source)
+    save_shape_into_files(folder_path,"target",pair_name,shape_pair.target)
     if shape_pair.flowed is not None:
-        save_shape_into_files(folder_path, "flowed_weight",pair_name, shape_pair.flowed)
-        save_shape_into_files(folder_path, "toflow_weight",pair_name, shape_pair.toflow)
+        save_shape_into_files(folder_path, "flowed",pair_name, shape_pair.flowed)
+        save_shape_into_files(folder_path, "toflow",pair_name, shape_pair.toflow)
     if shape_pair.control_points is not None:
-        save_shape_into_file(folder_path,"control_weight",pair_name,**{"points":shape_pair.control_points,"weights":shape_pair.control_weights})
+        save_shape_into_file(folder_path,"control",pair_name,**{"points":shape_pair.control_points,"weights":shape_pair.control_weights})
     if shape_pair.flowed_control_points is not None:
-        save_shape_into_file(folder_path,"flowed_control_weight",pair_name,**{"points":shape_pair.flowed_control_points,"weights":shape_pair.control_weights})
+        save_shape_into_file(folder_path,"flowed_control",pair_name,**{"points":shape_pair.flowed_control_points,"weights":shape_pair.control_weights})
     if shape_pair.reg_param is not None and shape_pair.reg_param.shape[1] == shape_pair.source.npoints:
         reg_param_norm = shape_pair.reg_param.norm(p=2,dim=2,keepdim=True)
         save_shape_into_file(folder_path,"reg_param",pair_name,**{"points":shape_pair.control_points,"reg_param_norm":reg_param_norm, "reg_param_vector":shape_pair.reg_param})

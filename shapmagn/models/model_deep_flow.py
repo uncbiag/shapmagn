@@ -1,5 +1,5 @@
 from shapmagn.modules.gradflow_prealign_module import GradFlowPreAlign
-from shapmagn.modules.gradient_flow_module import positional_based_gradient_flow_guide
+from shapmagn.modules.gradient_flow_module import point_based_gradient_flow_guide
 from shapmagn.modules.teaser_module import Teaser
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.deep_flow_module import *
@@ -109,14 +109,31 @@ class DeepDiscreteFlow(nn.Module):
             print("In the first epoch, the validation/debugging output is the baseline ot mapping")
             shape_pair.flowed= Shape().set_data_with_refer_to(source_points,shape_pair.source)
 
-        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target, geomloss_setting)  # BxN
-        gt_mapped_position, wasserstein_dist = positional_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
+        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_barycenter_mapping(shape_pair.flowed, shape_pair.target, geomloss_setting)  # BxN
+        gt_mapped_position, wasserstein_dist = point_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
         mapped_position = bary_mapped_position if use_bary_map else gt_mapped_position
         if self.aniso_post_kernel is not None:
             disp = mapped_position - shape_pair.flowed.points
             flowed_points = shape_pair.flowed.points
             smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
+            mapped_position = flowed_points +smoothed_disp
+            # todo experimental code,  clean and wrap the code into a iter function
+
+            cur_flowed = Shape().set_data_with_refer_to(mapped_position,shape_pair.flowed)
+            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
+                cur_flowed, shape_pair.target, geomloss_setting)  # BxN
+            disp = mapped_position - cur_flowed.points
+            flowed_points = cur_flowed.points
+            smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
             mapped_position = flowed_points + smoothed_disp
+            cur_flowed = Shape().set_data_with_refer_to(mapped_position, shape_pair.flowed)
+            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
+                cur_flowed, shape_pair.target, geomloss_setting)  # BxN
+            disp = mapped_position - cur_flowed.points
+            flowed_points = cur_flowed.points
+            smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
+            mapped_position = flowed_points + smoothed_disp
+
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
         print("the current data is {}".format("synth" if batch_info["is_synth"] else "real"))

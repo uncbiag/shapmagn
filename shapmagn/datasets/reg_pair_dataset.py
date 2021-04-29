@@ -201,8 +201,6 @@ class RegistrationPairDataset(Dataset):
 
         # if self.pair_postprocess is not None:
         #     source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
-
-
         if self.transform:
             source_dict = {key:self.transform(fea) for key,fea in source_dict.items()}
             target_dict = {key:self.transform(fea) for key,fea in target_dict.items()}

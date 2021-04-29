@@ -58,7 +58,7 @@
                 "predict_at_low_resl": true,
                 "initial_npoints": 8192,
                 "initial_radius": -1,
-                "param_factor": 1
+                "param_shrink_factor": 1
             },
             "flow_model": {
                 "model_type": "lddmm",

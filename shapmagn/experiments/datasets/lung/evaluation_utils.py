@@ -110,10 +110,9 @@ def eval_landmark(model,shape_pair, batch_info,alias, eval_ot_map=False):
     flowed_cp = shape_pair.flowed
     landmarks_toflow = torch.Tensor(np.stack(landmarks_toflow_list,0)).to(device)
     target_landmarks_points = torch.Tensor(np.stack(target_landmarks_list,0)).to(device)
-    shape_pair.toflow = Shape().set_data(points=landmarks_toflow, weights= torch.ones_like(landmarks_toflow))
+    toflow = Shape().set_data(points=landmarks_toflow, weights= torch.ones_like(landmarks_toflow))
+    shape_pair.toflow = toflow
     gt_landmark = Shape().set_data(points=target_landmarks_points, weights= torch.ones_like(target_landmarks_points))
-    record_path = os.path.join(batch_info["record_path"], "3d", "{}_epoch_{}".format(batch_info["phase"],batch_info["epoch"]))
-    save_shape_into_files(record_path, "landmark"+alias+"_toflow",batch_info["pair_name"], shape_pair.toflow)
     if not eval_ot_map:
         shape_pair = model.flow(shape_pair)
     else:
@@ -122,6 +121,10 @@ def eval_landmark(model,shape_pair, batch_info,alias, eval_ot_map=False):
     flowed_landmarks_points = shape_pair.flowed.points
     diff =  (target_landmarks_points - flowed_landmarks_points)*SCALE
     shape_pair.flowed.weights, gt_landmark.weights = diff, diff
+    record_path = os.path.join(batch_info["record_path"], "3d",
+                               "{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]))
+    toflow.weights = diff
+    save_shape_into_files(record_path, "landmark" + alias + "_toflow", batch_info["pair_name"], toflow)
     save_shape_into_files(record_path, "landmark"+alias+"_flowed",batch_info["pair_name"], shape_pair.flowed)
     save_shape_into_files(record_path, "landmark"+alias+"_target",batch_info["pair_name"], gt_landmark)
 
@@ -183,6 +186,10 @@ def evaluate_res(visualize_fea=False):
             eval_ot_map = "mapped_position" in additional_param
             if additional_param is not None and eval_ot_map:
                 shape_pair.flowed.points = additional_param["mapped_position"]
+                record_path = os.path.join(batch_info["record_path"], "3d",
+                                           "{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]))
+                os.makedirs(record_path,exist_ok=True)
+                save_shape_into_files(record_path, alias + "flowed", batch_info["pair_name"],shape_pair.flowed)
             diff = eval_landmark(model, shape_pair,batch_info,alias, eval_ot_map=eval_ot_map)
             diff_var = (diff-diff.mean(1,keepdim=True))**2
             diff_var = diff_var.sum(2).mean(1)

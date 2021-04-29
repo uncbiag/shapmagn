@@ -1,10 +1,10 @@
 from copy import deepcopy
 from shapmagn.modules.deep_feature_module import *
-from shapmagn.modules.gradient_flow_module import positional_based_gradient_flow_guide
+from shapmagn.modules.gradient_flow_module import point_based_gradient_flow_guide
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.metrics.losses import Loss
 
-DEEP_EXTRACTOR = {"pointnet2_extractor": PointNet2FeaExtractor, "dgcnn_extractor":DGCNNFeaExtractor}
+DEEP_EXTRACTOR = {"pointnet2_extractor": PointNet2FeaExtractor, "dgcnn_extractor":DGCNNFeaExtractor, "pointconv_extractor":PointConvFeaExtractor}
 
 class DeepFeature(nn.Module):
     """
@@ -22,7 +22,7 @@ class DeepFeature(nn.Module):
             ("decompose_shape_pair_into_dict", "shape_pair_utils.decompose_shape_pair_into_dict()",
              "decompose shape pair into dict")]
         self.decompose_shape_pair_into_dict = obj_factory(decompose_shape_pair_into_dict)
-        spline_kernel_obj = self.opt[("spline_kernel_obj","point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)", "shape interpolator in multi-scale solver")]
+        spline_kernel_obj = self.opt[("spline_kernel_obj","", "shape interpolator in multi-scale solver")]
         self.spline_kernel= obj_factory(spline_kernel_obj) if spline_kernel_obj else None
         interp_kernel_obj = self.opt[(
         "interp_kernel_obj", "point_interpolator.NadWatIsoSpline(exp_order=2,kernel_scale=0.05)",
@@ -99,12 +99,13 @@ class DeepFeature(nn.Module):
         if self.cur_epoch==0:
             print("In the first epoch, the validation/debugging output is the baseline ")
             geomloss_setting["attr"] = "points"
-        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(shape_pair.source, shape_pair.target,  geomloss_setting)  # BxN
+        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_barycenter_mapping(shape_pair.source, shape_pair.target,  geomloss_setting)  # BxN
         mapped_position = bary_mapped_position
         source_points = shape_pair.source.points
         source_weights = shape_pair.source.weights
         disp = mapped_position - source_points
-        smoothed_disp = self.spline_kernel(source_points, source_points,disp, source_weights) if self.spline_kernel is not None else None
+        #self.spline_kernel = None
+        smoothed_disp = self.spline_kernel(source_points, source_points,disp, source_weights) if self.spline_kernel is not None else disp
         flowed_points = source_points + smoothed_disp
         shape_pair.flowed = Shape().set_data_with_refer_to(flowed_points, shape_pair.source)
         geomloss_setting = deepcopy(self.geom_loss_opt_for_eval)
@@ -170,6 +171,7 @@ class DeepFeature(nn.Module):
         shape_pair.source = cur_source
 
         if self.local_iter % self.print_step == 0:
+            print("debugging: feature norm {}".format(shape_pair.source.pointfea.norm(2,2).mean(1)))
             print("{} th step, {} sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(),"synth_data" if batch_info["is_synth"] else "real_data", sim_loss.mean().item(), reg_loss.mean().item(), sim_factor, reg_factor))
             #self.debug_mode(shape_pair)
@@ -179,6 +181,7 @@ class DeepFeature(nn.Module):
         return loss, self.decompose_shape_pair_into_dict(shape_pair)
 
     def debug_mode(self, shape_pair):
+        """remove in the furture """
         import os
         from shapmagn.utils.visualizer import visualize_point_pair_overlap, visualize_source_flowed_target_overlap
         source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
@@ -194,7 +197,7 @@ class DeepFeature(nn.Module):
         if self.cur_epoch == 0:
             print("In the first epoch, the validation/debugging output is the baseline ")
             geomloss_setting["attr"] = "points"
-        mapped_target_index, mapped_topK_target_index, bary_mapped_position = wasserstein_forward_mapping(
+        mapped_target_index, mapped_topK_target_index, bary_mapped_position = wasserstein_barycenter_mapping(
             shape_pair.source, shape_pair.target, geomloss_setting)  # BxN
         mapped_position = bary_mapped_position
         source_points = shape_pair.source.points

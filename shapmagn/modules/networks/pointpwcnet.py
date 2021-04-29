@@ -18,12 +18,12 @@ scale = 1.0
 
 
 class PointConvSceneFlowPWC(nn.Module):
-    def __init__(self, input_channel=3, initial_radius=1.,initial_npoints=2048,predict_at_low_resl=False, param_factor=1):
+    def __init__(self, input_channel=3, initial_radius=1.,initial_npoints=2048,predict_at_low_resl=False, param_shrink_factor=1):
         super(PointConvSceneFlowPWC, self).__init__()
 
         flow_nei = 32
         feat_nei = 16
-        sbf = partial(shrink_by_factor, factor=param_factor)
+        sbf = partial(shrink_by_factor, factor=param_shrink_factor)
         self.predict_at_low_resl = predict_at_low_resl
         self.scale = scale
         # l0: 8192

@@ -7,7 +7,7 @@ from shapmagn.metrics.losses import Loss, GeomDistance
 from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory,partial_obj_factory
 from shapmagn.utils.utils import sigmoid_decay
-from shapmagn.modules.gradient_flow_module import gradient_flow_guide, wasserstein_forward_mapping
+from shapmagn.modules.gradient_flow_module import gradient_flow_guide, wasserstein_barycenter_mapping
 
 
 class DiscreteFlowOPT(nn.Module):

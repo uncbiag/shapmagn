@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import GeomDistance
-from shapmagn.modules.gradient_flow_module import wasserstein_forward_mapping
+from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping
 from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad
@@ -108,7 +108,7 @@ class WasserBaryCenterOPT(nn.Module):
         geom_loss_setting = deepcopy(self.geom_loss_setting)
         geom_loss_setting["attr"] = "pointfea"
         geom_loss_setting["mode"] = "soft"
-        flowed, _ = wasserstein_forward_mapping(shape_pair.flowed, shape_pair.target, self.geom_loss_setting)  # BxN
+        flowed, _ = wasserstein_barycenter_mapping(shape_pair.flowed, shape_pair.target, self.geom_loss_setting)  # BxN
         shape_pair.reg_param = flowed.points
         shape_pair.reg_param.detach_()
         shape_pair.set_flowed_control_points(shape_pair.reg_param.clone())

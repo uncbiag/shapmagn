@@ -1,11 +1,11 @@
 import os, sys
 import subprocess
-os.environ['DISPLAY'] = ':99.0'
-os.environ['PYVISTA_OFF_SCREEN'] = 'true'
-os.environ['PYVISTA_USE_IPYVTK'] = 'true'
-bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
-process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
-process.wait()
+# os.environ['DISPLAY'] = ':99.0'
+# os.environ['PYVISTA_OFF_SCREEN'] = 'true'
+# os.environ['PYVISTA_USE_IPYVTK'] = 'true'
+# bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
+# process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+# process.wait()
 sys.path.insert(0, os.path.abspath('../../../..'))
 from copy import deepcopy
 import numpy as np

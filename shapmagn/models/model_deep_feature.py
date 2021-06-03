@@ -132,7 +132,7 @@ class DeepFeature(nn.Module):
             shape_pair.control_points = shape_pair.source.points
             shape_pair.control_weights = shape_pair.source.weights
             shape_pair.flowed_control_points = shape_pair.flowed.points
-            additional_param = {"model":self, "initial_control_points":shape_pair.source.points}
+            additional_param = {"model":self, "initial_nonp_control_points":shape_pair.source.points}
             self.external_evaluate_metric(metrics, shape_pair, batch_info, additional_param =additional_param, alias="")
             additional_param.update({"mapped_position": mapped_position})
             self.external_evaluate_metric(metrics, shape_pair, batch_info, additional_param,

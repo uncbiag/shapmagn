@@ -56,16 +56,20 @@ class PolyLine(ShapeBase):
         self.update_info()
 
 
-    def set_data_with_refer_to(self, points, polyline):
-        self.points = points
-        self.edges = polyline.edges
-        self.index= polyline.index
-        self.label = polyline.label
+    def set_data_with_refer_to(self, points, polyline,detach=False):
+        if not detach:
+            fn = lambda x: x
+        else:
+            fn = lambda x: x.detach().clone() if x is not None else None
+        self.points = fn(points)
+        self.edges = fn(polyline.edges)
+        self.index= fn(polyline.index)
+        self.label = fn(polyline.label)
         self.name_list = polyline.name_list
-        self.landmarks = polyline.landmarks
-        self.pointfea = polyline.pointfea
-        self.weights = polyline.weights
-        self.seg = polyline.seg
+        self.landmarks = fn(polyline.landmarks)
+        self.pointfea = fn(polyline.pointfea)
+        self.weights = fn(polyline.weights)
+        self.seg = fn(polyline.seg)
         self.scale = polyline.scale
         self.points_mode_on = self.scale != -1
         self.update_info()

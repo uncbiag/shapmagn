@@ -3,11 +3,11 @@ from shapmagn.modules.gradient_flow_module import point_based_gradient_flow_guid
 from shapmagn.modules.teaser_module import Teaser
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.modules.deep_flow_module import *
+#from pytorch_memlab import profile
 
 DEEP_REGPARAM_GENERATOR= {
     "flownet_regparam": DeepFlowNetRegParam,
     "pwcnet_regparam":PointConvSceneFlowPWCRegParam,
-    "geonet_regparam":DeepGeoNetRegParam,
     "flotnet_regparam":FLOTRegParam,
 }
 Deep_Loss = {"deepflow_loss":DeepFlowLoss, "pwc_loss":PWCLoss}
@@ -92,11 +92,20 @@ class DeepDiscreteFlow(nn.Module):
         :param shape_pair:
         :param batch_info:
         :return:
+
         """
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
+
         loss, shape_data_dict = self.forward(input_data, batch_info)
         shape_pair = self.create_shape_pair_from_data_dict(shape_data_dict)
         corr_source_target = batch_info["corr_source_target"]
 
+        # end.record()
+        # torch.cuda.synchronize()
+        # running_time = start.elapsed_time(end)
+        # print("{}, it takes {} ms".format(shape_pair.pair_name, running_time))
 
         geomloss_setting = deepcopy(self.geom_loss_opt_for_eval)
         geomloss_setting.print_settings_off()
@@ -105,20 +114,20 @@ class DeepDiscreteFlow(nn.Module):
         use_bary_map = geomloss_setting[("use_bary_map",True,"take wasserstein baryceneter if there is little noise or outlier,  otherwise use gradient flow")]
         #in the first epoch, we would output the ot baseline, this is for analysis propose, comment the following two lines if don't needed
         source_points = shape_pair.source.points
-        if self.cur_epoch==0:
-            print("In the first epoch, the validation/debugging output is the baseline ot mapping")
-            shape_pair.flowed= Shape().set_data_with_refer_to(source_points,shape_pair.source)
-
-        mapped_target_index,mapped_topK_target_index, bary_mapped_position = wasserstein_barycenter_mapping(shape_pair.flowed, shape_pair.target, geomloss_setting)  # BxN
-        gt_mapped_position, wasserstein_dist = point_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
-        mapped_position = bary_mapped_position if use_bary_map else gt_mapped_position
+        # if self.cur_epoch==0:
+        #     print("In the first epoch, the validation/debugging output is the baseline ot mapping")
+        #     shape_pair.flowed= Shape().set_data_with_refer_to(source_points,shape_pair.source)
+        if use_bary_map:
+            mapped_target_index,mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(shape_pair.flowed, shape_pair.target, geomloss_setting)  # BxN
+        else:
+            mapped_position, wasserstein_dist = point_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
         if self.aniso_post_kernel is not None:
             disp = mapped_position - shape_pair.flowed.points
             flowed_points = shape_pair.flowed.points
             smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
             mapped_position = flowed_points +smoothed_disp
             # todo experimental code,  clean and wrap the code into a iter function
-
+            #
             cur_flowed = Shape().set_data_with_refer_to(mapped_position,shape_pair.flowed)
             mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
                 cur_flowed, shape_pair.target, geomloss_setting)  # BxN
@@ -126,13 +135,22 @@ class DeepDiscreteFlow(nn.Module):
             flowed_points = cur_flowed.points
             smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
             mapped_position = flowed_points + smoothed_disp
-            cur_flowed = Shape().set_data_with_refer_to(mapped_position, shape_pair.flowed)
-            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
-                cur_flowed, shape_pair.target, geomloss_setting)  # BxN
-            disp = mapped_position - cur_flowed.points
-            flowed_points = cur_flowed.points
-            smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
-            mapped_position = flowed_points + smoothed_disp
+            # cur_flowed = Shape().set_data_with_refer_to(mapped_position, shape_pair.flowed)
+            # mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
+            #     cur_flowed, shape_pair.target, geomloss_setting)  # BxN
+            # disp = mapped_position - cur_flowed.points
+            # flowed_points = cur_flowed.points
+            # smoothed_disp = self.aniso_post_kernel(flowed_points, flowed_points, disp, shape_pair.flowed.weights)
+            # mapped_position = flowed_points + smoothed_disp
+
+        end.record()
+        torch.cuda.synchronize()
+        running_time =  start.elapsed_time(end)
+        print("{}, it takes {} ms".format(shape_pair.pair_name, running_time))
+        if use_bary_map:
+            #   since barycenter mapping doesn't return wasserstein distance ,here we compute the wasserstein distance
+            #  todo avoid dupilcate computation, directly compute wasserstein distance in from dual embedding in barycenter function
+            _, wasserstein_dist = point_based_gradient_flow_guide(shape_pair.flowed, shape_pair.target, geomloss_setting)
 
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
@@ -143,15 +161,15 @@ class DeepDiscreteFlow(nn.Module):
             topk_acc = ((mapped_topK_target_index == (gt_index[...,None])).sum(2) >0).sum(1)/N
             metrics = {"score": [_topk_acc.item() for _topk_acc in topk_acc], "loss": [_loss.item() for _loss in loss],
                        "_acc":[_acc.item() for _acc in acc], "topk_acc":[_topk_acc.item() for _topk_acc in topk_acc],
-                       "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
+                       "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist],"forward_t":[running_time/B]*B}
         else:
             metrics = {"score": [_sim.item() for _sim in self.buffer["sim_loss"]], "loss": [_loss.item() for _loss in loss],
-                       "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist]}
+                       "ot_dist":[_ot_dist.item() for _ot_dist in wasserstein_dist],"forward_t":[running_time/B]*B}
         if self.external_evaluate_metric is not None:
-            additional_param = {"model":self, "initial_control_points":self.buffer["initial_control_points"]}
+            additional_param = {"model":self, "initial_nonp_control_points":self.buffer["initial_nonp_control_points"],"prealign_param":self.buffer["prealign_param"],"prealigned":self.buffer["prealigned"]}
             self.external_evaluate_metric(metrics, shape_pair,batch_info,additional_param =additional_param, alias="")
             additional_param.update({"mapped_position": mapped_position})
-            self.external_evaluate_metric(metrics, shape_pair,batch_info, additional_param, "_and_gf")
+            self.external_evaluate_metric(metrics, shape_pair,batch_info, additional_param, "_gf")
         return metrics, self.decompose_shape_pair_into_dict(shape_pair)
 
 
@@ -198,10 +216,11 @@ class DeepDiscreteFlow(nn.Module):
             prealign_param = self.prealign_module(source, target, shape_pair.reg_param)
             self.buffer={"prealign_param" : prealign_param.clone().detach()}
             flowed_points = self.apply_prealign_transform(prealign_param, source.points)
+            self.buffer.update({"prealigned" : Shape().set_data_with_refer_to(flowed_points, source,detach=True)})
             moving = Shape().set_data_with_refer_to(flowed_points, source)
         return moving
 
-
+    #@profile
     def forward(self, input_data, batch_info=None):
         """
        :param shape_pair:
@@ -209,21 +228,22 @@ class DeepDiscreteFlow(nn.Module):
            """
         sim_factor, reg_factor,reg_param_scale = self.get_factor()
         shape_pair = self.create_shape_pair_from_data_dict(input_data)
+        self.buffer = {"prealign_param": None,"prealigned": None}
         moving = shape_pair.source if not self.use_prealign else self.prealign(shape_pair)
         has_gt = batch_info["has_gt"]
         gt_flowed = Shape()
         if has_gt:
-            gt_flowed_points =  shape_pair.extra_info["gt_flowed"]
+            gt_flowed_points = shape_pair.extra_info["gt_flowed"]
             gt_flowed.set_data_with_refer_to(gt_flowed_points,moving)
         sim_loss, reg_loss = 0, 0
         debug_reg_param_list = []
         for s in range(self.n_step):
-            shape_pair, additional_param = self.deep_regparam_generator(moving, shape_pair)
+            shape_pair, additional_param = self.deep_regparam_generator(moving, shape_pair) # todo control points is initialized in deep module, but should be exported externally in furture
             debug_reg_param_list.append(shape_pair.reg_param.abs().mean())
             shape_pair.reg_param = shape_pair.reg_param*reg_param_scale
             flowed, _reg_loss = self.flow_model(moving, shape_pair, additional_param)
             if s==0:
-                self.buffer ["initial_control_points"]=shape_pair.control_points.clone().detach()
+                self.buffer ["initial_nonp_control_points"]=shape_pair.control_points.clone().detach()
             self.buffer["reg_param_step{}".format(s)]= shape_pair.reg_param.clone().detach()
             additional_param.update({"source":shape_pair.source, "moving":moving})
             sim_loss += self.step_weight_list[s]*self.loss(flowed,shape_pair.target,gt_flowed,has_gt = has_gt,additional_param=additional_param)

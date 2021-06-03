@@ -102,7 +102,7 @@
             "saving_running_result_visualize": true,
             "geom_loss_opt_for_eval": {
                 "attr": "points",
-                "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.5,reach=0.5, debias=False, backend='online')"
+                "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=0.5, debias=False, backend='online')"
             }
         },
         "optim": {

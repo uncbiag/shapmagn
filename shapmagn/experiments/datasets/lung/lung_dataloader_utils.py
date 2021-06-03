@@ -142,9 +142,11 @@ def lung_normalizer(**args):
     return normalize
 
 def lung_pair_postprocess(**kwargs):
-    def postprocess(source_dict, target_dict):
+    def postprocess(source_dict, target_dict, sampler=None, phase=None):
         source_dict["weights"] = matching_np_radius(source_dict["weights"],target_dict["weights"])
-
+        if sampler is not None:
+            source_dict, ind = sampler(source_dict, ind=None, fixed_random_seed=phase != "train")
+            target_dict, _ = sampler(target_dict, ind=ind, fixed_random_seed=phase != "train")
         return source_dict, target_dict
     return postprocess
 
@@ -169,7 +171,10 @@ def get_atlas_distbribution(**kwargs):
 
 def lung_pair_atlas_postprocess(**kwargs):
     sampled_atlas = get_atlas_distbribution(**kwargs)
-    def postprocess(source_dict, target_dict):
+    def postprocess(source_dict, target_dict, sampler=None, phase=None):
+        if sampler is not None:
+            source_dict, ind = sampler(source_dict, ind=None, fixed_random_seed=phase != "train")
+            target_dict, _ = sampler(target_dict, ind=ind, fixed_random_seed=phase != "train")
         source_dict["weights"] = matching_np_radius(source_dict["weights"],sampled_atlas["weights"])
         target_dict["weights"] = matching_np_radius(target_dict["weights"],sampled_atlas["weights"])
         return source_dict, target_dict

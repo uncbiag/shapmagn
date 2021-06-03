@@ -61,7 +61,7 @@ points = torch.Tensor(points)
 points_np = points.detach().cpu().numpy().squeeze()
 weights =torch.ones(points.shape[0],points.shape[1],1)
 npoints = points.shape[1]
-Gamma,principle_weight,eigenvector, mass = compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.04,aniso_kernel_scale=0.1,leaf_decay=True,principle_weight=None,eigenvalue_min=0.1,iter_twice=True,return_details=True)
+Gamma,principle_weight,eigenvector, mass = compute_anisotropic_gamma_from_points(points,cov_sigma_scale=0.01,aniso_kernel_scale=0.05,leaf_decay=True,principle_weight=None,eigenvalue_min=0.3,iter_twice=True,return_details=True)
 filtered_points = nadwat_kernel_interpolator(scale=0.04, exp_order=2,iso=False)(points,points,points,weights,Gamma)
 # visualize_point_fea(points, mass, rgb_on=False)
 # visualize_point_fea(filtered_points, mass, rgb_on=False)
@@ -74,7 +74,7 @@ spheres_list = [make_ellipsoid(200, ndim=2, radius=principle_weight_np[ind], cen
 spheres = np.concatenate(spheres_list,0)
 fg_spheres_color = np.array([[0.8,.5,.2]]*len(spheres))
 #visualize_point_fea(points, mass , rgb_on=False)
-visualize_point_fea_with_arrow(points, mass,eigenvector[...,0]*0.005,rgb_on=False)
-visualize_point_overlap(points, spheres,mass,fg_spheres_color,"aniso_filter_with_kernel_radius",point_size=[10,5],rgb_on=[False,True])
+#visualize_point_fea_with_arrow(points, mass,eigenvector[...,0]*0.005,rgb_on=False)
+visualize_point_overlap(points, spheres,mass,fg_spheres_color,"aniso_filter_with_kernel_radius",point_size=[20,10],rgb_on=[False,True])
 
 

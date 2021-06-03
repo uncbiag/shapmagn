@@ -9,11 +9,13 @@ from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import Loss
 from shapmagn.utils.utils import sigmoid_decay
 from shapmagn.utils.obj_factory import obj_factory
+from shapmagn.utils.utils import timming
+
 class PrealignOPT(nn.Module):
     def __init__(self, opt):
         super(PrealignOPT, self).__init__()
         self.opt = opt
-        self.module_type = self.opt[("module_type","probreg", "lddmm module type: teaser")]
+        self.module_type = self.opt[("module_type","gradflow_prealign", "gradflow_prealign")]
         assert self.module_type in ["probreg", "teaser", "gradflow_prealign"]
         # here we treat gradflow_prealign as a self-completed module for affine optimization
         self.thirdparty_package =  ["probreg","teaser","gradflow_prealign"]
@@ -131,7 +133,7 @@ class PrealignOPT(nn.Module):
         :param shape_pair:
         :return:
         """
-        shape_pair,prealign_param = self.prealign(shape_pair)
+        shape_pair,prealign_param = timming(self.prealign)(shape_pair)
         flowed_has_inferred = shape_pair.infer_flowed()
         shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
         sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)

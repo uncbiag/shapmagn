@@ -124,6 +124,7 @@ def eval_landmark(model,shape_pair, batch_info,alias, eval_ot_map=False):
     record_path = os.path.join(batch_info["record_path"], "3d",
                                "{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]))
     toflow.weights = diff
+    shape_pair.flowed.pointfea=None
     save_shape_into_files(record_path, "landmark" + alias + "_toflow", batch_info["pair_name"], toflow)
     save_shape_into_files(record_path, "landmark"+alias+"_flowed",batch_info["pair_name"], shape_pair.flowed)
     save_shape_into_files(record_path, "landmark"+alias+"_target",batch_info["pair_name"], gt_landmark)
@@ -143,7 +144,7 @@ def visualize_feature(shape_pair, batch_info):
     os.makedirs(record_path,exist_ok=True)
     for b in range(nbatch):
         fea_high = np.concatenate([flowed_fea[b,:,3:],target_fea[b,:,3:]],0)
-        fea_embedded = TSNE(n_components=2,perplexity=30,n_jobs=5).fit_transform(fea_high)
+        fea_embedded = TSNE(n_components=3,perplexity=30,n_jobs=5).fit_transform(fea_high)
         fea_normalized = (fea_embedded-fea_embedded.min())/(fea_embedded.max()-fea_embedded.min()+1e-7)*3
         flowed_embedding, target_embedded = fea_normalized[:npoints], fea_normalized[npoints:]
         pair_name = batch_info["pair_name"][b]
@@ -182,14 +183,19 @@ def evaluate_res(visualize_fea=False):
                 visualize_feature(shape_pair, batch_info)
             model = additional_param["model"]
             flowed_points_cp= shape_pair.flowed.points
-            shape_pair.control_points = additional_param["initial_control_points"]
+            shape_pair.control_points = additional_param["initial_nonp_control_points"]
             eval_ot_map = "mapped_position" in additional_param
+            has_prealign = "prealign_param" in additional_param and additional_param["prealign_param"] is not None
+            record_path = os.path.join(batch_info["record_path"], "3d","{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]))
+            os.makedirs(record_path, exist_ok=True)
+            if additional_param is not None and has_prealign and not eval_ot_map:
+                save_shape_into_files(record_path,alias+"_prealigned", batch_info["pair_name"],additional_param["prealigned"] )
+                reg_param = additional_param["prealign_param"].detach().cpu().numpy()
+                for pid, pair_name in enumerate(batch_info["pair_name"]):
+                    np.save(os.path.join(record_path, pair_name + alias + "_prealigned_reg_param.npy"), reg_param[pid])
             if additional_param is not None and eval_ot_map:
                 shape_pair.flowed.points = additional_param["mapped_position"]
-                record_path = os.path.join(batch_info["record_path"], "3d",
-                                           "{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]))
-                os.makedirs(record_path,exist_ok=True)
-                save_shape_into_files(record_path, alias + "flowed", batch_info["pair_name"],shape_pair.flowed)
+                save_shape_into_files(record_path, alias + "_flowed", batch_info["pair_name"],shape_pair.flowed)
             diff = eval_landmark(model, shape_pair,batch_info,alias, eval_ot_map=eval_ot_map)
             diff_var = (diff-diff.mean(1,keepdim=True))**2
             diff_var = diff_var.sum(2).mean(1)

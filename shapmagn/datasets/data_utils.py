@@ -264,7 +264,7 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
         data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
         min_interval = compute_interval(data_dict["points"])
         sampler = obj_factory(sampler_obj) if sampler_obj else None
-        data_dict,_= sampler(data_dict) if sampler_obj else data_dict
+        data_dict,_= sampler(data_dict) if sampler_obj else (data_dict,None)
         obj = to_tensor(data_dict) if return_tensor else data_dict
         if expand_bch_dim:
             obj= _expand_bch_dim(obj)

@@ -10,7 +10,7 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
     since = time()
     record_path = opt['path']['record_path']
     running_range=opt[('running_range',[-1],"max running number, set -1 if not limited")]  # todo should be [-1]
-    save_fig_on = True  #opt[('save_fig_on',False, 'save the visualizatio results during the evaluation')]
+    save_fig_on = opt[('save_fig_on',False, 'save the visualizatio results during the evaluation')]
     running_part_data = running_range[0]>=0
     if running_part_data:
         print("running part of the test data from range {}".format(running_range))
@@ -83,12 +83,7 @@ def extract_and_save_interested_loss(detailed_scores,batch_size_list, record_pat
     sample_num = sum(batch_size_list)
     if isinstance(detailed_scores,dict):
         for metric, score_list in detailed_scores.items():
-            records_detail_np = np.zeros([sample_num, 1])
-            sample_count = 0
-            for i, score in enumerate(score_list):
-                batch_len = batch_size_list[i]
-                records_detail_np[sample_count:sample_count+batch_len,:] = score
-                sample_count += batch_len
+            records_detail_np = np.array(score_list)[None]
             np.save(os.path.join(record_path, metric+ '_records_detail'), records_detail_np)
 
     else:

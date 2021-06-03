@@ -134,4 +134,4 @@ class FLOT(torch.nn.Module):
         # Flow refinement
         refined_flow = self.refine(ot_flow, graph)
 
-        return refined_flow
+        return refined_flow, {}

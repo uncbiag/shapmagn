@@ -26,12 +26,17 @@ class ODEBlock(nn.Module):
     def __init__(self, param=ParameterDict()):
         super(ODEBlock, self).__init__()
         self.odefunc = None
+        self.interp_mode = param[('interp_mode',False, 'interpolation along time')]
         """the ode problem to be solved"""
         tFrom = param[('tFrom', 0.0, 'time to solve a model from')]
         """time to solve a model from"""
         tTo = param[('tTo', 1.0, 'time to solve a model to')]
         """time to solve a model to"""
-        self.integration_time = torch.Tensor([tFrom, tTo]).float()
+        if not self.interp_mode:
+            self.integration_time = torch.Tensor([tFrom, tTo]).float()
+        else:
+            integration_time = param[('integration_time', [0.0,1.0], 'time interval to interpolated')]
+            self.integration_time = torch.Tensor(integration_time).float()
         """intergration time, list, typically set as [0,1]"""
         self.method = param[('solver', 'dopri5','ode solver')]
         """ solver,rk4 as default, supported list: explicit_adams,fixed_adams,tsit5,dopri5,euler,midpoint, rk4 """
@@ -61,7 +66,10 @@ class ODEBlock(nn.Module):
         odesolver = torchdiffeq.odeint_adjoint if self.adjoin_on else torchdiffeq.odeint
         #out = odeint(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol)
         out = odesolver(self.odefunc, x, self.integration_time, rtol=self.rtol, atol=self.atol,method=self.method, options={'step_size':self.dt, "eps":self.min_step})
-        return (elem[1] for elem in out)
+        if not self.interp_mode:
+            return (elem[1] for elem in out)
+        else:
+            return [[elem_t for elem_t in elem] for elem in out]
 
     @property
     def nfe(self):

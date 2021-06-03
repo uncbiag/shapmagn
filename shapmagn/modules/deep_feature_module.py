@@ -217,6 +217,7 @@ class PointConvFeaExtractor(nn.Module):
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
         self.param_shrink_factor = self.opt[("param_shrink_factor",2,"network parameter shrink factor")]
         self.include_pos_in_final_feature = self.opt[("include_pos_in_final_feature", True, "include_pos")]
+        self.pretrained_model_path = self.opt[("pretrained_model_path", "", "the path of the pretrained model")]
         self.use_aniso_kernel = self.opt[("use_aniso_kernel",False,"use the aniso kernel in first sampling layer")]
         self.init_deep_feature_extractor()
         self.buffer = {}
@@ -225,6 +226,19 @@ class PointConvFeaExtractor(nn.Module):
 
     def init_deep_feature_extractor(self):
         self.extractor = PointConvFeature(input_channel=self.input_channel,output_channels=self.output_channel,param_shrink_factor=self.param_shrink_factor, use_aniso_kernel=self.use_aniso_kernel)
+        if self.pretrained_model_path:
+            checkpoint = torch.load(self.pretrained_model_path, map_location='cpu')
+            cur_state = self.state_dict()
+            for key in list(checkpoint["state_dict"].keys()):
+                if 'module.pair_feature_extractor.' in key:
+                    replaced_key = key.replace('module.pair_feature_extractor.', '')
+                    if replaced_key in cur_state:
+                        cur_state[replaced_key] = checkpoint["state_dict"].pop(key)
+                    else:
+                        print("")
+            self.load_state_dict(cur_state)
+            print("load pretrained model from {}".format(self.pretrained_model_path))
+
 
     def deep_pair_feature_extractor(self, cur_source, target):
         sf = self.extractor(cur_source.points, cur_source.pointfea)

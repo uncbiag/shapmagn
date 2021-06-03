@@ -148,7 +148,7 @@ def feature_extractor(fea_type_list, radius=1.,std_normalize=True, include_pos=F
                     std = fea_combined.std(1,keepdim=True)
                 fea_combined = (fea_combined-mean)/std
                 fea_combined = fea_combined.clamp(-1,1)
-            fea_combined = fea_combined*weights
+                fea_combined = fea_combined*weights
         if include_pos:
             fea_combined = torch.cat([points,fea_combined],-1) if fea_combined is not None else points
         if return_stats:

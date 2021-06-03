@@ -31,7 +31,7 @@ def point_based_gradient_flow_guide(cur_source,target,geomloss_setting, local_it
     #     "{} th step, after gradient flow, the ot distance between the gradflowed guided points and the target is {}".format(
     #         local_iter.item(), loss.item()))
     if mode =="flow":
-        return cur_source_clone
+        return cur_source_clone, None
     elif mode=="analysis":
         return cur_source_clone.points, loss
 
@@ -45,7 +45,7 @@ def wasserstein_barycenter_mapping(cur_source, target,gemloss_setting):
     blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))
     blur = eval(list(blur_arg_filtered)[0].replace("blur", "").replace("=", ""))
     # though can be generalized to arbitrary order, here we assume the order is 2
-    mode = gemloss_setting[("mode", 'hard',"soft, hard, mapped_index,analysis,trans_plan")]
+    mode = gemloss_setting[("mode", 'soft',"soft, hard, mapped_index,analysis,trans_plan")]
     geomloss = obj_factory(geom_obj)
     attr =gemloss_setting[("attr", 'pointfea',"points/pointfea/landmarks")]
     attr1 = getattr(cur_source, attr)

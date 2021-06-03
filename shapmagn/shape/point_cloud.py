@@ -25,14 +25,18 @@ class PointCloud(ShapeBase):
         self.points_mode_on = True
 
 
-    def set_data_with_refer_to(self, points, pointcloud):
-        self.points = points
-        self.label = pointcloud.label
+    def set_data_with_refer_to(self, points, pointcloud,detach=False):
+        if not detach:
+            fn = lambda x: x
+        else:
+            fn = lambda x: x.detach().clone() if x is not None else None
+        self.points = fn(points)
+        self.label = fn(pointcloud.label)
         self.name_list = pointcloud.name_list
-        self.landmarks = pointcloud.landmarks
-        self.pointfea = pointcloud.pointfea
-        self.weights = pointcloud.weights
-        self.seg = pointcloud.seg
+        self.landmarks = fn(pointcloud.landmarks)
+        self.pointfea = fn(pointcloud.pointfea)
+        self.weights = fn(pointcloud.weights)
+        self.seg = fn(pointcloud.seg)
         self.scale = pointcloud.scale
         self.update_info()
         return self

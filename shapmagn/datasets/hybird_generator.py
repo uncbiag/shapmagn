@@ -6,7 +6,7 @@ from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.utils import index_points
 
 class HybirdData(object):
-    def __init__(self, synthsizer_obj, data_aug_obj=None, raw_source_target_has_corr = False, corr_sampled_source_target= False, npoints =-1, synth_ratio=1.0, ratio_decay_rate=8, min_synth_ratio=0.3):
+    def __init__(self, synthsizer_obj, data_aug_obj=None, raw_source_target_has_corr = False, corr_sampled_source_target= False, test_time_randomize= False, npoints =-1, synth_ratio=1.0, ratio_decay_rate=8, min_synth_ratio=0.3):
         super(HybirdData,self).__init__()
         self.synthsizer = obj_factory(synthsizer_obj) if synthsizer_obj else None
         self.data_aug = obj_factory(data_aug_obj) if data_aug_obj else None
@@ -16,6 +16,7 @@ class HybirdData(object):
         self.sampler =None
         self.raw_source_target_has_corr =raw_source_target_has_corr
         self.corr_sampled_source_target =corr_sampled_source_target
+        self.test_time_randomize = test_time_randomize
         self.npoints = npoints
 
 
@@ -102,10 +103,13 @@ class HybirdData(object):
         """
 
         if phase=="debug":
-            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
+            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=not self.test_time_randomize, sampled_by_weight=True)
             return not self.raw_source_target_has_corr, True, True
-        elif phase=="val" or phase=="test":
-            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=True, sampled_by_weight=True)
+        elif phase=="val" :
+            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=not self.test_time_randomize, sampled_by_weight=True)
+            return False, self.corr_sampled_source_target, self.raw_source_target_has_corr
+        elif phase=="test":
+            self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=not self.test_time_randomize, sampled_by_weight=True)
             return False, self.corr_sampled_source_target, self.raw_source_target_has_corr
         elif phase=="train":
             self.sampler = batch_uniform_sampler(self.npoints, fixed_random_seed=False, sampled_by_weight=True)

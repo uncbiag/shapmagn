@@ -17,6 +17,7 @@ from shapmagn.modules.networks.pointpwcnet2_2 import PointConvSceneFlowPWC2_2
 from shapmagn.modules.networks.pointpwcnet2_3 import PointConvSceneFlowPWC2_3
 from shapmagn.modules.networks.pointpwcnet2_4 import PointConvSceneFlowPWC2_4
 from shapmagn.modules.networks.pointpwcnet2_5 import PointConvSceneFlowPWC2_5
+from shapmagn.modules.networks.pointpwcnet2_6 import PointConvSceneFlowPWC2_6
 #from shapmagn.modules.networks.pointpwcnet3 import PointConvSceneFlowPWC3
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
 from shapmagn.metrics.losses import CurvatureReg
@@ -99,59 +100,6 @@ class DeepFlowNetRegParam(nn.Module):
 
 
 
-class DeepGeoNetRegParam(nn.Module):
-    def __init__(self,opt):
-        super(DeepGeoNetRegParam,self).__init__()
-        self.opt = opt
-        local_pair_feature_extractor_obj = self.opt[("local_pair_feature_extractor_obj","","function object for local_feature_extractor")]
-        self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(local_pair_feature_extractor_obj) else self.default_local_pair_feature_extractor
-        # todo test the case that the pointfea is initialized by the dataloader
-        self.initial_npoints = self.opt[("initial_npoints",4096,"num of initial sampling points")]
-        self.input_channel = self.opt[("input_channel",1,"input channel")]
-        self.initial_radius = self.opt[("initial_radius",0.001,"initial radius")]
-        self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
-
-        self.init_deep_feature_extractor()
-
-        self.buffer = {}
-        self.iter = 0
-
-
-    def default_local_pair_feature_extractor(self,cur_source, target):
-        cur_source.pointfea = torch.cat([cur_source.points,cur_source.weights],2)
-        target.pointfea =torch.cat([target.points,target.weights],2)
-        return cur_source, target
-
-    def init_deep_feature_extractor(self):
-        self.flow_predictor =GeoFlowNet(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints,predict_at_low_resl=self.predict_at_low_resl)
-
-    def deep_flow(self,cur_source, target):
-        pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
-        nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
-        return nonp_param, None
-
-    def normalize_fea(self):
-        pass
-
-    def forward(self,cur_source, shape_pair, iter=-1):
-        cur_source, shape_pair.target = self.local_pair_feature_extractor(cur_source, shape_pair.target)
-        shape_pair.reg_param,additional_param = self.deep_flow(cur_source, shape_pair.target)
-        if self.predict_at_low_resl:
-            shape_pair.dense_mode = False
-            shape_pair.control_points = additional_param["control_points"].contiguous()
-            shape_pair.control_weights = index_points(cur_source.weights,
-                                                      additional_param["control_points_idx"].long()).contiguous()
-            shape_pair.toflow = cur_source
-        else:
-            shape_pair.dense_mode = True
-            shape_pair.control_points = cur_source.points
-            shape_pair.control_weights = cur_source.weights
-            shape_pair.toflow = cur_source
-        return shape_pair, additional_param
-
-
-
-
 
 class PointConvSceneFlowPWCRegParam(nn.Module):
     def __init__(self, opt):
@@ -167,6 +115,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
         self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
         self.use_aniso_kernel =  self.opt[("use_aniso_kernel",False,"use the aniso kernel in first sampling layer")]
+        self.control_shift_factor =  self.opt[("control_shift_factor",0.01,"factor scaling the predicted shift of the control points")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
@@ -180,12 +129,13 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.load_pretrained_model = self.opt[("load_pretrained_model",False,"load_pretrained_model")]
         self.pretrained_model_path = self.opt[("pretrained_model_path","","path of pretrained model")]
         if not self.delploy_original_model:
+            #self.flow_predictor = PointConvSceneFlowPWC2_6(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_shrink_factor=self.param_shrink_factor,use_aniso_kernel=self.use_aniso_kernel,control_shift_factor=self.control_shift_factor)
             self.flow_predictor = PointConvSceneFlowPWC2_4(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_shrink_factor=self.param_shrink_factor,use_aniso_kernel=self.use_aniso_kernel)
         else:
             self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints, predict_at_low_resl= self.predict_at_low_resl)
         if self.load_pretrained_model:
             checkpoint = torch.load(self.pretrained_model_path, map_location='cpu')
-            self.flow_predictor.load_state_dict(checkpoint)
+            self.flow_predictor.load_state_dict(checkpoint,strict=False)
     def deep_flow(self, cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         nonp_param,additional_param = self.flow_predictor(pc1, pc2, feature1, feature2)
@@ -219,21 +169,52 @@ class FLOTRegParam(nn.Module):
         self.opt = opt
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.nb_iter = self.opt[("nb_iter",1,"# iter for solving the ot problem")]
+        self.predict_at_low_resl = False
+        local_pair_feature_extractor_obj = self.opt[
+            ("local_pair_feature_extractor_obj", "", "function object for local_feature_extractor")]
+        self.local_pair_feature_extractor = obj_factory(local_pair_feature_extractor_obj) if len(
+            local_pair_feature_extractor_obj) else self.default_local_pair_feature_extractor
+        # todo test the case that the pointfea is initialized by the dataloader
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
 
+    def default_local_pair_feature_extractor(self, cur_source, target):
+        cur_source.pointfea = cur_source.points.clone()#torch.cat([cur_source.points, cur_source.weights], 2)
+        target.pointfea = target.points.clone() #torch.cat([target.points, target.weights], 2)
+        return cur_source, target
+
     def init_deep_feature_extractor(self):
+        self.load_pretrained_model = self.opt[("load_pretrained_model", False, "load_pretrained_model")]
+        self.pretrained_model_path = self.opt[("pretrained_model_path", "", "path of pretrained model")]
         self.flow_predictor = FLOT(nb_iter=self.nb_iter, initial_channel=self.input_channel)
+        if self.load_pretrained_model:
+            checkpoint = torch.load(self.pretrained_model_path, map_location='cpu')
+            self.flow_predictor.load_state_dict(checkpoint['model'], strict=False)
+            print("succeed loading the external model {}".format(self.pretrained_model_path))
+
+
 
     def deep_flow(self, cur_source, target):
         pc1, pc2 = cur_source.points, target.points
         nonp_param,additional_param = self.flow_predictor(pc1, pc2)
         return nonp_param, additional_param
 
-    def forward(self, cur_source, target, iter=-1):
-        nonp_param, additional_param = self.deep_flow(cur_source, target)
-        return nonp_param, additional_param
+    def forward(self,  cur_source, shape_pair, iter=-1):
+        cur_source, shape_pair.target = self.local_pair_feature_extractor(cur_source, shape_pair.target)
+        shape_pair.reg_param, additional_param = self.deep_flow(cur_source, shape_pair.target)
+        if self.predict_at_low_resl:
+            shape_pair.dense_mode = False
+            shape_pair.control_points = additional_param["control_points"].contiguous()
+            shape_pair.control_weights = index_points(cur_source.weights,
+                                                      additional_param["control_points_idx"].long()).contiguous()
+            shape_pair.toflow = cur_source
+        else:
+            shape_pair.dense_mode = True
+            shape_pair.control_points = cur_source.points
+            shape_pair.control_weights =cur_source.weights
+            shape_pair.toflow = cur_source
+        return shape_pair, additional_param
 
 
 
@@ -356,7 +337,7 @@ class FlowModel(nn.Module):
     def lddmm_forward(self, toflow, shape_pair,additional_param):
         toflow_points = toflow.points
         momentum = shape_pair.reg_param
-        momentum = momentum.clamp(-0.5, 0.5) #todo   should be set in class attribute
+        momentum = momentum.clamp(-0.5, 0.5) #todo  this is a temporal setting for data normalized into [0,1] should be set in class attribute
         if shape_pair.dense_mode:
             self.lddmm_module.set_mode("shooting")
             _, flowed_control_points = self.integrator.solve((momentum, shape_pair.control_points))
@@ -411,7 +392,7 @@ class DeepFlowLoss(nn.Module):
     def __init__(self, opt):
         super(DeepFlowLoss,self).__init__()
         self.opt = opt
-        self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_loss/gmm")]
+        self.loss_type = self.opt[("loss_type", "disp_l2","disp_l2 / ot_dist")]
         self.include_curv_constrain =self.opt[("include_curv_constrain", False, "add constrain on the curvature")]
         self.curv_factor =self.opt[("curv_factor", 1.0, "curv_factor")]
         self.use_gmm_as_unsupervised_metric= self.opt[("use_gmm_as_unsupervised_metric", False, "use_gmm_as_unsupervised_metric")]
@@ -476,20 +457,29 @@ class DeepFlowLoss(nn.Module):
         curloss = CurvatureReg(curloss_setting)
         curvature_loss = curloss(source, flowed, target)
         return curvature_loss
+    def control_shift_reg(self,additional_param):
+        if "control_shift" in additional_param:
+            return (additional_param["control_shift"]**2).sum(2).mean(1) #100
+        else:
+            return 0
 
 
 
     def forward(self,flowed, target, gt_flowed, additional_param=None, has_gt=True):
         curv_reg = self.curv_factor* self.curvature_diff(additional_param["source"], flowed,
                                        target) if self.include_curv_constrain else 0
+
+        curv_reg += self.control_shift_reg(additional_param)
         if not has_gt:
             if not self.use_gmm_as_unsupervised_metric:
                 return self.ot_distance(flowed, target) + curv_reg
             else:
                 return self.gmm(flowed,target)+curv_reg
-        if self.loss_type == "disp_l2":
-            return self.disp_l2(flowed, gt_flowed) + curv_reg
-
+        else:
+            if self.loss_type == "disp_l2":
+                return self.disp_l2(flowed, gt_flowed) + curv_reg
+            elif self.loss_type =="ot_dist":
+                return self.ot_distance(flowed, target) + curv_reg
 
 
 
@@ -501,11 +491,11 @@ class PWCLoss(nn.Module):
         super(PWCLoss,self).__init__()
         self.opt = opt
         self.multi_scale_weight = opt[("multi_scale_weight",[0.02, 0.04, 0.08, 0.16],"weight for each scale")]
-        self.loss_type = opt[("loss_type", "multi_scale","multi_scale / chamfer_self")]
-        self.use_self_supervised_loss = opt[("use_self_supervised_loss", False,"use_self_supervised_loss")]
+        self.loss_type = opt[("loss_type", "disp_l2","disp_l2 / chamfer_self")]
+        self.use_chamfer_as_self_supervised_loss = opt[("use_chamfer_as_self_supervised_loss", False,"use_self_supervised_loss")]
+        self.loss_order = opt[("loss_order", 2," order of distance if set 2, l2 distance")]
 
-
-    def multiScaleLoss(self,flowed, target, additional_param):
+    def multiScaleLoss(self,flowed, gt_flowed, additional_param):
         weights = flowed.weights
         alpha = self.multi_scale_weight
         floweds, fps_idxs = additional_param["floweds"], additional_param["fps_pc1_idxs"]#todo to be fixed
@@ -513,7 +503,7 @@ class PWCLoss(nn.Module):
         offset = len(fps_idxs) - num_scale + 1
         num_scale = len(floweds)
         #generate GT list and mask1s
-        gt = [target.points]
+        gt = [gt_flowed.points]
         w = [weights]
         for i in range(len(fps_idxs)):
             fps_idx = fps_idxs[i]
@@ -522,12 +512,47 @@ class PWCLoss(nn.Module):
             gt.append(sub_gt_flow)
             w.append(sub_w/sub_w.sum(1,keepdim=True))
         total_loss = 0
+        dist_fn = lambda x:  x**self.loss_order if self.loss_order%2==0 else torch.abs(x)**self.loss_order
         for i in range(num_scale):
             diff_flow = floweds[i] - gt[i+offset]
-            total_loss += alpha[i] * ((diff_flow**2).sum(dim = 2,keepdim=True)*w[i+offset]).sum(1)
+            total_loss += alpha[i] * (dist_fn(diff_flow).sum(dim = 2,keepdim=True)*w[i+offset]).sum(1)
         w = flowed.weights/flowed.weights.sum(1,keepdim=True)
-        additional_loss = (((flowed.points-target.points)**2).sum(2,keepdim=True) * w).sum(1) #todo test
-        return total_loss[...,0]+additional_loss[...,0]
+        additional_loss = ((dist_fn(flowed.points-gt_flowed.points)).sum(2,keepdim=True) * w).sum(1) #todo test
+        reg=0
+        if "control_shift" in additional_param:
+            reg= dist_fn(additional_param["control_shift"]).sum(2).mean(1)*10
+
+        return total_loss[...,0]+additional_loss[...,0]+reg
+
+
+    def multiScaleLoss_with_OT(self,flowed, target,gt_flowed, additional_param):
+        weights = flowed.weights
+        alpha = self.multi_scale_weight
+        floweds, fps_idxs = additional_param["floweds"], additional_param["fps_pc1_idxs"]#todo to be fixed
+        num_scale = len(floweds)
+        offset = len(fps_idxs) - num_scale + 1
+        num_scale = len(floweds)
+        #generate GT list and mask1s
+        gt = [gt_flowed.points]
+        w = [weights]
+
+        for i in range(len(fps_idxs)):
+            fps_idx = fps_idxs[i]
+            sub_gt_flow = index_points(gt[-1], fps_idx)
+            sub_w = index_points(w[-1],fps_idx)
+            gt.append(sub_gt_flow)
+            w.append(sub_w/sub_w.sum(1,keepdim=True))
+        total_loss = 0
+        dist_fn = lambda x:  x**self.loss_order if self.loss_order%2==0 else torch.abs(x)**self.loss_order
+
+        for i in range(num_scale):
+            diff_flow = floweds[i] - gt[i+offset]
+            total_loss += alpha[i] * (dist_fn(diff_flow).sum(dim = 2,keepdim=True)*w[i+offset]).sum(1)
+        additional_loss = self.ot_distance(flowed,target)*alpha[-1]
+        reg = 0
+        if "control_shift" in additional_param:
+            reg = dist_fn(additional_param["control_shift"]).sum(2).mean(1) * 10
+        return total_loss[...,0]+additional_loss +reg
 
 
     def chamfer_self_loss(self,flowed, target, additional_param):
@@ -550,10 +575,19 @@ class PWCLoss(nn.Module):
 
 
     def forward(self,flowed, target,gt_flowed, additional_param=None, has_gt=True):
-        if self.use_self_supervised_loss:
-            return self.chamfer_self_loss(flowed, target, additional_param)
+        if not has_gt:
+            if self.use_chamfer_as_self_supervised_loss:
+                return self.chamfer_self_loss(flowed, target, additional_param)
+            else:
+                return self.ot_distance(flowed, target)
         elif has_gt:
-            return self.multiScaleLoss(flowed, gt_flowed, additional_param)
+            if self.loss_type=="disp_l2":
+                return self.multiScaleLoss(flowed, gt_flowed, additional_param)
+            elif self.loss_type=="chamfer_dist":
+                return self.chamfer_self_loss(flowed, target, additional_param)
+            elif self.loss_type=="ot_dist":
+                return self.multiScaleLoss_with_OT(flowed, target,gt_flowed, additional_param)
+
         else:
             return self.ot_distance(flowed, target)
 

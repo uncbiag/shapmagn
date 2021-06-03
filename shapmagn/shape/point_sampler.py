@@ -2,6 +2,9 @@ from pykeops.torch.cluster import grid_cluster
 import numpy as np
 import torch
 from torch_scatter import scatter
+from shapmagn.modules.networks.pointnet2.lib.pointnet2_utils import furthest_point_sample
+from shapmagn.modules.networks.pointconv_util import index_points_gather
+
 from random import Random
 import time
 
@@ -72,7 +75,6 @@ def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
 def point_grid_sampler(scale):
     """
     :param scale: voxelgrid gather the point info inside grids of "scale" size
-    the batch size typically should be set to 1
     :return:
     """
     grid_point_sampler = grid_sampler(scale)
@@ -160,8 +162,22 @@ def point_uniform_sampler(num_sample,fixed_random_seed=True, sampled_by_weight=T
         return new_shape
     return sampling
 
-
-
+def point_fps_sampler(num_sample):
+    fps_sampler =furthest_point_sample
+    def sampling(input_shape):
+        from shapmagn.global_variable import Shape
+        point_idx = fps_sampler(input_shape.points, num_sample)
+        sampled_batch_points = index_points_gather(input_shape.points,point_idx)
+        sampled_batch_weights = index_points_gather(input_shape.weights,point_idx)
+        new_shape = Shape()
+        new_shape.set_data_with_refer_to(sampled_batch_points, input_shape)
+        new_shape.set_weights(sampled_batch_weights)
+        new_shape.set_scale(num_sample)
+        if input_shape.pointfea is not None:
+            sampled_batch_pointfea = index_points_gather(input_shape.pointfea, point_idx)
+            new_shape.set_pointfea(sampled_batch_pointfea)
+        return new_shape
+    return sampling
 
 
 

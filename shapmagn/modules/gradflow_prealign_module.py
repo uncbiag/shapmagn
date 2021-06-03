@@ -3,7 +3,7 @@ import torch.nn  as nn
 from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.modules.gradient_flow_module import gradient_flow_guide
-
+from shapmagn.shape.point_sampler import point_fps_sampler
 
 class GradFlowPreAlign(nn.Module):
     def __init__(self, opt):
@@ -13,6 +13,9 @@ class GradFlowPreAlign(nn.Module):
         self.rel_ftol = opt[("rel_ftol", 1e-2, "relative tolerance")]
         self.plot = opt[("plot", False, "plot the shape")]
         self.method_name = opt[("method_name","affine","affine or rigid")]
+        self.control_points =  opt[("control_points",-1,"compute prealign with # control point, points are sampled from farthest point sampling")]
+        self.sampler = point_fps_sampler(self.control_points)
+        self.use_barycenter_weight = opt[("use_barycenter_weight",False,"use barycenter weight for partial registration")]
         pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
         self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
         self.get_correspondence_shape = self.solve_correspondence_via_gradflow()
@@ -66,11 +69,11 @@ class GradFlowPreAlign(nn.Module):
         a = wy_hat.transpose(2,1)@wx_hat # BxDxN @ BxNxD  BxDxD
         u,s,v = torch.svd(a)
         c = torch.ones(B,D).to(device)
-        c[-1] = torch.det(u @ v) #
-        r = (u*c)@v.transpose(2,1)
+        c[:,-1] = torch.det(u @ v) #
+        r = (u*(c[...,None]))@v.transpose(2,1)
         tr_atr = torch.diagonal(a.transpose(2,1)@r, dim1=-2, dim2=-1).sum(-1)
         tr_xtwx = torch.diagonal(wx_hat.transpose(2,1)@wx_hat, dim1=-2, dim2=-1).sum(-1)
-        s= (tr_atr/tr_xtwx)[:,None]
+        s= (tr_atr/tr_xtwx)[...,None][...,None]
         t = mu_y-s*(r@mu_x.transpose(2,1)).transpose(2,1)
         A = torch.cat([r.transpose(2,1)*s,t],1)
         X = torch.cat((x, torch.ones_like(x[:,:, :1])), dim=2)  # (B,N, D+1)
@@ -97,8 +100,8 @@ class GradFlowPreAlign(nn.Module):
 
 
     def extract_point_fea(self, flowed, target, iter=-1):
-        flowed.pointfea = flowed.points
-        target.pointfea = target.points
+        flowed.pointfea = flowed.points.clone()
+        target.pointfea = target.points.clone()
         return flowed, target
 
     def extract_fea(self, flowed, target,iter):
@@ -149,6 +152,11 @@ class GradFlowPreAlign(nn.Module):
         return torch.stack(init_best_transform,0), Shape().set_data_with_refer_to(torch.stack(init_best_transformed,0),source)
 
 
+    def sampling_input(self,toflow, target):
+        compute_at_low_res = self.control_points>0
+        sampled_toflow = self.sampler(toflow) if compute_at_low_res else toflow
+        sampled_target = self.sampler(target) if compute_at_low_res else target
+        return sampled_toflow, sampled_target
 
     def __call__(self,source, target, init_A=None):
         """
@@ -156,6 +164,7 @@ class GradFlowPreAlign(nn.Module):
            :param target_batch: Shape with points BxMxD
            :return: Bx(D+1)xD transform matrix
            """
+        source, target = self.sampling_input(source, target)
         toflow = source
         A_prev = init_A if init_A is not None else None
         A = None
@@ -163,8 +172,14 @@ class GradFlowPreAlign(nn.Module):
             A_prev, toflow= self.find_initial_transform(source, target)
         for i in range(self.niter):
             toflow, target = self.extract_fea(toflow, target,i)
-            flowed = self.get_correspondence_shape(toflow, target)
-            A, transforme_points = self._solve_transform(toflow, flowed)
+            flowed, weight_map_ratio = self.get_correspondence_shape(toflow, target)
+            if not self.use_barycenter_weight:
+                A, transforme_points = self._solve_transform(toflow, flowed)
+            else:
+                toflow_weights = toflow.weights
+                toflow.weights = weight_map_ratio
+                A, transforme_points = self._solve_transform(toflow, flowed)
+                toflow.weights = toflow_weights
             A = self.compose_transform(A_prev,A) if A_prev is not None else A
             transformed_points = torch.cat((source.points,torch.ones_like(source.points[:,:, :1])), dim=2)@A
             toflow = Shape().set_data_with_refer_to(transformed_points,toflow)
@@ -173,18 +188,17 @@ class GradFlowPreAlign(nn.Module):
                 break
             A_prev = A
             if self.plot:
-                self.visualize(source, toflow, target, self.geomloss_setting, i)
+                self.visualize(source, toflow, target,weight_map_ratio, self.geomloss_setting, i)
         return A
 
 
 
-    def visualize(self,source,transformed,target,geomloss_setting, iter):
-        from shapmagn.utils.visualizer import visualize_multi_point
+    def visualize(self,source,transformed,target,weight_map_ratio,geomloss_setting, iter):
+        from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
         from shapmagn.demos.demo_utils import get_omt_mapping
-        mapped_fea = get_omt_mapping(geomloss_setting,source, target,
-                                     source.points[0], p=2, mode="hard", confid=0.0)
-
-        visualize_multi_point(points_list=[source.points, transformed.points, target.points],
-                              feas_list=[source.points, source.points, mapped_fea],
-                              titles_list=["source", "prealiged_iter{}".format(iter), "target"],
-                              rgb_on=[True, True, True])
+        # mapped_fea = get_omt_mapping(geomloss_setting,source, target,
+        #                              source.points[0], p=2, mode="hard", confid=0.0)
+        weight_map_ratio = torch.log10(weight_map_ratio+1e-8)
+        weight_map_ratio = (weight_map_ratio - weight_map_ratio.min())/(weight_map_ratio.max() - weight_map_ratio.min()).repeat(1,1,3)
+        visualize_source_flowed_target_overlap(source.points,transformed.points,target.points,source.points, weight_map_ratio,target.points,
+                                               "source","prealigned","target",rgb_on=False,show=True,add_bg_contrast=False)

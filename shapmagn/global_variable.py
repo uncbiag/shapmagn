@@ -19,11 +19,14 @@ DATASET_POOL = {
 from shapmagn.models.model_lddmm import LDDMMOPT
 from shapmagn.models.model_discrete_flow import DiscreteFlowOPT
 from shapmagn.models.model_gradient_flow import GradientFlowOPT
+from shapmagn.models.model_probreg import ProRegOPT
 from shapmagn.models.model_prealign import PrealignOPT
 from shapmagn.models.model_deep_feature import DeepFeature
 from shapmagn.models.model_deep_flow import DeepDiscreteFlow
+from shapmagn.models.model_wasserstein_barycenter import WasserBaryCenterOPT
 MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prealign_opt": PrealignOPT,"gradient_flow_opt":GradientFlowOPT,
-              "feature_deep":DeepFeature, "flow_deep":DeepDiscreteFlow,"discrete_flow_deep": DeepDiscreteFlow}
+              "feature_deep":DeepFeature, "flow_deep":DeepDiscreteFlow,
+              "discrete_flow_deep": DeepDiscreteFlow,"barycenter_opt":WasserBaryCenterOPT,"probreg_opt":ProRegOPT}
 
 
 from shapmagn.shape.point_sampler import point_grid_sampler, point_uniform_sampler

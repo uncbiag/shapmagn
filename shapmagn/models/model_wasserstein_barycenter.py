@@ -3,11 +3,11 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 from shapmagn.global_variable import Shape
-from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping
 from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory
-from torch.autograd import grad
+from shapmagn.utils.utils import timming
+#from pytorch_memlab import profile
 
 
 class WasserBaryCenterOPT(nn.Module):
@@ -94,7 +94,7 @@ class WasserBaryCenterOPT(nn.Module):
         else:
             return self.pair_feature_extractor(flowed, target, self.global_iter)
 
-
+    #@profile
     def forward(self, shape_pair):
         """
         :param shape_pair:
@@ -115,7 +115,7 @@ class WasserBaryCenterOPT(nn.Module):
         shape_pair.infer_flowed()
         shape_pair.reg_param.requires_grad = True
         self.iter +=1
-        return torch.Tensor(-1)  # todo return the wasserstein distance
+        return torch.Tensor([-1])  # todo return the wasserstein distance
 
 
     def model_eval(self, shape_pair, batch_info=None):

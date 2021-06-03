@@ -238,14 +238,14 @@ def process_points(point_path, img_path, case_id, output_folder, is_insp):
     print("{} : {},".format(copd,np.array(COPD_spacing[copd])/downsampled_spacing_itk))
     transfered_index = transfer_landmarks_from_dirlab_to_high(index, img_shape_itk)
     physical_points = transfered_index*spacing_itk+origin_itk
-    ####physical_points = index* COPD_spacing[copd]
-    # data = pv.PolyData(physical_points)
-    # suffix = "_INSP_STD_USD_COPD.vtk" if is_insp else "_EXP_STD_USD_COPD.vtk"
-    # fpath = os.path.join(output_folder,case_id+suffix)
-    # data.save(fpath)
-    # suffix = "_iBHCT.vtk" if is_insp else "_eBHCT.vtk"
-    # fpath = os.path.join(output_folder,ID_COPD[case_id]+suffix)
-    # data.save(fpath)
+    data = pv.PolyData(physical_points)
+    data.point_arrays["idx"] = np.arange(1,301)
+    suffix = "_INSP_STD_USD_COPD.vtk" if is_insp else "_EXP_STD_USD_COPD.vtk"
+    fpath = os.path.join(output_folder,case_id+suffix)
+    data.save(fpath)
+    suffix = "_iBHCT.vtk" if is_insp else "_eBHCT.vtk"
+    fpath = os.path.join(output_folder,ID_COPD[case_id]+suffix)
+    data.save(fpath)
     return physical_points
 
 
@@ -313,7 +313,7 @@ if map_high_to_dirlab:
 
 
 
-landmark_processed_folder =  os.path.join(processed_output_path, "landmark_processed2")
+landmark_processed_folder =  os.path.join(processed_output_path, "landmark_processed_colored")
 os.makedirs(landmark_processed_folder, exist_ok=True)
 if project_landmarks_from_dirlab_to_high:
     landmark_insp_physical_pos_list = [ process_points(landmark_insp_path_list[i], high_img_insp_path_list[i], id_list[i],landmark_processed_folder, is_insp=True) for i in range(len(id_list))]
@@ -324,8 +324,9 @@ if project_landmarks_from_dirlab_to_high:
         index = id_list.index(COPD_ID[copid])
         diff = np.linalg.norm(landmark_insp_physical_pos_list[index]-landmark_exp_physical_pos_list[index],2,1).mean()
         init_diff_list.append(diff)
-        print("current COPD_ID;{} , and the current_mean {}".format(copid,diff))
-    print("average mean {}".format(np.mean(init_diff_list)))
+        print("COPD_ID;{} , and the current mse is {}".format(copid,diff))
+    print("overall mean {}".format(np.mean(init_diff_list)))
+    print("overall median {}".format(np.median(init_diff_list)))
 
 cleaned_pc_folder = os.path.join(processed_output_path, "cleaned_pointcloud")
 os.makedirs(cleaned_pc_folder, exist_ok=True)
@@ -341,3 +342,100 @@ if save_cleaned_pointcloud:
 #     get_center(pc_insp_path_list[i],_id, is_insp=True)
 #     get_center(pc_exp_path_list[i],_id,is_insp=False)
 #
+"""
+num of 10 pair detected
+origin copd1_insp:(-148.0, -145.0, -310.625)
+size copd1_insp:(512, 512, 482)
+spatial ratio corrections:
+copd1 : [1. 1. 1.],
+origin copd5_insp:(-145.9, -175.9, -353.875)
+size copd5_insp:(512, 512, 522)
+spatial ratio corrections:
+copd5 : [1.00079816 1.00079816 1.        ],
+origin copd8_insp:(-142.3, -147.4, -313.625)
+size copd8_insp:(512, 512, 458)
+spatial ratio corrections:
+copd8 : [1.00010581 1.00010581 1.        ],
+origin copd4_insp:(-124.1, -151.0, -308.25)
+size copd4_insp:(512, 512, 501)
+spatial ratio corrections:
+copd4 : [1.00026448 1.00026448 1.        ],
+origin copd6_insp:(-158.4, -162.0, -299.625)
+size copd6_insp:(512, 512, 474)
+spatial ratio corrections:
+copd6 : [1.00029709 1.00029709 1.        ],
+origin copd9_insp:(-156.1, -170.0, -310.25)
+size copd9_insp:(512, 512, 461)
+spatial ratio corrections:
+copd9 : [0.99990664 0.99990664 1.        ],
+origin copd2_insp:(-176.9, -165.0, -254.625)
+size copd2_insp:(512, 512, 406)
+spatial ratio corrections:
+copd2 : [1.00072766 1.00072766 1.        ],
+origin copd7_insp:(-150.7, -160.0, -301.375)
+size copd7_insp:(512, 512, 446)
+spatial ratio corrections:
+copd7 : [1. 1. 1.],
+origin copd3_insp:(-149.4, -167.0, -343.125)
+size copd3_insp:(512, 512, 502)
+spatial ratio corrections:
+copd3 : [0.99947267 0.99947267 1.        ],
+origin copd10_insp:(-189.0, -176.0, -355.0)
+size copd10_insp:(512, 512, 535)
+spatial ratio corrections:
+copd10 : [0.99974669 0.99974669 1.        ],
+origin copd1_exp:(-148.0, -145.0, -305.0)
+size copd1_exp:(512, 512, 473)
+spatial ratio corrections:
+copd1 : [1. 1. 1.],
+origin copd5_exp:(-145.9, -175.9, -353.875)
+size copd5_exp:(512, 512, 522)
+spatial ratio corrections:
+copd5 : [1.00079816 1.00079816 1.        ],
+origin copd8_exp:(-142.3, -147.4, -294.625)
+size copd8_exp:(512, 512, 426)
+spatial ratio corrections:
+copd8 : [1.00010581 1.00010581 1.        ],
+origin copd4_exp:(-124.1, -151.0, -283.25)
+size copd4_exp:(512, 512, 461)
+spatial ratio corrections:
+copd4 : [1.00026448 1.00026448 1.        ],
+origin copd6_exp:(-158.4, -162.0, -291.5)
+size copd6_exp:(512, 512, 461)
+spatial ratio corrections:
+copd6 : [1.00029709 1.00029709 1.        ],
+origin copd9_exp:(-156.1, -170.0, -259.625)
+size copd9_exp:(512, 512, 380)
+spatial ratio corrections:
+copd9 : [0.99990664 0.99990664 1.        ],
+origin copd2_exp:(-177.0, -165.0, -237.125)
+size copd2_exp:(512, 512, 378)
+spatial ratio corrections:
+copd2 : [1.00072766 1.00072766 1.        ],
+origin copd7_exp:(-151.0, -160.0, -284.25)
+size copd7_exp:(512, 512, 407)
+spatial ratio corrections:
+copd7 : [1. 1. 1.],
+origin copd3_exp:(-149.4, -167.0, -319.375)
+size copd3_exp:(512, 512, 464)
+spatial ratio corrections:
+copd3 : [0.99947267 0.99947267 1.        ],
+origin copd10_exp:(-189.0, -176.0, -346.25)
+size copd10_exp:(512, 512, 539)
+spatial ratio corrections:
+copd10 : [0.99974669 0.99974669 1.        ],
+current COPD_ID;copd1 , and the current_mean 26.33421393688401
+current COPD_ID;copd2 , and the current_mean 21.77096701290744
+current COPD_ID;copd3 , and the current_mean 12.641456423304232
+current COPD_ID;copd4 , and the current_mean 29.580001001346986
+current COPD_ID;copd5 , and the current_mean 30.066294774082003
+current COPD_ID;copd6 , and the current_mean 28.44935880947926
+current COPD_ID;copd7 , and the current_mean 16.04527530944317
+current COPD_ID;copd8 , and the current_mean 25.831153412715352
+current COPD_ID;copd9 , and the current_mean 14.860883966778562
+current COPD_ID;copd10 , and the current_mean 27.608698637477584
+average mean 23.31883032844186
+
+Process finished with exit code 0
+
+"""

@@ -29,3 +29,5 @@ def display_samples(x, color= [(.55,.55,.95)]):
     x_ = x.detach().cpu().numpy()
     plt.scatter(x_[:, 0], x_[:, 1], 25 * 500 / len(x_), color, edgecolors='none')
     fig.show()
+
+

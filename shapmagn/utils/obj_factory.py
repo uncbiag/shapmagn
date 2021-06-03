@@ -21,6 +21,7 @@ KNOWN_MODULES = {
     "hybird_data": "shapmagn.datasets.hybird_generator",
     "visualizer": "shapmagn.utils.visualizer",
     "probreg_module": "shapmagn.modules.probreg_module",
+    "deep_feature_module":"shapmgan.modules.deep_feature_module",
     "shape_pair_utils":"shapmagn.shape.shape_pair_utils",
     "torch_kernels": 'shapmagn.kernels.torch_kernels',
     "keops_kernels": 'shapmagn.kernels.keops_kernels',

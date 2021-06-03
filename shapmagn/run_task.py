@@ -91,9 +91,6 @@ def __do_registration(args):
     setting_folder_path = args.setting_folder_path
     task_output_path = os.path.join(output_root_path,task_name)
     print("debugging {}".format(task_output_path))
-    print("debugging {}".format(task_output_path))
-
-    print("debugging {}".format(task_output_path))
 
     if os.path.isdir(output_root_path):
         print("the output folder {} exists, skipping copying the dataset json files".format(output_root_path))

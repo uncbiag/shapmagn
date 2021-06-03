@@ -48,11 +48,6 @@ class LDDMMOPT(nn.Module):
         self.use_gradflow_guided = self.opt[
             ("use_gradflow_guided", False, "optimization guided by gradient flow, to accererate the convergence")]
         self.gradflow_guided_buffer = {}
-        if self.use_gradflow_guided:
-            print("the gradient flow approach is use to guide the optimization of lddmm")
-            print("the feature extraction mode should be disabled")
-            assert self.pair_feature_extractor is None
-
         self.geom_loss_opt_for_eval = opt[("geom_loss_opt_for_eval", {},
                                            "settings for sim_loss_opt, the sim_loss here is not used for optimization but for evaluation")]
         external_evaluate_metric_obj = self.opt[("external_evaluate_metric_obj", "", "external evaluate metric")]
@@ -116,7 +111,7 @@ class LDDMMOPT(nn.Module):
         :return:
         """
         sim_factor = 100
-        reg_factor_init =1 #self.initial_reg_factor
+        reg_factor_init =0.1 #self.initial_reg_factor
         static_epoch = 100
         min_threshold = reg_factor_init/10
         decay_factor = 8
@@ -194,10 +189,14 @@ class LDDMMOPT(nn.Module):
             ("pair_shape_transformer_obj", "", "shape pair transformer before put into gradient guidance")]
         gradflow_mode = gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
 
+        post_kernel_obj = gradflow_guided_opt[("post_kernel_obj", "", "shape interpolator")]
+        post_kernel_obj = obj_factory(post_kernel_obj) if post_kernel_obj else None
+
         if self.global_iter % self.update_gradflow_every_n_step==0 or len(self.gradflow_guided_buffer)==0:
+            cur_iter = self.global_iter / self.update_gradflow_every_n_step
             if pair_shape_transformer_obj:
                 pair_shape_transformer = obj_factory(pair_shape_transformer_obj)
-                flowed, target = pair_shape_transformer(flowed, target, self.local_iter)
+                flowed, target = pair_shape_transformer(flowed, target, cur_iter)
             n_update = self.global_iter.item() / self.update_gradflow_every_n_step
             cur_blur = max(gradflow_blur_init*(update_gradflow_blur_by_raito**n_update), gradflow_blur_min)
             if gradflow_reach_init > 0:
@@ -211,8 +210,15 @@ class LDDMMOPT(nn.Module):
             geomloss_setting["mode"] = 'soft'
             geomloss_setting["attr"] = "pointfea"
             guide_fn = gradient_flow_guide(gradflow_mode)
-            gradflowed = guide_fn(flowed, target, geomloss_setting, self.local_iter)
+            gradflowed, _ = guide_fn(flowed, target, geomloss_setting, self.local_iter)
+            if post_kernel_obj is not None:
+                disp = gradflowed.points - flowed.points
+                flowed_points = flowed.points
+                smoothed_disp = post_kernel_obj(flowed_points, flowed_points, disp, flowed.weights)
+                gradflowed.points = flowed_points + smoothed_disp
+            gradflowed.points = gradflowed.points.detach()
             self.gradflow_guided_buffer["gradflowed"] = gradflowed
+            #self.debug(flowed, gradflowed, target)
         return flowed, self.gradflow_guided_buffer["gradflowed"]
 
 
@@ -244,10 +250,11 @@ class LDDMMOPT(nn.Module):
         sim_factor, reg_factor = self.get_factor()
         sim_loss = sim_loss*sim_factor
         reg_loss = reg_loss*reg_factor
-        if self.local_iter%2==0:
+        if self.local_iter%self.print_step==0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
                   .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(),sim_factor, reg_factor))
-            self.debug(shape_pair)
+            # if self.local_iter%10==0:
+            #     self.debug(shape_pair.source, shape_pair.flowed, shape_pair.target, alias="{}_{}".format(shape_pair.pair_name[0], int(self.local_iter.item())))
         loss = sim_loss + reg_loss
         self.local_iter +=1
         self.global_iter +=1
@@ -279,15 +286,27 @@ class LDDMMOPT(nn.Module):
 
 
 
-    def debug(self,shape_pair):
-        from shapmagn.utils.visualizer import visualize_point_pair_overlap
-        source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
+    def debug(self,source, flowed, target, alias="debug"):
+        from shapmagn.utils.visualizer import visualize_multi_point,visualize_point_pair_overlap
+        import os
+        camera_pos =[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+        #
         # visualize_point_pair_overlap(flowed.points, target.points,
         #                          flowed.weights,target.weights,
+        #                              camera_pos=camera_pos,
         #                          title1="flowed",title2="target", rgb_on=False)
-        visualize_point_pair_overlap(flowed.points, target.points,
-                                     source.points.squeeze(), target.points.squeeze(),
-                                     title1="flowed", title2="target", rgb_on=True)
+        camera_toy_pos =[(-5.5034147913360005, 5.520778675107747, 10.458100554989956),
+ (0.0, 0.0, 0.0),
+ (0.28747814320872545, 0.901163583812316, -0.32443876523591686)]
+        visualize_multi_point([source.points, flowed.points, target.points],
+                                               [source.points, source.points, target.points],
+                                               ["source", "flowed", "target"],
+                                               # gradflowed_disp,
+                                                camera_pos= camera_toy_pos,
+                                               rgb_on=[True, True, True], show=True,saving_capture_path=os.path.join(self.record_path,alias))
+        # visualize_point_pair_overlap(flowed.points, target.points,
+        #                              source.points.squeeze(), target.points.squeeze(),
+        #                              title1="flowed", title2="target", rgb_on=True)
 
 
 

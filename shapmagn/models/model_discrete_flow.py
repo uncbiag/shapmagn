@@ -47,9 +47,6 @@ class DiscreteFlowOPT(nn.Module):
         self.interp_kernel= obj_factory(interp_kernel_obj)
         pair_feature_extractor_obj = self.opt[("pair_feature_extractor_obj", "", "feature extraction function")]
         self.pair_feature_extractor = obj_factory(pair_feature_extractor_obj) if pair_feature_extractor_obj else None
-        self.fix_feature_using_initial_shape = self.opt[("fix_feature_using_initial_shape", False,
-                                                                   "if true, the kernel is feature is only extracted by the original source shape")]
-        self.use_aniso_kernel = self.opt[("use_aniso_kernel",False,"use anisotropic kernel")]
         sim_loss_opt = opt[("sim_loss", {}, "settings for sim_loss_opt")]
         self.sim_loss_fn = Loss(sim_loss_opt)
         self.reg_loss_fn = self.regularization
@@ -86,7 +83,7 @@ class DiscreteFlowOPT(nn.Module):
 
 
 
-    def flow(self, shape_pair):
+    def flow_v2(self, shape_pair):
         """
         todo  for the rigid kernel regression, anistropic kernel interpolation is not supported yet
         the flow approach is designed for two proposes: interpolate the flowed points from control points / ambient space interpolation
@@ -116,7 +113,7 @@ class DiscreteFlowOPT(nn.Module):
         return shape_pair
 
 
-    def flow_v2(self, shape_pair):
+    def flow(self, shape_pair):
         """
 
         :param shape_pair:
@@ -126,7 +123,7 @@ class DiscreteFlowOPT(nn.Module):
         toflow_points = shape_pair.toflow.points
         control_points = shape_pair.control_points
         control_weights = shape_pair.control_weights
-        flowed_control_points = shape_pair.flowed_control_weights
+        flowed_control_points = shape_pair.flowed_control_points
 
         flowed_points = self.interp_kernel(toflow_points, control_points,
                                                           flowed_control_points, control_weights)
@@ -283,6 +280,8 @@ class DiscreteFlowOPT(nn.Module):
         """
         gradflow_guided_opt = deepcopy(self.opt[("gradflow_guided", {}, "settings for gradflow guidance")])
         gradflow_guided_opt.print_settings_off()
+        post_kernel_obj = gradflow_guided_opt[("post_kernel_obj", "", "shape interpolator")]
+        post_kernel_obj = obj_factory(post_kernel_obj) if post_kernel_obj else None
         gradflow_blur_init =\
             gradflow_guided_opt[
             ("gradflow_blur_init", 0.05, "the inital 'blur' parameter in geomloss setting")]
@@ -298,9 +297,11 @@ class DiscreteFlowOPT(nn.Module):
         gradflow_reach_min = gradflow_guided_opt[
             ("gradflow_reach_min", 0.3, "the minium value of the 'reach' parameter in geomloss setting")]
 
+
+
         pair_shape_transformer_obj = gradflow_guided_opt[
             ("pair_shape_transformer_obj", "", "shape pair transformer before put into gradient guidance")]
-        gradflow_mode = "ot_mapping" #if self.pair_feature_extractor else "grad_forward" #gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
+        gradflow_mode = gradflow_guided_opt[('mode',"grad_forward","grad_forward or ot_mapping")]
         n_update = self.global_iter.item()
         cur_blur = max(gradflow_blur_init * (update_gradflow_blur_by_raito ** n_update), gradflow_blur_min)
         if gradflow_reach_init >0:
@@ -313,16 +314,22 @@ class DiscreteFlowOPT(nn.Module):
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("blurplaceholder", str(cur_blur))
         geomloss_setting["geom_obj"] = geomloss_setting["geom_obj"].replace("reachplaceholder", str(cur_reach) if cur_reach else "None")
         print(geomloss_setting["geom_obj"])
-        geomloss_setting["mode"] = 'soft'
-        geomloss_setting["attr"] = "pointfea"
         guide_fn = gradient_flow_guide(gradflow_mode)
+        flowed_weights_cp = flowed.weights
         if pair_shape_transformer_obj:
             pair_shape_transformer = obj_factory(pair_shape_transformer_obj)
             flowed, target = pair_shape_transformer(flowed, target, self.local_iter)
-        gradflowed, mapped_mass_ratio = guide_fn(flowed, target, geomloss_setting, self.local_iter)
+        gradflowed, weight_map_ratio = guide_fn(flowed, target, geomloss_setting, self.local_iter)
+        gradflowed.points = gradflowed.points.detach()
+        if post_kernel_obj is not None:
+            disp = gradflowed.points - flowed.points
+            flowed_points = flowed.points
+            smoothed_disp = post_kernel_obj(flowed_points, flowed_points, disp, flowed.weights)
+            gradflowed.points = flowed_points + smoothed_disp
         gradflowed_disp = (gradflowed.points-flowed.points).detach()
         if self.running_result_visualize or self.saving_running_result_visualize:
-            self.visualize_gradflow(flowed,gradflowed_disp, target,mapped_mass_ratio)
+            self.visualize_gradflow(flowed,gradflowed_disp, target,None)
+        gradflowed.weights = flowed_weights_cp
         return gradflowed, gradflowed_disp
 
     def gradflow_spline_foward(self, shape_pair):
@@ -337,16 +344,21 @@ class DiscreteFlowOPT(nn.Module):
         moving, control_points = self.drift_buffer["moving"], self.drift_buffer["moving_control_points"]
         if self.local_iter==0:
             moving, shape_pair.target = self.extract_fea(moving, shape_pair.target)
-        _, gradflowed_disp = self.wasserstein_gradient_flow_guidence(moving, shape_pair.target)
+        grad_flowed, gradflowed_disp = self.wasserstein_gradient_flow_guidence(moving, shape_pair.target)
         gradflowed_disp = gradflowed_disp # if self.local_iter<3 else gradflowed_disp/(self.local_iter.item())# todo control the step size, should be set as a controlable parameter
-        smoothed_reg_param = self.spline_kernel(control_points, moving.points,
+        if not shape_pair.dense_mode:
+            smoothed_reg_param = self.spline_kernel(control_points, moving.points,
                                                 gradflowed_disp, moving.weights)
+        else:
+            smoothed_reg_param = gradflowed_disp
         flowed_control_points = control_points + smoothed_reg_param
         shape_pair.set_flowed_control_points(flowed_control_points)
-        flowed_has_inferred = shape_pair.infer_flowed()
-        shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
+        # flowed_has_inferred = shape_pair.infer_flowed()
+        # shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
+        shape_pair.flowed = grad_flowed
+
         # the following loss are not used for param update, only used for result analysis
-        shape_pair.flowed, shape_pair.target = self.extract_fea(shape_pair.flowed, shape_pair.target)
+        #shape_pair.flowed, shape_pair.target = self.extract_fea(shape_pair.flowed, shape_pair.target)
         sim_loss = self.sim_loss_fn(shape_pair.flowed, shape_pair.target)
         reg_loss = self.reg_loss_fn(smoothed_reg_param, shape_pair.reg_param)
         sim_factor, reg_factor = 1, 1
@@ -354,13 +366,13 @@ class DiscreteFlowOPT(nn.Module):
         reg_loss = reg_loss * reg_factor
         if self.local_iter % 1 == 0:
             print("{} th step, sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}"
-                  .format(self.local_iter.item(), sim_loss.item(), reg_loss.item(), sim_factor, reg_factor))
+                  .format(self.local_iter.item(), sim_loss.mean().item(), reg_loss.mean().item(), sim_factor, reg_factor))
             if self.running_result_visualize or self.saving_running_result_visualize:
                 self.visualize_discreteflow(shape_pair)
         loss = sim_loss + reg_loss
         self.local_iter += 1
         self.global_iter += 1
-        return loss
+        return loss.sum()
 
 
     def forward(self, shape_pair):
@@ -389,33 +401,48 @@ class DiscreteFlowOPT(nn.Module):
         from shapmagn.utils.visualizer import visualize_point_pair_overlap, visualize_source_flowed_target_overlap
         from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
             target_weight_transform
-        source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
-        # visualize_point_pair_overlap(flowed.points, target.points,
-        #                              flowed_weight_transform(flowed.weights, True),
-        #                              target_weight_transform(target.weights, True),
-        #                              title1="flowed", title2="target", rgb_on=False)
         saving_capture_path = None if not self.saving_running_result_visualize else os.path.join(self.record_path,"debugging")
-        if saving_capture_path:
-            os.makedirs(saving_capture_path,exist_ok=True)
-            saving_capture_path = os.path.join(saving_capture_path, "discreteflow_iter_{}".format(self.local_iter.item())+".png")
+
+        source, flowed, target = shape_pair.source, shape_pair.flowed, shape_pair.target
         visualize_source_flowed_target_overlap(source.points, flowed.points, target.points,
-                                               source.points, flowed.points, target.points,
-                                               "cur_source", "discrete flow", "target",
-                                               flowed.points - source.points,
-                                               rgb_on=[False, False, False],
-                                               show=self.running_result_visualize, saving_capture_path=saving_capture_path)
-
-
+                                               source.points, source.points, target.points,
+                                               "source", "flowed", "target",
+                                               # gradflowed_disp,
+                                               rgb_on=[True, True, True],
+                                               add_bg_contrast=False,
+                                               show=self.running_result_visualize,
+                                               saving_capture_path=saving_capture_path)
+        camera_pos=None
+        #camera_pos =[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+        # visualize_source_flowed_target_overlap(source.points, flowed.points, target.points,
+        #                                        source.weights, flowed.weights, target.weights,
+        #                                        "cur_source", "gradflowed", "target",
+        #                                        # gradflowed_disp,
+        #                                        rgb_on=[False, False, False],
+        #                                        add_bg_contrast=False,
+        #                                        camera_pos=camera_pos,
+        #                                        show=self.running_result_visualize,
+        #                                        saving_capture_path=saving_capture_path)
+        if saving_capture_path:
+            os.makedirs(saving_capture_path, exist_ok=True)
+            saving_capture_path = os.path.join(saving_capture_path,
+                                               "discreteflow_iter_{}".format(self.local_iter.item()) + ".png")
 
     def visualize_gradflow(self,flowed,gradflowed_disp,target,mapped_mass_ratio):
         from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
-        saving_capture_path = None if not self.saving_running_result_visualize else os.path.join(self.record_path,"debugging")
+        saving_capture_path = None if not self.saving_running_result_visualize else os.path.join(self.record_path)
         if saving_capture_path:
             os.makedirs(saving_capture_path,exist_ok=True)
             saving_capture_path = os.path.join(saving_capture_path, "gradflow_iter_{}".format(self.local_iter.item())+".png")
+        camera_pos=None
+
+        #camera_pos =[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+
         visualize_source_flowed_target_overlap(flowed.points, flowed.points + gradflowed_disp, target.points,
-                              flowed.points, mapped_mass_ratio, target.points,
+                              flowed.points, flowed.points, target.points,
                               "cur_source", "gradflowed", "target",
-                              gradflowed_disp,
-                              rgb_on=[False, False, False],
+                              #gradflowed_disp,
+                              rgb_on=[True, True, True],
+                                add_bg_contrast=False,
+                                               camera_pos=camera_pos,
                             show = self.running_result_visualize, saving_capture_path = saving_capture_path)

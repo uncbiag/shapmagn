@@ -17,6 +17,7 @@ from shapmagn.modules.keops_utils import KNN, AnisoKNN
 LEAKY_RATE = 0.1
 use_bn = False
 
+
 class Conv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, use_leaky=True, bn=use_bn):
         super(Conv1d, self).__init__()
@@ -218,12 +219,12 @@ class WeightNet(nn.Module):
         return weights
 
 class PointConv(nn.Module):
-    def __init__(self, nsample, in_channel, out_channel,  bn = use_bn, use_leaky = True):
+    def __init__(self, nsample, in_channel, out_channel,weightnet=16,  bn = use_bn, use_leaky = True):
         super(PointConv, self).__init__()
         self.bn = bn
         self.nsample = nsample
-        self.weightnet = WeightNet(3, nsample)
-        self.linear = nn.Linear(nsample * in_channel, out_channel)
+        self.weightnet = WeightNet(3, weightnet)
+        self.linear = nn.Linear(weightnet * in_channel, out_channel)
         if bn:
             self.bn_linear = nn.BatchNorm1d(out_channel)
 
@@ -261,16 +262,16 @@ class PointConv(nn.Module):
         return new_points
 
 class PointConvD(nn.Module):
-    def __init__(self, npoint, nsample, in_channel, out_channel,  bn = use_bn, use_leaky = True, group_all=False,use_aniso_kernel=False,cov_sigma_scale=0.02,aniso_kernel_scale=0.08):
+    def __init__(self, npoint, nsample, in_channel, out_channel, weightnet = 16,  bn = use_bn, use_leaky = True, group_all=False,use_aniso_kernel=False,cov_sigma_scale=0.02,aniso_kernel_scale=0.08):
         super(PointConvD, self).__init__()
         self.npoint = npoint
         self.bn = bn
         self.nsample = nsample
-        self.weightnet = WeightNet(3, nsample)
-        self.linear = nn.Linear(nsample * in_channel, out_channel)
+        self.weightnet = WeightNet(3, weightnet)
+        self.linear = nn.Linear(weightnet * in_channel, out_channel)
         self.group_all = group_all
         self.use_aniso_kernel = use_aniso_kernel
-        self.group_query = group_query if not self.use_aniso_kernel else aniso_group_query(cov_sigma_scale=cov_sigma_scale, aniso_kernel_scale=aniso_kernel_scale)
+        self.group_query = group_query if not self.use_aniso_kernel else aniso_group_query(cov_sigma_scale=abs(cov_sigma_scale), aniso_kernel_scale=abs(aniso_kernel_scale))
         if bn:
             self.bn_linear = nn.BatchNorm1d(out_channel)
 
@@ -640,3 +641,50 @@ class SceneFlowEstimatorPointConv2(nn.Module):
         flow = self.fc(new_points)
         fea_flow = self.fea_fc(new_points)
         return new_points, flow.clamp(self.clamp[0], self.clamp[1]),fea_flow
+
+
+class SceneFlowEstimatorPointConv3(nn.Module):
+
+    def __init__(self, feat_ch, cost_ch, flow_ch=3, channels=[128, 128], mlp=[128, 64], neighbors=9, clamp=[-200, 200],
+                 use_leaky=True):
+        super(SceneFlowEstimatorPointConv3, self).__init__()
+        self.clamp = clamp
+        self.use_leaky = use_leaky
+        self.pointconv_list = nn.ModuleList()
+        last_channel = feat_ch + cost_ch + flow_ch
+
+        for _, ch_out in enumerate(channels):
+            pointconv = PointConv(neighbors, last_channel + 3, ch_out, bn=True, use_leaky=True)
+            self.pointconv_list.append(pointconv)
+            last_channel = ch_out
+
+        self.mlp_convs = nn.ModuleList()
+        for _, ch_out in enumerate(mlp):
+            self.mlp_convs.append(Conv1d(last_channel, ch_out))
+            last_channel = ch_out
+
+        self.fc = nn.Conv1d(last_channel, 3, 1)
+        self.fea_fc = nn.Conv1d(last_channel, 3, 1)
+        self.shift_fc = nn.Conv1d(last_channel, 3, 1)
+
+    def forward(self, xyz, feats, cost_volume, flow=None):
+        '''
+        feats: B C1 N
+        cost_volume: B C2 N
+        flow: B 3 N
+        '''
+        if flow is None:
+            new_points = torch.cat([feats, cost_volume], dim=1)
+        else:
+            new_points = torch.cat([feats, cost_volume, flow], dim=1)
+
+        for _, pointconv in enumerate(self.pointconv_list):
+            new_points = pointconv(xyz, new_points)
+
+        for conv in self.mlp_convs:
+            new_points = conv(new_points)
+
+        flow = self.fc(new_points)
+        fea_flow = self.fea_fc(new_points)
+        shift_flow = self.shift_fc(new_points)
+        return new_points, flow.clamp(self.clamp[0], self.clamp[1]),fea_flow, shift_flow

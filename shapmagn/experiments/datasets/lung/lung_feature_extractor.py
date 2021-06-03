@@ -1,5 +1,8 @@
 from shapmagn.utils.local_feature_extractor import *
 from shapmagn.utils.obj_factory import *
+from shapmagn.utils.module_parameters import  ParameterDict
+import shapmagn.modules.deep_feature_module as deep_feature_module
+import torch.nn as nn
 
 # lung_pair_feature_extractor = pair_feature_extractor
 
@@ -48,7 +51,6 @@ class LungFeatureExtractor(object):
         self.include_pos = include_pos
         self.fixed = fixed
         self.buffer = {"flowed_gamma":None, "target_gamma":None}
-        self.iter = 0
 
     # def update_weight(self, weight_list, iter):
     #     max_weight = 1
@@ -60,7 +62,7 @@ class LungFeatureExtractor(object):
     def update_weight(self, weight_list, iter):
         return weight_list
 
-    def __call__(self,flowed, target, iter=-1):
+    def __call__(self,flowed, target, iter=0):
         flowed_gamma = None
         target_gamma = None
         if self.buffer["flowed_gamma"] is None and self.get_anistropic_gamma is not None:
@@ -68,12 +70,12 @@ class LungFeatureExtractor(object):
         if self.buffer["target_gamma"] is None and self.get_anistropic_gamma is not None:
             target_gamma = self.get_anistropic_gamma(target.points)
         cur_weight_list = update_weight(self.weight_list, iter) if self.weight_list is not None else None
-        if not self.fixed or self.iter==0:
+        if not self.fixed or iter==0:
             flowed_pointfea, mean, std, _ = self.feature_extractor(flowed.points,flowed.weights, weight_list=cur_weight_list, gamma=flowed_gamma, return_stats=True)
             target_pointfea, _ = self.feature_extractor(target.points,target.weights, weight_list=cur_weight_list, gamma=target_gamma, mean=mean, std=std)
             self.buffer["flowed_pointfea"] = flowed_pointfea.detach()
             self.buffer["target_pointfea"] = target_pointfea.detach()
-        elif self.fixed and self.iter>0:
+        elif self.fixed and iter>0:
             flowed_pointfea = self.buffer["flowed_pointfea"]
             target_pointfea = self.buffer["target_pointfea"]
         if self.include_pos:
@@ -82,8 +84,50 @@ class LungFeatureExtractor(object):
 
         flowed.pointfea = flowed_pointfea
         target.pointfea = target_pointfea
-        self.iter += 1
         return flowed, target
+
+
+
+
+class LungDeepFeatureExtractor(nn.Module):
+    def __init__(self, fixed=False):
+        """
+        :param fixed:
+         """
+        super(LungDeepFeatureExtractor,self).__init__()
+
+        self.fixed = fixed
+        deep_opt = ParameterDict()
+        deep_opt["local_pair_feature_extractor_obj"]="lung_feature_extractor.get_naive_lung_feature(include_xyz=False, weight_factor=1000)"
+        deep_opt["input_channel"]=1
+        deep_opt["output_channel"]=15
+        deep_opt["param_shrink_factor"]=1
+        deep_opt["initial_npoints"]=4096
+        deep_opt["initial_radius"]= 0.001
+        deep_opt["include_pos_in_final_feature"]=False
+        deep_opt["use_aniso_kernel"]=False
+        deep_opt["pretrained_model_path"]="/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_iso_15dim_normalized_60000_rerun/checkpoints/epoch_300_"
+            #"/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/checkpoints/epoch_230_"
+            #"/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized/checkpoints/epoch_245_"
+        self.feature_extractor =deep_feature_module.PointConvFeaExtractor(deep_opt)
+        self.buffer = {}
+
+    def forward(self, flowed, target, iter=0):
+        with torch.no_grad():
+            if not self.fixed or iter == 0:
+                flowed, target= self.feature_extractor(flowed, target)
+                flowed.pointfea = flowed.pointfea.detach()
+                target.pointfea = target.pointfea.detach()
+                self.buffer["flowed_pointfea"] = flowed.pointfea
+                self.buffer["target_pointfea"] = target.pointfea
+            elif self.fixed and iter > 0:
+                flowed_pointfea = self.buffer["flowed_pointfea"]
+                target_pointfea = self.buffer["target_pointfea"]
+                flowed.pointfea = flowed_pointfea
+                target.pointfea = target_pointfea
+        return flowed, target
+
+
 
 
 def get_naive_lung_feature(include_xyz=True, weight_factor=10000):

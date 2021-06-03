@@ -242,7 +242,7 @@ class Loss():
 
     def __init__(self, opt):
         from shapmagn.global_variable import LOSS_POOL
-        loss_name_list = opt[("loss_list",['l2'], "a list of loss name to compute: l2, gemoloss, current, varifold")]
+        loss_name_list = opt[("loss_list",['l2'], "a list of loss name to compute: l2, geomloss, current, varifold")]
         loss_weight_strategy = opt[("loss_weight_strategy","", "for each loss in name_list, design weighting strategy: '{'loss_name':'strategy_param'}")]
         self.loss_weight_strategy = obj_factory(loss_weight_strategy) if loss_weight_strategy else None
         self.loss_activate_epoch_list = opt[("loss_activate_epoch_list",[0], "for each loss in name_list, activate at # epoch'")]

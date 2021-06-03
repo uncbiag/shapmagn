@@ -193,7 +193,8 @@ class PointConvSceneFlowPWC2_2(nn.Module):
             floweds =[flow0+ pc1_l0.detach(), flow1+pc1_l1.detach(), flow2+pc1_l2.detach(), flow3+pc1_l3.detach()]
             floweds = [flow.transpose(2,1).contiguous() for flow in floweds]
             fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
-            additional_param = {"control_points": pc1_l1.transpose(2, 1).contiguous(), "control_points_idx": fps_pc1_l1,"predict_at_low_resl":self.predict_at_low_resl}
+            additional_param = {"control_points": pc1_l0.transpose(2, 1).contiguous(), "control_points_idx": torch.arange(pc1_l0.shape[1]).repeat(pc1_l0.shape[0],1),
+                                "predict_at_low_resl":self.predict_at_low_resl}
             additional_param.update({"floweds": floweds, "fps_pc1_idxs": fps_pc1_idxs})
             return flow0.transpose(2,1).contiguous(),additional_param
         else:

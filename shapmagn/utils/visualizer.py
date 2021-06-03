@@ -5,6 +5,7 @@ import torch
 import pyvista as pv
 import subprocess
 from  shapmagn.utils.utils import add_zero_last_dim
+pv.set_plot_theme("document")
 
 def format_input(input):
     dim = input.shape[-1]
@@ -21,19 +22,19 @@ def color_adaptive(color, turn_on=True):
     return color
 
 
-def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
+def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True,col_adaptive=True):
     points = format_input(points)
     fea = format_input(fea)
     p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
     p.add_mesh(pv.PolyData(points),
-                     scalars=color_adaptive(fea),
+                     scalars=color_adaptive(fea,col_adaptive),
                      cmap="magma", point_size=10,
                      render_points_as_spheres=True,
                      rgb=rgb_on,
                      opacity="linear",
                      lighting=True,
                      style="points", show_scalar_bar=True)
-    p.show_grid()
+    #p.show_grid()
     if camera_pos is not None:
         p.camera_position = camera_pos
     if show:
@@ -56,6 +57,44 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
             p.render()
         p.close()
     return p
+
+
+
+# def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
+#     points = format_input(points)
+#     fea = format_input(fea)
+#     p = pv.Plotter(window_size=[1920, 1280],off_screen= not show)
+#     p.add_mesh(pv.PolyData(points),
+#                      scalars=color_adaptive(fea),
+#                      cmap="magma", point_size=10,
+#                      render_points_as_spheres=True,
+#                      rgb=rgb_on,
+#                      opacity="linear",
+#                      lighting=True,
+#                      style="points", show_scalar_bar=True)
+#     p.show_grid()
+#     if camera_pos is not None:
+#         p.camera_position = camera_pos
+#     if show:
+#         p.show(auto_close=False)
+#     elif saving_capture_path:
+#         p.show(screenshot=saving_capture_path)
+#
+#     if saving_gif_path:
+#         p.open_gif(saving_gif_path)
+#
+#         # Update camera and write a frame for each updated position
+#         nframe = 360
+#         for i in range(nframe):
+#             p.camera_position = [
+#                 (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
+#                 (0, 0, 0),
+#                 (0, 1, 0),
+#             ]
+#             p.write_frame()
+#             p.render()
+#         p.close()
+#     return p
 
 
 
@@ -106,7 +145,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
 
 
 
-def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, show=True):
+def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=True,  point_size=[10,10], saving_gif_path=None, saving_capture_path=None,camera_pos=None, show=True,col_adaptive=True):
     points1 = format_input (points1)
     points2 = format_input(points2)
     feas1 = format_input(feas1)
@@ -119,8 +158,8 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
     p.add_mesh(pv.PolyData(points1),
-                     scalars=color_adaptive(feas1),
-                     cmap="magma", point_size=10,
+                     scalars=color_adaptive(feas1,col_adaptive),
+                     cmap="viridis", point_size=point_size[0],
                      render_points_as_spheres=True,
                      rgb=rgb_on[0],
                      opacity="linear",
@@ -129,8 +168,8 @@ def visualize_point_pair(points1, points2, feas1, feas2, title1, title2, rgb_on=
     p.subplot(0, 1)
     p.add_text(title2, font_size=18)
     p.add_mesh(pv.PolyData(points2),
-                     scalars=feas2,
-                     cmap="magma", point_size=10,
+                     scalars=color_adaptive(feas2,col_adaptive),
+                     cmap="magma", point_size=point_size[1],
                      render_points_as_spheres=True,
                      rgb=rgb_on[1],
                      opacity="linear",
@@ -179,7 +218,7 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
     p.add_text(title, font_size=18)
     p.add_mesh(pv.PolyData(points1),
                scalars=color_adaptive(feas1),
-               cmap="viridis", point_size=point_size[0],
+               cmap="magma", point_size=point_size[0],
                render_points_as_spheres=True,
                rgb=rgb_on[0],
                opacity=opacity[0],
@@ -187,13 +226,13 @@ def visualize_point_overlap(points1, points2, feas1, feas2, title, point_size=(1
                style="points", show_scalar_bar=True)
     p.add_mesh(pv.PolyData(points2),
                scalars=color_adaptive(feas2),
-               cmap="magma", point_size=point_size[1],
+               cmap= "Oranges", point_size=point_size[1],
                render_points_as_spheres=True,
                rgb=rgb_on[1],
                opacity=opacity[1],
                lighting=True,
                style="points", show_scalar_bar=True)
-    p.show_grid()
+    #p.show_grid()
 
     if camera_pos is not None:
         p.camera_position = camera_pos
@@ -258,7 +297,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="viridis", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[0],
-               opacity="linear",
+               opacity=0.02,
                lighting=True,
                style="points", show_scalar_bar=True)
     p.add_mesh(pv.PolyData(points2),
@@ -266,7 +305,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
-               opacity="linear",
+               opacity=0.8,
                lighting=True,
                style="points", show_scalar_bar=True)
 
@@ -303,6 +342,150 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
     p.close()
     return p
 
+
+
+#
+# def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, add_bg_contrast=True,show=True):
+#     points1 = format_input(points1)
+#     points2 = format_input(points2)
+#     points3 = format_input(points3)
+#     feas1 = format_input(feas1)
+#     feas2 = format_input(feas2)
+#     feas3 = format_input(feas3)
+#     if flow is not None:
+#         flow = format_input(flow)
+#
+#
+#     if isinstance(rgb_on,bool):
+#         rgb_on = [rgb_on]* 3
+#
+#     p = pv.Plotter(window_size=[3000, 1024], shape=(1, 4), border=False, off_screen= not show)
+#     p.subplot(0, 0)
+#     p.add_text(title1, font_size=18)
+#
+#     obj1 = pv.PolyData(points1)
+#     p.add_mesh(obj1,
+#                      scalars=color_adaptive(feas1),
+#                      cmap="viridis", point_size=10,
+#                      render_points_as_spheres=True,
+#                      rgb=rgb_on[0],
+#                      opacity="linear",
+#                      lighting=True,
+#                      style="points", show_scalar_bar=True)
+#     p.subplot(0, 1)
+#     p.add_text(title2+"_with_attention_map", font_size=25)
+#
+#     obj1 = pv.PolyData(points1)
+#     if flow is not None:
+#         npoints = flow.shape[0]
+#         flow_ = np.zeros_like(flow)
+#         index = list(range(0,npoints, 30))
+#         flow_[index,:]= flow[index]
+#         obj1.point_arrays['flow'] = flow_
+#         geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035)
+#         arrows =  obj1.glyph( orient="flow",geom=geom)
+#         p.add_mesh(arrows,color="black",opacity=0.3)
+#     if add_bg_contrast:
+#         p.add_mesh(obj1,
+#                    color="gray",
+#                    point_size=10,
+#                    render_points_as_spheres=True,
+#                    opacity=0.05,
+#                    style="points", show_scalar_bar=True)
+#
+#     p.add_mesh(pv.PolyData(points2),
+#                scalars=color_adaptive(feas2),
+#                cmap="magma", point_size=10,
+#                render_points_as_spheres=True,
+#                rgb=rgb_on[1],
+#                opacity="linear",
+#                lighting=True,
+#                style="points", show_scalar_bar=True)
+#     p.add_mesh(pv.PolyData(points2),
+#                scalars=color_adaptive(feas1),
+#                cmap="viridis", point_size=10,
+#                render_points_as_spheres=True,
+#                rgb=rgb_on[1],
+#                opacity=0.05,
+#                lighting=True,
+#                style="points", show_scalar_bar=True)
+#
+#
+#
+#     p.subplot(0, 2)
+#     p.add_text(title3, font_size=18)
+#     if add_bg_contrast:
+#         p.add_mesh(pv.PolyData(points1),
+#                    color="gray",
+#                    point_size=10,
+#                    render_points_as_spheres=True,
+#                    opacity=0.05,
+#                    style="points", show_scalar_bar=True)
+#
+#     p.add_mesh(pv.PolyData(points3),
+#                scalars=color_adaptive(feas3),
+#                cmap="magma", point_size=10,
+#                render_points_as_spheres=True,
+#                rgb=rgb_on[2],
+#                opacity="linear",
+#                lighting=True,
+#                style="points", show_scalar_bar=True)
+#
+#
+#     p.subplot(0, 3)
+#     p.add_mesh(pv.PolyData(points2),
+#                scalars=color_adaptive(feas1),
+#                cmap="viridis", point_size=10,
+#                render_points_as_spheres=True,
+#                rgb=rgb_on[1],
+#                opacity="linear",
+#                lighting=True,
+#                style="points", show_scalar_bar=True)
+#     p.add_mesh(pv.PolyData(points3),
+#                scalars=color_adaptive(feas3),
+#                cmap="magma", point_size=10,
+#                render_points_as_spheres=True,
+#                rgb=rgb_on[2],
+#                opacity="linear",
+#                lighting=True,
+#                style="points", show_scalar_bar=True)
+#     p.add_text(title2+"_overlap_"+title3, font_size=22)
+#
+#
+#     p.link_views()  # link all the views
+#     if camera_pos is not None:
+#         p.camera_position = camera_pos
+#     # Set a camera position to all linked views
+#  #    p.camera_position = [(-8.723838929103241, 3.850929409188956, 2.658002450056453), (0.0, 0.0, 0.0), (0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+#  #    [(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)]
+#
+#     if show:
+#         cur_pos=p.show(auto_close=False)
+#         print(cur_pos)
+#     if saving_capture_path:
+#         #p.show(screenshot=saving_capture_path)
+#         p.screenshot(saving_capture_path)
+#
+#     if saving_gif_path:
+#         p.open_gif(saving_gif_path)
+#
+#         # Update camera and write a frame for each updated position
+#         nframe = 360
+#         for i in range(nframe):
+#             p.camera_position = [
+#                 (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
+#                 (0, 0, 0),
+#                 (0, 1, 0),
+#             ]
+#             p.write_frame()
+#             p.render()
+#
+#         # Close movie and delete object
+#     p.close()
+#     return p
+#
+#
+#
 
 
 
@@ -358,7 +541,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
     p.add_mesh(pv.PolyData(points2),
                scalars=color_adaptive(feas2),
-               cmap="magma", point_size=10,
+               cmap="viridis", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
                opacity="linear",
@@ -388,7 +571,6 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
 
     p.subplot(0, 3)
-    p.add_text(title2+"_overlap_"+title3, font_size=18)
     p.add_mesh(pv.PolyData(points2),
                scalars=color_adaptive(feas2),
                cmap="viridis", point_size=10,
@@ -405,6 +587,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
                opacity="linear",
                lighting=True,
                style="points", show_scalar_bar=True)
+    p.add_text(title2+"_overlap_"+title3, font_size=22)
 
 
     p.link_views()  # link all the views
@@ -440,9 +623,6 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
     return p
 
 
-
-
-
 def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
     num_views = len(points_list)
     for i,points in enumerate(points_list):
@@ -472,6 +652,7 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
 
     if show:
         cm_position = p.show(auto_close=False)
+        print(cm_position)
     if saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -492,6 +673,58 @@ def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, savin
         # Close movie and delete object
         p.close()
     return p
+
+
+
+# def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
+#     num_views = len(points_list)
+#     for i,points in enumerate(points_list):
+#         points_list[i] = format_input(points)
+#     for i, feas in enumerate(feas_list):
+#         feas_list[i] = format_input(feas)
+#     if isinstance(rgb_on,bool):
+#         rgb_on = [rgb_on]* num_views
+#
+#     p = pv.Plotter(window_size=[1920, 1280],notebook=0, shape=(1, num_views), border=False, off_screen= not show)
+#     for i in range(num_views):
+#         p.subplot(0, i)
+#         p.add_text(titles_list[i], font_size=18)
+#         p.add_mesh(pv.PolyData(points_list[i]),
+#                          scalars=color_adaptive(feas_list[i]),
+#                          cmap="magma", point_size=10,
+#                          render_points_as_spheres=True,
+#                          rgb=rgb_on[i],
+#                          opacity="linear",
+#                          lighting=True,
+#                          style="points", show_scalar_bar=True)
+#     p.link_views()  # link all the views
+#     # Set a camera position to all linked views
+#     if camera_pos is not None:
+#         p.camera_position = camera_pos
+#
+#
+#     if show:
+#         cm_position = p.show(auto_close=False)
+#     if saving_capture_path:
+#         p.show(screenshot=saving_capture_path)
+#
+#     if saving_gif_path:
+#         p.open_gif(saving_gif_path)
+#
+#         # Update camera and write a frame for each updated position
+#         nframe = 360
+#         for i in range(nframe):
+#             p.camera_position = [
+#                 (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
+#                 (0, 0, 0),
+#                 (0, 1, 0),
+#             ]
+#             p.write_frame()
+#             p.render()
+#
+#         # Close movie and delete object
+#         p.close()
+#     return p
 
 
 def capture_plotter(render_by_weight=False, camera_pos=None,add_bg_contrast=True):

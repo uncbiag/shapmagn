@@ -11,9 +11,8 @@ except:
 import torch
 class Teaser(object):
     """
-    Disabled
+    todo This module is temporally disabled, fix later
     Teaser only works when the point correspondence is given,
-    todo to make teaser work, additional feature extraction step is needed.
     scaled rigid registration
 
 

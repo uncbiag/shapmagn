@@ -392,8 +392,8 @@ def memory_sort(points, eps=0.0):
             _points_np, _ind= _sort(_points_np,eps)
             points_np_list.append(_points_np)
             ind_np_list.append(_ind)
-        points_np = np.concatenate(points_np_list,0)
-        ind_np = np.concatenate(ind_np_list,0)
+        points_np = np.stack(points_np_list,0)
+        ind_np = np.stack(ind_np_list,0)
     else:
         points_np, ind_np = _sort(points_np,eps)
     if is_tensor:
@@ -457,3 +457,40 @@ def index_points(points, idx):
     batch_indices = torch.arange(B, dtype=torch.long).to(device).view(view_shape).repeat(repeat_shape)
     new_points = points[batch_indices, idx, :]
     return new_points
+
+
+def timming(func,message=""):
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    def time_diff(*args, **kwargs):
+        try:
+            start.record()
+            res = func(*args, **kwargs)
+            end.record()
+            torch.cuda.synchronize()
+            print("{}, it takes {} ms".format(message, start.elapsed_time(end)))
+        except:
+            res = func(*args, **kwargs)
+        return res
+    return time_diff
+
+
+
+def timming(func,message="",return_t=False):
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    def time_diff(*args, **kwargs):
+        try:
+            start.record()
+            res = func(*args, **kwargs)
+            end.record()
+            torch.cuda.synchronize()
+            t =  start.elapsed_time(end)
+            print("{}, it takes {} ms".format(message,t))
+        except:
+            res = func(*args, **kwargs)
+        if not return_t:
+            return res
+        else:
+            return res, t
+    return time_diff

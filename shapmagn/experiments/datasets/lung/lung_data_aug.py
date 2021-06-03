@@ -12,12 +12,12 @@ try:
     pykeops.set_bin_folder(cache_path)  # change the build folder
 except:
     pass
-os.environ['DISPLAY'] = ':99.0'
-os.environ['PYVISTA_OFF_SCREEN'] = 'true'
-os.environ['PYVISTA_USE_IPYVTK'] = 'true'
-bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
-process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
-process.wait()
+# os.environ['DISPLAY'] = ':99.0'
+# os.environ['PYVISTA_OFF_SCREEN'] = 'true'
+# os.environ['PYVISTA_USE_IPYVTK'] = 'true'
+# bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
+# process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+# process.wait()
 import random
 import time
 from shapmagn.experiments.datasets.lung.lung_data_analysis import *
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     scale = -1  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
     normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
     sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
-    use_local_mount = False
+    use_local_mount = True
     remote_mount_transfer = lambda x: x.replace("/playpen-raid1", "/home/zyshen/remote/llr11_mount")
     path_transfer = (lambda x: remote_mount_transfer(x))if use_local_mount else (lambda x: x)
     phase= "train"
@@ -201,8 +201,8 @@ if __name__ == "__main__":
             ("local_deform_aug", {}, "settings for uniform sampling based spline augmentation")]
         local_deform_aug["num_sample"] = 1000
         local_deform_aug["disp_scale"] = 0.03
-        kernel_scale = 0.04
-        spline_param = "cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+        kernel_scale = 0.05
+        spline_param = "cov_sigma_scale=0.02,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
             kernel_scale)
         local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
             spline_param)
@@ -246,4 +246,6 @@ if __name__ == "__main__":
         saving_capture_path = os.path.join(saving_output_path,shape_name)
         os.makedirs(saving_capture_path,exist_ok=True)
         saving_capture_path = os.path.join(saving_capture_path,"{}_synth.png".format(shape_name))
-        visualize_point_pair_overlap(source_points, aug_points, source_weights, aug_points_weights, "source", "synth", rgb_on=False,  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=False)
+        #visualize_point_pair_overlap(source_points, aug_points, source_weights, aug_points_weights, "source", "synth", rgb_on=False,  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=True)
+        visualize_point_pair(source_points, aug_points, source_weights, aug_points_weights, "source", "synth", rgb_on=False, point_size=[15,15],  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=True)
+        #visualize_point_overlap(source_points, aug_points, source_weights, aug_points_weights, "aug_overlap_target", point_size=[15,15],rgb_on=False,  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=True)

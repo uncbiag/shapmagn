@@ -42,6 +42,7 @@ class RegistrationPairDataset(Dataset):
         self.sampler = obj_factory(option[('sampler',"","a sampler instance, the goal of sampling here is for batch consistency, where we pick the same index order from the source and the target")])
         self.normalizer = obj_factory(option[('normalizer',"", "a normalizer instance")])
         pair_postprocess_obj = option[('pair_postprocess_obj', "", "a pair_postprocess instance")]
+        self.place_postprocess_before_sampling = option[('place_postprocess_before_sampling', True, "place_postprocess_before_sampling")]
         self.pair_postprocess =  obj_factory(pair_postprocess_obj) if pair_postprocess_obj else None
         load_training_data_into_memory = option[('load_training_data_into_memory',True, "when train network, load all training sample into memory can relieve disk burden")]
         self.load_into_memory = load_training_data_into_memory if phase == 'train' else False
@@ -193,14 +194,8 @@ class RegistrationPairDataset(Dataset):
             unzip_shape_fn = lambda shape_dict: {key: unzip_fn(fea) for key, fea in shape_dict.items()}
             source_dict = unzip_shape_fn(zip_source_dict)
             target_dict = unzip_shape_fn(zip_target_dict)
-        if self.pair_postprocess is not None:
-            source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
-        # to introduce the randomness during the training, we put the sampling here,
-        source_dict, ind = self.sampler(source_dict, ind=None, fixed_random_seed=self.phase != "train")
-        target_dict, _ = self.sampler(target_dict, ind=ind, fixed_random_seed=self.phase != "train")
 
-        # if self.pair_postprocess is not None:
-        #     source_dict, target_dict = self.pair_postprocess(source_dict, target_dict)
+        source_dict, target_dict = self.pair_postprocess(source_dict, target_dict, phase=self.phase, sampler = self.sampler)
         if self.transform:
             source_dict = {key:self.transform(fea) for key,fea in source_dict.items()}
             target_dict = {key:self.transform(fea) for key,fea in target_dict.items()}

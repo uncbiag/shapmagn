@@ -101,8 +101,8 @@ def flyingkitti_nonocc_aug_data(**kwargs):
     rigid_aug_settings = aug_settings[
         ("rigid_aug", {}, "settings for rigid augmentation")]
     rigid_aug_settings["rotation_range"] = [-5, 5]
-    rigid_aug_settings["scale_range"] = [0.9, 1.1]
-    rigid_aug_settings["translation_range"] = [-1, 1]
+    rigid_aug_settings["scale_range"] = [0.95, 1.05]
+    rigid_aug_settings["translation_range"] = [-0.5, 0.5]
 
     spline_aug = SplineAug(aug_settings)
 
@@ -112,9 +112,9 @@ def flyingkitti_nonocc_aug_data(**kwargs):
     points_aug["add_random_point_noise"] = False
     points_aug["add_random_weight_noise"] = False
     points_aug["remove_random_points_by_ratio"] = 0.01
-    points_aug["add_random_point_noise_by_ratio"] = 0.01
+    points_aug["add_random_point_noise_by_ratio"] = 0.1
     points_aug["random_weight_noise_scale"] = 0.1
-    points_aug["random_noise_raidus"] = 0.1
+    points_aug["random_noise_raidus"] = 0.01
     points_aug["normalize_weights"] = False
     points_aug["plot"] = False
     point_aug = PointAug(points_aug)
@@ -122,12 +122,14 @@ def flyingkitti_nonocc_aug_data(**kwargs):
     def _synth(data_dict):
         synth_info = {"aug_settings":aug_settings}
         points, weights = data_dict["points"],data_dict["weights"]
-        if aug_settings["do_point_aug"]:
-            points, weights, corr_index = point_aug(points, weights)
-            synth_info["corr_index"] = corr_index
+
 
         if aug_settings["do_local_deform_aug"] or aug_settings["do_spline_aug"]:
             points, weights = spline_aug(points, weights)
+
+        if aug_settings["do_point_aug"]:
+            points, weights, corr_index = point_aug(points, weights)
+            synth_info["corr_index"] = corr_index
         data_dict["points"], data_dict["weights"] = points, weights
         return data_dict, synth_info
     return _synth

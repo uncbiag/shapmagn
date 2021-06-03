@@ -58,10 +58,13 @@ def save_shape_pair_into_files(folder_path, stage_name, pair_name,shape_pair):
         save_shape_into_file(folder_path,"control",pair_name,**{"points":shape_pair.control_points,"weights":shape_pair.control_weights})
     if shape_pair.flowed_control_points is not None:
         save_shape_into_file(folder_path,"flowed_control",pair_name,**{"points":shape_pair.flowed_control_points,"weights":shape_pair.control_weights})
-    if shape_pair.reg_param is not None and shape_pair.reg_param.shape[1] == shape_pair.source.npoints:
-        reg_param_norm = shape_pair.reg_param.norm(p=2,dim=2,keepdim=True)
-        save_shape_into_file(folder_path,"reg_param",pair_name,**{"points":shape_pair.control_points,"reg_param_norm":reg_param_norm, "reg_param_vector":shape_pair.reg_param})
-
+    if shape_pair.reg_param is not None:
+        if shape_pair.reg_param.shape[1] == shape_pair.control_points.shape[1]:
+            reg_param_norm = shape_pair.reg_param.norm(p=2,dim=2,keepdim=True)
+            save_shape_into_file(folder_path,"reg_param",pair_name,**{"points":shape_pair.control_points,"reg_param_norm":reg_param_norm, "reg_param_vector":shape_pair.reg_param})
+        else:
+            reg_param = shape_pair.reg_param.detach().cpu().numpy()
+            np.save(os.path.join(folder_path,"reg_param_prealigned.npy"),reg_param)
 def make_sphere(npoints=6000, ndim=3,radius=None,center=None):
     if radius is None:
         radius = np.array([1.]*ndim)

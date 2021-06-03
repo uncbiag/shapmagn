@@ -6,6 +6,7 @@ from shapmagn.utils.net_utils import print_model
 from shapmagn.models.multiscale_optimization import build_multi_scale_solver
 from shapmagn.utils.shape_visual_utils import save_shape_pair_into_files
 from shapmagn.shape.shape_pair_utils import create_shape_pair
+from shapmagn.utils.utils import timming
 
 class OptModel(ModelBase):
     """
@@ -33,9 +34,11 @@ class OptModel(ModelBase):
         """ count of the step"""
         self.cur_epoch = 0
         """visualize condition"""
-        create_shape_pair_from_data_dict = opt[
-            ("create_shape_pair_from_data_dict", "shape_pair_utils.create_source_and_target_shape()", "generator func")]
-        self.create_shape_pair_from_data_dict = obj_factory(create_shape_pair_from_data_dict)
+        prepare_shape_pair_obj = opt[("prepare_shape_pair", "shape_pair_utils.prepare_shape_pair()", "shape pair initialization func")]
+        self.prepare_shape_pair = obj_factory(prepare_shape_pair_obj)
+        create_shape_pair_from_data_dict_obj = opt[
+            ("create_shape_pair_from_data_dict","shape_pair_utils.create_shape_pair_from_data_dict()", "input data generator func")]
+        self.create_shape_pair_from_data_dict = obj_factory(create_shape_pair_from_data_dict_obj)
         prepare_input_object = opt[("prepare_input_object", "", "input processing function")]
         self.prepare_input = obj_factory(prepare_input_object) if prepare_input_object else self._set_input
         analyzer_obj = opt[
@@ -47,7 +50,15 @@ class OptModel(ModelBase):
     def init_optimization_env(self, opt, device):
         method_name = opt[('method_name', "lddmm_opt", "specific optimization method")]
         prealign_opt = opt[("prealign_opt",{}, "method settings")]
-        if method_name in ["lddmm_opt","discrete_flow_opt","gradient_flow_opt"]:
+        if "_and_prealign_opt" in method_name:
+            self.run_prealign = True
+            self.run_nonparametric = True
+            self._prealign_model = MODEL_POOL["prealign_opt"](prealign_opt).to(device)
+            method_name = method_name.replace("_and_prealign_opt", "")
+            method_opt = opt[(method_name, {}, "method settings")]
+            self._model = MODEL_POOL[method_name](method_opt).to(device)
+
+        elif method_name in ["lddmm_opt","discrete_flow_opt","gradient_flow_opt","barycenter_opt","probreg_opt"]:
             self.run_prealign = False
             self.run_nonparametric = True
             self._prealign_model = None
@@ -58,13 +69,8 @@ class OptModel(ModelBase):
             self.run_nonparametric = False
             self._prealign_model = MODEL_POOL["prealign_opt"](prealign_opt).to(device)
             self._model = None
-        elif "_and_prealign_opt" in method_name:
-            self.run_prealign = True
-            self.run_nonparametric = True
-            self._prealign_model = MODEL_POOL["prealign_opt"](prealign_opt).to(device)
-            method_name = method_name.replace("_and_prealign_opt","")
-            method_opt = opt[(method_name, {}, "method settings")]
-            self._model = MODEL_POOL[method_name](method_opt).to(device)
+        else:
+            raise NotImplemented
         # if gpus and len(gpus) >= 1:
         #     self._model = nn.DataParallel(self._model, gpus)
         if self._prealign_model is not None:
@@ -77,12 +83,18 @@ class OptModel(ModelBase):
             print('-----------------------------------------------')
 
     def _set_input(self, input_data, batch_info):
-        batch_info["corr_source_target"] = False
+        input_data["extra_info"] = {key: item for key, item in input_data["target"].get("extra_info", {}).items()}
+
         if "gt_flow" in input_data["source"].get("extra_info", {}):
-            input_data["extra_info"]["gt_flow"] = input_data["source"]["gt_flow"]
+            input_data["extra_info"]["gt_flow"] = input_data["source"]["extra_info"]["gt_flow"]
             input_data["extra_info"]["gt_flowed"] = input_data["extra_info"]["gt_flow"] + input_data["source"]["points"]
             batch_info["corr_source_target"] = True
-        return input_data, batch_info
+            batch_info["has_gt"] = True
+            return input_data, batch_info
+        else:
+            batch_info["corr_source_target"] = False
+            batch_info["has_gt"] = False
+            return input_data, batch_info
 
 
     def set_input(self, input_data, device, phase=None):
@@ -123,24 +135,28 @@ class OptModel(ModelBase):
         :param data: input_data(not used
         :return:
         """
-        source, target = self.create_shape_pair_from_data_dict(data)
-        shape_pair = create_shape_pair(source, target)
+        shape_pair = self.create_shape_pair_from_data_dict(data)
+        source, target = shape_pair.source, shape_pair.target
+        shape_pair = self.prepare_shape_pair(source, target,extra_info = shape_pair.extra_info)
         shape_pair.set_pair_name(self.batch_info["pair_name"])
+        forward_t_prealign, forward_t_nonp = 0, 0
         if self.run_prealign:
             multi_scale_opt = self.opt[("multi_scale_optimization_prealign",{},"settings for multi_scale_optimization_prealign")]
             multi_scale_opt['record_path'] = self.record_path
             sovler = build_multi_scale_solver(multi_scale_opt,self._prealign_model)
-            shape_pair = sovler(shape_pair)
+            shape_pair, forward_t_prealign = timming(sovler,return_t=True)(shape_pair)
             save_shape_pair_into_files(self.record_path, "shape_prealigned",shape_pair.get_pair_name(), shape_pair)
             if self.run_nonparametric:
-                shape_pair.control_points = shape_pair.flowed_control_points
+                shape_pair.control_points = shape_pair.flowed_control_points.detach()
+                shape_pair.source.points = shape_pair.flowed.points.detach()
         if self.run_nonparametric:
             multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
             multi_scale_opt['record_path'] = self.record_path
             sovler = build_multi_scale_solver(multi_scale_opt,self._model)
-            shape_pair = sovler(shape_pair)
+            shape_pair, forward_t_nonp = timming(sovler,return_t=True)(shape_pair)
             save_shape_pair_into_files(self.record_path, "shape_nonparametric",shape_pair.get_pair_name(), shape_pair)
-        return shape_pair
+        forward_t = forward_t_prealign + forward_t_nonp
+        return shape_pair,forward_t
 
     def get_evaluation(self, input_data):
         """
@@ -148,11 +164,14 @@ class OptModel(ModelBase):
         :param input_data:
         :return:
         """
-        shape_pair = self.optimize_parameters(input_data)
-        if self._prealign_model is not None:
-            scores, shape_pair = self._prealign_model.model_eval(shape_pair, self.batch_info)
+        shape_pair, forward_t = self.optimize_parameters(input_data)
+        scores = {}
         if self._model is not None:
             scores, shape_pair = self._model.model_eval(shape_pair, self.batch_info)
+        elif self._prealign_model is not None:
+            scores, shape_pair = self._prealign_model.model_eval(shape_pair, self.batch_info)
+        scores.update({"forward_t":[forward_t/shape_pair.nbatch]*shape_pair.nbatch})
+
         return scores, shape_pair
 
     def save_visual_res(self, save_visual_results, input_data, eval_res, phase):

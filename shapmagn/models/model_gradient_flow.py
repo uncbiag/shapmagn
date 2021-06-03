@@ -5,9 +5,13 @@ import torch.nn as nn
 from shapmagn.global_variable import Shape
 from shapmagn.metrics.losses import GeomDistance
 from shapmagn.modules.gradient_flow_module import wasserstein_barycenter_mapping
+
 from shapmagn.modules.opt_flowed_eval import opt_flow_model_eval
 from shapmagn.utils.obj_factory import obj_factory
 from torch.autograd import grad
+#from pytorch_memlab import profile
+
+
 class GradientFlowOPT(nn.Module):
     """
     this class implement a gradient flow solver for point cloud registration
@@ -89,7 +93,7 @@ class GradientFlowOPT(nn.Module):
         """todo disabled, Gradient Flow doesn't support feature extraction"""
         return self.extract_point_fea(flowed, target)
 
-
+    #@profile
     def forward(self, shape_pair):
         """
         reg_param here is the moving points
@@ -106,8 +110,8 @@ class GradientFlowOPT(nn.Module):
         shape_pair = self.flow(shape_pair) if not flowed_has_inferred else shape_pair
         shape_pair.flowed, shape_pair.target = self.extract_fea(shape_pair.flowed, shape_pair.target)
         sim_loss = self.sim_loss_fn( shape_pair.flowed, shape_pair.target)
-        loss = sim_loss
-        print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.item(),))
+        loss = sim_loss.sum()
+        print("{} th step, sim_loss is {}".format(self.iter.item(), sim_loss.mean().item(),))
         grad_reg_param = grad(loss,shape_pair.reg_param)[0]
         shape_pair.reg_param = shape_pair.reg_param - grad_reg_param/(shape_pair.control_weights)
         shape_pair.reg_param.detach_()
@@ -120,7 +124,6 @@ class GradientFlowOPT(nn.Module):
 
     def model_eval(self, shape_pair, batch_info=None):
         """
-        for  deep approach, we assume the source points = control points
         :param shape_pair:
         :param batch_info:
         :return:

@@ -14,12 +14,18 @@ NonRigid Affine, MCT 	        TPS 	                  - 	        Deformable Kinem
 
 import numpy as np
 import torch
+from functools import partial
 from shapmagn.utils.obj_factory import partial_obj_factory
-import probreg
-if torch.cuda.is_available():
+try:
+    import open3d as o3d
+    import probreg
+except:
+    print("open3d is not detected, related functions are disabled")
+try:
+    import cupy as cp
     to_cpu = cp.asnumpy
     cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
-else:
+except:
     cp = np
     to_cpu = lambda x: x
 
@@ -37,6 +43,8 @@ class ProbReg(object):
         self.opt = opt
         self.method_name = opt[("method_name","cpd","supported method name in probreg:"
                             "{}".format(METHOD_POOL))]
+        self.init_np_device()
+        self.prealign =self.opt[("prealign_mode",False,"run probreg for prealignment task")]
         self.solver = getattr(self,"_init_{}".format(self.method_name))\
             (opt[(self.method_name,{},"settings for {}".format(self.method_name))])
 
@@ -47,6 +55,20 @@ class ProbReg(object):
         else:
             self.prealign = False
 
+
+    def init_np_device(self):
+        if self.method_name=="cpd":
+            try:
+                import cupy as cp
+                self.cp = cp
+                self.to_cpu = cp.asnumpy
+                cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
+            except:
+                self.cp = np
+                self.to_cpu = lambda x: x
+        else:
+            self.cp = np
+            self.to_cpu = lambda x: x
 
     def _init_cpd(self,opt):
         """CPD Registraion.
@@ -60,6 +82,8 @@ class ProbReg(object):
                 tol (float, optional): Tolerance for termination.
                 callback (:obj:`list` of :obj:`function`, optional): Called after each iteration.
                     `callback(probreg.Transformation)`
+                beta (float, optional): Parameter of RBF kernel.
+                lmd (float, optional): Parameter for regularization term.
 
             Keyword Args:
                 update_scale (bool, optional): If this flag is true and tf_type is rigid transformation,
@@ -67,9 +91,10 @@ class ProbReg(object):
                 tf_init_params (dict, optional): Parameters to initialize transformation (for rigid or affine).
             """
 
-        cpd_obj = opt[("cpd_obj","probreg_module.registration_cpd(tf_type_name='affine', w=0.0, maxiter=50, tol=0.001," \
+        cpd_obj = opt[("cpd_obj","probreg_module.registration_cpd(tf_type_name='nonrigid', w=0.0, maxiter=50, tol=0.001," \
                          " use_cuda=True,callbacks=[])","cpd object")]
         cpd_solver = partial_obj_factory(cpd_obj)
+
         return cpd_solver
 
     def _init_svr(self,opt):
@@ -161,7 +186,45 @@ class ProbReg(object):
         bcpd_sovler = partial_obj_factory(bcpd_obj)
         return bcpd_sovler
 
-    def __call__(self,source, target):
+    def _init_icp(self,opt):
+        """
+            registration_icp(source, target, max_correspondence_distance, init=(with default value), estimation_method=TransformationEstimationPointToPoint without scaling., criteria=ICPConvergenceCriteria class with relative_fitness=1.000000e-06, relative_rmse=1.000000e-06, and max_iteration=30)
+
+            Function for ICP registration
+
+            Args:
+                source (open3d.cuda.pybind.geometry.PointCloud): The source point cloud.
+                target (open3d.cuda.pybind.geometry.PointCloud): The target point cloud.
+                max_correspondence_distance (float): Maximum correspondence points-pair distance.
+                init (numpy.ndarray[float64[4, 4]], optional): Initial transformation estimation Default value:
+
+                    array([[1., 0., 0., 0.],
+                    [0., 1., 0., 0.],
+                    [0., 0., 1., 0.],
+                    [0., 0., 0., 1.]])
+                estimation_method (open3d.cuda.pybind.pipelines.registration.TransformationEstimation, optional, default=TransformationEstimationPointToPoint without scaling.): Estimation method. One of (``TransformationEstimationPointToPoint``, ``TransformationEstimationPointToPlane``, ``TransformationEstimationForColoredICP``)
+                criteria (open3d.cuda.pybind.pipelines.registration.ICPConvergenceCriteria, optional, default=ICPConvergenceCriteria class with relative_fitness=1.000000e-06, relative_rmse=1.000000e-06, and max_iteration=30): Convergence criteria
+
+            Returns:
+                open3d.cuda.pybind.pipelines.registration.RegistrationResult
+            """
+        max_correspondence_distance = opt[("max_correspondence_distance", 0.005,"Maximum correspondence points-pair distance")]
+        max_iteration = opt[("max_iteration", 1000,"Maximum correspondence points-pair distance")]
+        icp_sovler =  partial(o3d.pipelines.registration.registration_icp, max_correspondence_distance=max_correspondence_distance,
+                init = self.cp.identity(4), estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+                criteria = o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=max_iteration))
+        def _icp_sovler():
+            def solver(source_points, target_points):
+                source = o3d.geometry.PointCloud()
+                source.points = o3d.utility.Vector3dVector(source_points)
+                target = o3d.geometry.PointCloud()
+                target.points = o3d.utility.Vector3dVector(target_points)
+                return icp_sovler(source, target)
+            return solver
+        return _icp_sovler()
+
+
+    def __call__(self,source, target, return_tranform_param=True):
         """
            :param source: Shape with points BxNxD
            :param target_batch: Shape with points BxMxD
@@ -174,31 +237,28 @@ class ProbReg(object):
         for source, target in zip(source_list, target_list):
             solution = self.solver(source,target)
             solution_list.append(solution)
-        return self._convert_transform_format(solution_list, device)
-
+        if return_tranform_param:
+            return self._convert_transform_format(solution_list, device)
+        else:
+            return self._get_transformed_res(solution_list,source_list,device)
 
 
 
     def _get_input(self, source_batch, target_batch):
-        device_warpper = lambda x: cp.asarray(x) if self.method_name in ["cpd"] else np.asarray(x)
+        device_warpper = lambda x: self.cp.asarray(x)
         source_list = [device_warpper(source) for source in source_batch.detach().cpu().numpy()]
         target_list = [device_warpper(target) for target in target_batch.detach().cpu().numpy()]
         return source_list, target_list
 
     def _get_transform_matrix(self, solution):
-        if self.method_name in ["cpd"]:
-            try:
-                return (to_cpu(solution[0].b).T).astype(np.float32)
-            except:
-                return (to_cpu(solution[0].rot).T * to_cpu(solution[0].scale)).astype(np.float32)
-        else:
-            return ((solution[0].rot).T * solution[0].scale).astype(np.float32)
+        try:
+            return (self.to_cpu(solution[0].b).T).astype(np.float32)
+        except:
+            return (self.to_cpu(solution[0].rot).T * self.to_cpu(solution[0].scale)).astype(np.float32)
+
 
     def _get_translation(self,solution):
-        if self.method_name in ["cpd"]:
-            return (to_cpu(solution[0].t)[None]).astype(np.float32)
-        else:
-            return ((solution[0].t)[None]).astype(np.float32)
+        return (self.to_cpu(solution[0].t)[None]).astype(np.float32)
 
 
     def _get_deformation(self,solution):
@@ -216,8 +276,27 @@ class ProbReg(object):
 
 
     def _convert_transform_format(self,solution_list, device):
-        convert_fn = self._get_prealign_deformation if self.prealign else None
-        return convert_fn(solution_list,device)
+        if self.prealign:
+            convert_fn = self._get_prealign_deformation
+            return convert_fn(solution_list,device)
+        else:
+            NotImplemented
+
+    def _get_transformed_res(self,solution_list, source_list, device):
+        if self.method_name=="icp":
+            transformed_list = []
+            for source_np,solution in zip(source_list,solution_list):
+                source = o3d.geometry.PointCloud()
+                source.points = o3d.utility.Vector3dVector(source_np)
+                transformed =source.transform(solution.transformation)
+                transformed_list.append( np.asarray(transformed.points).astype(np.float32))
+
+        else:
+            transformed_list = [self.to_cpu(solution.transformation.transform(source)).astype(np.float32) for solution, source in zip(solution_list, source_list)]
+        batch_transformdc = torch.from_numpy(np.stack(transformed_list))
+        return batch_transformdc.to(device)
+
+
 
 
 
@@ -244,7 +323,7 @@ def registration_cpd(source, target, tf_type_name='rigid',
             then the scale is treated. The default is true.
         tf_init_params (dict, optional): Parameters to initialize transformation (for rigid or affine).
     """
-    from probreg.cpd import RigidCPD,AffineCPD,NonRigidCPD
+    from probreg.probreg.cpd import RigidCPD,AffineCPD,NonRigidCPD
     if tf_type_name == 'rigid':
         cpd = RigidCPD(source, **kargs)
     elif tf_type_name == 'affine':

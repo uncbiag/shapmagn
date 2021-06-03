@@ -125,13 +125,13 @@ shape_pair = create_shape_pair(source, target)
 # model_opt["gradflow_prealign"]["search_init_transform"]=False
 # model_opt["gradflow_prealign"][("geomloss", {}, "settings for geomloss")]
 # model_opt["gradflow_prealign"]['geomloss']["mode"] = "hard"
-# model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.5,debias=False)".format(blur)
+# model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False)".format(blur)
 # #model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue'],weight_list=[1.0], radius=0.08,include_pos=True)"
 #
 # model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 # model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.5,debias=False)".format(blur)
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False)".format(blur)
 # model = MODEL_POOL[model_name](model_opt)
 # solver = build_single_scale_model_embedded_solver(solver_opt,model)
 # model.init_reg_param(shape_pair)

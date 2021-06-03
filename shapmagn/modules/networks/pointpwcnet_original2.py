@@ -190,6 +190,39 @@ class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
             {"floweds": floweds, "flows": flows, "fps_pc1_idxs": fps_pc1_idxs, "fps_pc2_idxs": fps_pc2_idxs, "pc1": pc1,
              "pc2": pc2})
 
+
+        if not self.predict_at_low_resl:
+            # l0
+            up_flow0 = self.upsample(pc1_l0, pc1_l1,  flow1,resol_factor=scaler(3))
+            up_fea_flow0 = self.upsample(pc1_l0, pc1_l1,  fea_flow1,resol_factor=scaler(3))
+            pc2_l0_warp = self.warping(pc1_l0, pc2_l0, up_flow0,resol_factor=scaler(1))
+            cost0 = self.cost0(pc1_l0, pc2_l0_warp, c_feat1_l0, c_feat2_l0)
+
+            feat1_up = self.upsample(pc1_l0, pc1_l1, feat1,resol_factor=scaler(3))
+            new_feat1_l0 = torch.cat([feat1_l0, feat1_up], dim=1)
+            _, resid_flow0, resid_fea_flow0 = self.flow0(pc1_l0, new_feat1_l0, cost0, up_flow0)
+            flow0 = up_flow0 + resid_flow0
+            fea_flow0 = up_fea_flow0 + resid_fea_flow0
+            floweds =[flow0+ pc1_l0.detach(), flow1+pc1_l1.detach(), flow2+pc1_l2.detach(), flow3+pc1_l3.detach()]
+            floweds = [flow.transpose(2,1).contiguous() for flow in floweds]
+            fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
+            additional_param = {"control_points": pc1_l0.transpose(2, 1).contiguous(),
+                                "control_points_idx": torch.arange(pc1_l0.shape[1]).repeat(pc1_l0.shape[0], 1),
+                                "predict_at_low_resl": self.predict_at_low_resl}
+            additional_param.update({"floweds": floweds, "fps_pc1_idxs": fps_pc1_idxs})
+            return fea_flow0.transpose(2,1).contiguous(),additional_param
+        else:
+            floweds = [flow1 + pc1_l1.detach(), flow2 + pc1_l2.detach(),
+                       flow3 + pc1_l3.detach()]
+            floweds = [flow.transpose(2, 1).contiguous() for flow in floweds]
+            fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
+            additional_param = {"control_points": pc1_l1.transpose(2, 1).contiguous(), "control_points_idx": fps_pc1_l1,
+                                "predict_at_low_resl": self.predict_at_low_resl}
+            additional_param.update(
+                {"floweds": floweds, "fps_pc1_idxs": fps_pc1_idxs})
+            return fea_flow1.transpose(2, 1).contiguous(), additional_param
+
+
         return flow0.transpose(2, 1).contiguous(),additional_param
 
 def multiScaleLoss(pred_flows, gt_flow, fps_idxs, alpha=[0.02, 0.04, 0.08, 0.16]):

@@ -53,11 +53,8 @@ class PointAug(object):
         nnoise = int(self.add_random_point_noise_by_ratio*npoints)
         rand_index = np.random.choice(list(range(npoints)), nnoise, replace=False)
         noise_disp = torch.ones(nnoise,3, device=points.device).uniform_(-1,1)*self.random_noise_raidus
-        noise = points[rand_index] + noise_disp
-        points = torch.cat([points, noise],0)
-        weights = torch.cat([point_weights,point_weights[rand_index]],0)
-        added_index = torch.tensor(list(range(npoints,npoints+nnoise))).to(points.device)
-        return points, weights, torch.cat([index,added_index])
+        points[rand_index] = points[rand_index] + noise_disp
+        return points, point_weights, index
 
     def add_random_noise_to_weights(self, points, point_weights, index=None):
         noise_std = (torch.min(point_weights)/5).item()

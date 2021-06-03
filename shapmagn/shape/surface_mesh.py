@@ -55,19 +55,22 @@ class SurfaceMesh(ShapeBase):
         self.update_info()
 
 
-    def set_data_with_refer_to(self, points, mesh):
-        self.points = points
-        self.faces = mesh.faces
-        self.index= mesh.index
-        self.label = mesh.label
+    def set_data_with_refer_to(self, points, mesh, detach=False):
+        if not detach:
+            fn = lambda x: x
+        else:
+            fn = lambda x: x.detach().clone() if x is not None else None
+        self.points = fn(points)
+        self.faces = fn(mesh.faces)
+        self.index= fn(mesh.index)
+        self.label = fn(mesh.label)
         self.name_list = mesh.name_list
-        self.landmarks = mesh.landmarks
-        self.pointfea = mesh.pointfea
-        self.weights = mesh.weights
-        self.seg = mesh.seg
+        self.landmarks = fn(mesh.landmarks)
+        self.pointfea = fn(mesh.pointfea)
+        self.weights = fn(mesh.weights)
+        self.seg = fn(mesh.seg)
         self.scale = mesh.scale
         self.points_mode_on = self.scale != -1
-
         self.update_info()
         return self
 

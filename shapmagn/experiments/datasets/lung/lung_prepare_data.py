@@ -37,7 +37,7 @@ if use_dirlab_as_val:
     "12829U",
     "13216S",
     "13528L",
-    #"13671Q", # missing radius
+    "13671Q", # missing radius
     "13998W",
     "17441T"]
     source_name_list = [name+"_EXP_STD_USD_COPD" for name in dirlab_list]

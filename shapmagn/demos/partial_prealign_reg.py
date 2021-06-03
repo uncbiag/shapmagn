@@ -1,4 +1,7 @@
 import os, sys
+
+from shapmagn.utils.utils import memory_sort
+
 sys.path.insert(0, os.path.abspath('../..'))
 import copy
 import numpy as np
@@ -14,25 +17,20 @@ def estimate_normals(pcd, params):
     pcd.orient_normals_to_align_with_direction()
 
 source = o3.io.read_point_cloud('./data/toy_demo_data/bunny.pcd')
-source.transform(np.array([[np.cos(0), -np.sin(0), 0.0, 0.0],
-                           [np.sin(0), np.cos(0), 0.0, 0.0],
-                           [0.0, 0.0, 1.0, 0.0],
-                           [0.0, 0.0, 0.0, 0.1]]))
-target = copy.deepcopy(source)
-# transform target point cloud
-th = np.deg2rad(120.0)
-target.transform(np.array([[np.cos(th), -np.sin(th), 0.0, 1.2],
-                           [np.sin(th), np.cos(th), 0.0, 0.3],
-                           [0.0, 0.0, 1.0, 1.6],
-                           [0.0, 0.0, 0.0, 1.0]]))
-source = source.voxel_down_sample(voxel_size=0.05)
-target = target.voxel_down_sample(voxel_size=0.05)
+source = source.voxel_down_sample(voxel_size=0.005)
+
+target = copy.deepcopy(source).translate((0.07, 0.03, -0.02))
+target.rotate(source.get_rotation_matrix_from_xyz((np.pi / 2, 0, 3*np.pi / 4)),
+              center=(0, 0, 0))
+
 cv = lambda x: np.asarray(x.points if isinstance(x, o3.geometry.PointCloud) else x)
-# source_fea = features.FPFH()(cv(source)).astype(np.float32)[None]
-# target_fea = features.FPFH()(cv(source)).astype(np.float32)[None]
+source_fea = features.FPFH()(cv(source)).astype(np.float32)[None]
+target_fea = features.FPFH()(cv(source)).astype(np.float32)[None]
 source_fea = None
 target_fea = None
-
+# source.paint_uniform_color([1, 0, 0])
+# target.paint_uniform_color([0, 1, 0])
+# o3.visualization.draw_geometries([source, target])
 
 
 # # Experiment 1  run cpd registration from probreg package
@@ -77,8 +75,19 @@ from shapmagn.utils.visualizer import *
 totensor = lambda x: torch.tensor(np.asarray(x.points).astype(np.float32))
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #"cuda:0" if torch.cuda.is_available() else "cpu"
 
+
+
 source_points = totensor(source)[None].to(device)
 target_points = totensor(target)[None].to(device)
+source_points,_ = memory_sort(source_points,0.005)
+target_points,_ = memory_sort(target_points,0.005)
+
+nsource = source_points.shape[1]
+ntarget = target_points.shape[1]
+
+source_points = source_points[:,int(3*nsource/10):-1]
+target_points = target_points[:,0:int(5*ntarget/8)]
+
 source = Shape().set_data(points=source_points,pointfea=source_fea)
 target = Shape().set_data(points=target_points,pointfea=target_fea)
 compute_interval(source.points[0].cpu().numpy())
@@ -100,22 +109,22 @@ model_opt =ParameterDict()
 model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
 model_opt["module_type"] = "gradflow_prealign"
 model_opt[("gradflow_prealign", {}, "settings for gradflow_prealign")]
-blur = 0.01#0.05
+blur = 0.1#0.05
 model_opt["gradflow_prealign"]["method_name"]="rigid"  # affine
 model_opt["gradflow_prealign"]["gradflow_mode"]="ot_mapping"
 model_opt["gradflow_prealign"]["niter"] = 10
 model_opt["gradflow_prealign"] ['plot'] = True
+model_opt["gradflow_prealign"] ['use_barycenter_weight'] = True
 model_opt["gradflow_prealign"]["search_init_transform"]=False
 model_opt["gradflow_prealign"][("geomloss", {}, "settings for geomloss")]
 model_opt["gradflow_prealign"]['geomloss']["mode"] = "soft"
-model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,debias=False)".format(blur)
-model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_FPFH_extractor(radius_normal=0.1, radius_feature=0.5)" # it only works for the same scale
+model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=10, scaling=0.8,debias=False)".format(blur)
+model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_FPFH_extractor(radius_normal=0.01, radius_feature=0.05)" # it only works for the same scale
 
 model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
-# model_opt['sim_loss']['geomloss']["mode"] = "pointfea"
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,debias=False)".format(blur)
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False)".format(blur)
 model = MODEL_POOL[model_name](model_opt)
 solver = build_single_scale_model_embedded_solver(solver_opt,model)
 model.init_reg_param(shape_pair)

@@ -65,8 +65,8 @@ def create_shape_pair(source, target, toflow=None,pair_name=None,n_control_point
             control_idx = farthest_point_sample(source.points, n_control_points)  # non-gpu accerlatation
         else:
             control_idx = FurthestPointSampling()(source.points, n_control_points)
-        control_idx = control_idx.squeeze().long()
         assert control_idx.shape[0]==1
+        control_idx = control_idx.squeeze().long()
         control_points = source.points[:, control_idx]
         shape_pair.control_points = control_points
         device = source.points.device

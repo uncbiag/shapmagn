@@ -2,7 +2,7 @@ import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.modules.keops_utils import KNN
+from shapmagn.modules_reg.keops_utils import KNN
 
 
 
@@ -331,7 +331,7 @@ class KNNInterpolater(object):
             self.knn = KNN()
 
     def forward(self,pc1, pc2, pc2_fea,resol_factor=1, K=9):
-        from shapmagn.modules.networks.pointconv_util import index_points_group
+        from shapmagn.modules_reg.networks.pointconv_util import index_points_group
 
         sigma = self.initial_radius*resol_factor
         K_dist, index = self.knn(pc1/sigma, pc2/sigma, K)

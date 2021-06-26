@@ -78,8 +78,8 @@ class FlowModel(nn.Module):
 
 
     def init_lddmm(self, lddmm_opt):
-        from shapmagn.modules.ode_int import ODEBlock
-        from shapmagn.modules.lddmm_module import LDDMMHamilton, LDDMMVariational
+        from shapmagn.modules_reg.ode_int import ODEBlock
+        from shapmagn.modules_reg.module_lddmm import LDDMMHamilton, LDDMMVariational
         self.module_type = lddmm_opt[("module", "hamiltonian", "lddmm module type: hamiltonian or variational")]
         assert self.module_type in ["hamiltonian", "variational"]
         self.lddmm_module = LDDMMHamilton(lddmm_opt[("hamiltonian", {}, "settings for hamiltonian")]) \

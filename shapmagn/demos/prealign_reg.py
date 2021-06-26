@@ -69,7 +69,7 @@ target_fea = None
 
 # Experiment 2 run prealign registration
 from shapmagn.global_variable import *
-from shapmagn.models.multiscale_optimization import *
+from shapmagn.models_reg.multiscale_optimization import *
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.datasets.data_utils import compute_interval
 from shapmagn.demos.demo_utils import get_omt_mapping

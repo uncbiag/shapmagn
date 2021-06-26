@@ -1,7 +1,7 @@
 
 import torch
 from shapmagn.shape.shape_pair import ShapePair
-import shapmagn.modules.networks.pointnet2.lib.pointnet2_utils as pointutils
+import shapmagn.modules_reg.networks.pointnet2.lib.pointnet2_utils as pointutils
 
 def reg_param_initializer():
     def init(input_data):

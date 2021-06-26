@@ -19,7 +19,7 @@ class ShapeBase(object):
         :param points: BxNxD
         """
         self.type = 'ShapeBase'
-        self.attr_list = ["points", "label", "landmarks", "pointfea", "weights", "seg"]
+        self.attr_list = ["points", "label", "landmarks", "pointfea", "weights", "seg","mask"]
         self.nbatch = None
         self.dimension = None
         self.points = None
@@ -32,9 +32,11 @@ class ShapeBase(object):
         self.name_list = []
         self.compute_bd = False
         self.landmarks = None
+        self.mask = None
         self.pointfea = None
         self.scale =-1
         self.extra_info = None
+        self.points_mode_on = False
         #self.update_bounding_box()
 
     def update_info(self):
@@ -73,6 +75,7 @@ class ShapeBase(object):
         pointfea = args["pointfea"] if "pointfea" in args else None
         label = args["label"] if "label" in args else None
         seg = args["seg"] if "seg" in args else None
+        mask = args["mask"] if "mask" in args else None
         scale = args["scale"] if "scale" in args else -1
         extra_info = args["extra_info"] if "extra_info" in args else None
 
@@ -82,10 +85,10 @@ class ShapeBase(object):
         self.pointfea = pointfea
         self.label = label
         self.seg = seg
+        self.mask = mask
         self.scale = scale
         self.extra_info = extra_info
         self.update_info()
-        self.points_mode_on = False
         return self
 
 

@@ -7,7 +7,7 @@ import torch
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
-from shapmagn.models.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver, \
+from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver, \
     build_single_scale_custom_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points

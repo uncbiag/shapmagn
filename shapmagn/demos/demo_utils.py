@@ -12,7 +12,7 @@ def detect_folding(warped_grid_points, grid_size,spacing, saving_path=None,file_
 def get_omt_mapping(gemloss_setting, source, target, fea_to_map, p=2,mode="hard", confid=0.1):
     """"""
     # here we assume batch_sz = 1
-    from shapmagn.metrics.losses import GeomDistance
+    from shapmagn.metrics.reg_losses import GeomDistance
     from pykeops.torch import LazyTensor
     geom_obj = gemloss_setting["geom_obj"].replace(")",",potentials=True)")
     blur_arg_filtered = filter(lambda x: "blur" in x, geom_obj.split(","))

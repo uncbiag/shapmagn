@@ -147,7 +147,7 @@ if __name__ == '__main__':
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="An easy interface for training classification models")
+    parser = argparse.ArgumentParser(description="An easy interface for training classification models_reg")
     parser.add_argument('--eval', action='store_true', help='training the task')
     parser.add_argument('-ds', '--dataset_folder', required=False, type=str,
                         default=None, help='the path of dataset splits')

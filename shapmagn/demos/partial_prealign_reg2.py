@@ -13,7 +13,7 @@ from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
 import torch
 
 from shapmagn.global_variable import *
-from shapmagn.models.multiscale_optimization import *
+from shapmagn.models_reg.multiscale_optimization import *
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.datasets.data_utils import compute_interval
 from shapmagn.demos.demo_utils import get_omt_mapping

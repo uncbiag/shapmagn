@@ -37,6 +37,8 @@ class PointCloud(ShapeBase):
         self.pointfea = fn(pointcloud.pointfea)
         self.weights = fn(pointcloud.weights)
         self.seg = fn(pointcloud.seg)
+        self.mask = fn(pointcloud.mask)
+        self.extra_info = pointcloud.extra_info
         self.scale = pointcloud.scale
         self.update_info()
         return self

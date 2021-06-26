@@ -2,8 +2,8 @@ from pykeops.torch.cluster import grid_cluster
 import numpy as np
 import torch
 from torch_scatter import scatter
-from shapmagn.modules.networks.pointnet2.lib.pointnet2_utils import furthest_point_sample
-from shapmagn.modules.networks.pointconv_util import index_points_gather
+from shapmagn.modules_reg.networks.pointnet2.lib.pointnet2_utils import furthest_point_sample
+from shapmagn.modules_reg.networks.pointconv_util import index_points_gather
 
 from random import Random
 import time
@@ -52,14 +52,14 @@ def uniform_sampler(num_sample,fixed_random_seed=True,sampled_by_weight=True):
             try:
                 rand_ind = np.random.choice(np.arange(npoints),num_sample,replace=False,p=weights_np/weights_np.sum())
             except:
-                #print("failed to sample {} from {} points".format(num_sample,npoints))
+                print("failed to sample {} from {} points".format(num_sample,npoints))
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True,
                                             p=weights_np / weights_np.sum())
         else:
             try:
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=False)
             except:
-                #print("failed to sample {} from {} points".format(num_sample,npoints))
+                print("failed to sample {} from {} points".format(num_sample,npoints))
                 rand_ind = np.random.choice(np.arange(npoints), num_sample, replace=True)
         rand_ind.sort()
         points = points[rand_ind]

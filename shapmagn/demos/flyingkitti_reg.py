@@ -6,7 +6,7 @@ from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, compute_interval, read_json_into_list, \
     get_obj, get_pair_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
-from shapmagn.models.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
+from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, visualize_source_flowed_target_overlap
 from shapmagn.demos.demo_utils import *

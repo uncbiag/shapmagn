@@ -2,7 +2,7 @@ from glob import glob
 import os
 
 from shapmagn.datasets.data_utils import save_json
-from shapmagn.datasets.prepare_data import CustomDataSet
+from shapmagn.datasets.prepare_reg_data import CustomDataSet
 use_dirlab_as_val = True
 data_folder_path = "/playpen-raid1/Data/UNC_vesselParticles"
 data_output_folder_path = "/playpen-raid1/zyshen/data/lung_pointcloud/debugging"

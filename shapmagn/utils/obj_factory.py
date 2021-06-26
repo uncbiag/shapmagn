@@ -7,21 +7,25 @@ KNOWN_MODULES = {
     'lung_dataloader_utils': 'shapmagn.experiments.datasets.lung.lung_dataloader_utils',
     'body_dataset_utils': 'shapmagn.experiments.datasets.body.body_dataset_utils',
     'toy_dataset_utils': 'shapmagn.experiments.datasets.toy.toy_dataset_utils',
+    'face_dataset_utils':'shapmagn.experiments.datasets.unpub_face.face_dataset_utils',
+    'dhface_dataset_utils':'shapmagn.experiments.datasets.dhface.dataset_utils',
     'flying3d_hasocc_utils':'shapmagn.experiments.datasets.flying3d_and_kitti.flying3d_hasocc.dataset_utils',
     'flyingkitti_nonocc_utils':'shapmagn.experiments.datasets.flying3d_and_kitti.flyingkitti_nonocc.dataset_utils',
     "lung_shape_pair": "shapmagn.experiments.datasets.lung.lung_shape_pair",
     "lung_feature_extractor": "shapmagn.experiments.datasets.lung.lung_feature_extractor",
+    "dhface_feature_extractor": "shapmagn.experiments.datasets.dhface.feature_extractor",
     "lung_data_analysis": "shapmagn.experiments.datasets.lung.lung_data_analysis",
     "lung_data_aug": "shapmagn.experiments.datasets.lung.lung_data_aug",
     "lung_data_eval": "shapmagn.experiments.datasets.lung.evaluation_utils",
+    "dhface_eval": "shapmagn.experiments.datasets.dhface.evaluation_utils",
     "flyingkitti_nonocc_aug": "shapmagn.experiments.datasets.flying3d_and_kitti.flyingkitti_nonocc.data_aug",
     "flyingkitti_nonocc_eval": "shapmagn.experiments.datasets.flying3d_and_kitti.flyingkitti_nonocc.evaluation_utils",
     "2d_toy_local_feature_extractor":"shapmagn.experiments.datasets.toy.toy_feature_extractor_2d",
     "local_feature_extractor": "shapmagn.utils.local_feature_extractor",
-    "hybird_data": "shapmagn.datasets.hybird_generator",
+    "hybird_data": "shapmagn.datasets.mixed_pair_generator",
     "visualizer": "shapmagn.utils.visualizer",
-    "probreg_module": "shapmagn.modules.probreg_module",
-    "deep_feature_module":"shapmgan.modules.deep_feature_module",
+    "probreg_module": "shapmagn.modules_reg.probreg_module",
+    "deep_feature_module":"shapmgan.modules_reg.deep_feature_module",
     "shape_pair_utils":"shapmagn.shape.shape_pair_utils",
     "torch_kernels": 'shapmagn.kernels.torch_kernels',
     "keops_kernels": 'shapmagn.kernels.keops_kernels',
@@ -33,7 +37,7 @@ KNOWN_MODULES = {
     'probreg':'probreg',
     'features':'probreg.features',
     'utils':'shapmagn.utils.utils',
-    'keops_utils':'shapmagn.modules.keops_utils'
+    'keops_utils':'shapmagn.modules_reg.keops_utils'
     #'probreg.filterreg':'probreg.filterreg'
 }
 
@@ -76,7 +80,7 @@ def obj_factory(obj_exp, *args, **kwargs):
         obj_exp = obj_exp[:obj_exp.find('(')]
 
     # From here we can assume that dots in the remaining of the expression
-    # only separate between modules and classes
+    # only separate between modules_reg and classes
     module_name, class_name = os.path.splitext(obj_exp)
     class_name = class_name[1:]
     module = importlib.import_module(KNOWN_MODULES[module_name] if module_name in KNOWN_MODULES else module_name)
@@ -120,7 +124,7 @@ def partial_obj_factory(obj_exp, *args, **kwargs):
         obj_exp = obj_exp[:obj_exp.find('(')]
 
     # From here we can assume that dots in the remaining of the expression
-    # only separate between modules and classes
+    # only separate between modules_reg and classes
     module_name, class_name = os.path.splitext(obj_exp)
     class_name = class_name[1:]
     module = importlib.import_module(KNOWN_MODULES[module_name] if module_name in KNOWN_MODULES else module_name)

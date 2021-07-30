@@ -600,7 +600,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
     if show:
         cur_pos=p.show(auto_close=False)
-        print(cur_pos)
+        # print(cur_pos)
     if saving_capture_path:
         #p.show(screenshot=saving_capture_path)
         p.screenshot(saving_capture_path)

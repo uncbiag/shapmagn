@@ -4,7 +4,7 @@ import numpy as np
 from functools import partial
 import torch.nn.functional as F
 from shapmagn.utils.utils import shrink_by_factor
-from shapmagn.modules_reg.networks.pointnet2.util import PointNetSetAbstraction,PointNetFeaturePropogation,FlowEmbedding,PointNetSetUpConv
+from pointnet2.util import PointNetSetAbstraction,PointNetFeaturePropogation,FlowEmbedding,PointNetSetUpConv
 
 
 

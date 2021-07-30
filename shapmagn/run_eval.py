@@ -4,25 +4,14 @@ run shape learning/optimization
 
 import os, sys
 import subprocess
-from distutils.dir_util import copy_tree
+from shapmagn.datasets.data_utils import get_file_name, cp_file
 os.environ['DISPLAY'] = ':99.0'
 os.environ['PYVISTA_OFF_SCREEN'] = 'true'
 os.environ['PYVISTA_USE_IPYVTK'] = 'true'
 bashCommand ="Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
 process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
 process.wait()
-
 sys.path.insert(0, os.path.abspath('..'))
-import pykeops
-try:
-    # hard coding for keops cache path
-    cache_path ="/playpen/zyshen/keops_cachev2"
-    os.makedirs(cache_path,exist_ok=True)
-    pykeops.set_bin_folder(cache_path)  # change the build folder
-    print("change keops cache path into  {}".format(pykeops.config.bin_folder))
-except:
-    print("using keops default cache path {}".format(pykeops.config.bin_folder))
-
 import torch
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark=True
@@ -54,58 +43,50 @@ class ModelTask(BaseTask):
 
 
 
-
-
-def init_task_env(setting_path,output_root_path, task_name):
+def init_eval_env(setting_path,output_root_path, data_json_path):
     """
     create task environment.
 
     :param setting_path: the path to load 'task_setting.json'
     :param output_root_path: the output path
-    :param task_name: task name i.e. run_unet, run_with_ncc_loss
     :return:
     """
+    eval_data_folder = os.path.join(output_root_path, 'test')
+    os.makedirs(eval_data_folder, exist_ok=True)
+    os.makedirs(os.path.join(output_root_path, 'res'), exist_ok=True)
+    data_json_name = get_file_name(data_json_path)
+    cp_file(data_json_path,os.path.join(eval_data_folder,data_json_name+".json"))
+    os.makedirs(output_root_path, exist_ok=True)
     tsm_json_path = os.path.join(setting_path, 'task_setting.json')
     assert os.path.isfile(tsm_json_path),"task setting:{} not exists".format(tsm_json_path)
-    tsm = ModelTask('task_reg',tsm_json_path)
-    tsm.task_par['tsk_set']['task_name'] = task_name
+    tsm = ModelTask('task',tsm_json_path)
+    tsm.task_par['tsk_set']['task_name'] = "res"
     tsm.task_par['tsk_set']['output_root_path'] = output_root_path
     return tsm
 
 
 
 
-
-
-def _do_learning(args):
+def do_evaluation(args):
     """
     set running env and run the task
-
     :param args: the parsed arguments
-    :param pipeline:a Pipeline object
-    :return: a Pipeline object
     """
-    output_root_path = args.output_root_path
-    dataset_path =args.dataset_folder
-    task_name = args.task_name
     setting_folder_path = args.setting_folder_path
+    output_root_path = args.output_root_path
+    data_json_path = args.data_json
+    task_name = 'eval'
     task_output_path = os.path.join(output_root_path,task_name)
-    print("debugging {}".format(task_output_path))
-
-    if os.path.isdir(output_root_path):
-        print("the output folder {} exists, skipping copying the dataset json files".format(output_root_path))
-    else:
-        print("copy dataset json files from {} to {}".format(dataset_path,output_root_path))
-        [copy_tree(os.path.join(dataset_path,phase),os.path.join(output_root_path,phase)) for phase in ["train","val","test","debug"]]
-    os.makedirs(task_output_path, exist_ok=True)
-    tsm = init_task_env(setting_folder_path,output_root_path,task_name)
-    if args.eval:
-        tsm = addition_test_setting(args,tsm)
+    print("task output path: {}".format(task_output_path))
+    tsm = init_eval_env(setting_folder_path, task_output_path, data_json_path)
+    tsm = addition_test_setting(args,tsm)
     tsm.task_par['tsk_set']['gpu_ids'] = args.gpus
     tsm_json_path = os.path.join(task_output_path, 'task_setting.json')
     tsm.save(tsm_json_path)
-    pipeline = run_one_task(tsm_json_path, not args.eval)
+    pipeline = run_one_task(tsm_json_path, is_train=False)
     return pipeline
+
+
 
 def addition_test_setting(args, tsm):
     model_path = args.model_path
@@ -117,45 +98,28 @@ def addition_test_setting(args, tsm):
     return tsm
 
 
-def do_learning(args):
-    """
-
-    :param args: the parsed arguments
-    :return: None
-    """
-    task_name = args.task_name
-    args.task_name_record = task_name
-    _do_learning(args)
-
-
-
 
 
 
 
 if __name__ == '__main__':
     """
-        An interface for shape learning approaches.
-        Assume there is two level folder, output_root_folder/task_name
-        The inference mode here is for learning pipeline, namely estimated on the test set. if you want to use model on wild data, please refer to run_eval.py
+        An evaluation interface on new data.
+        make sure the file is saved in a compatible way to your task specific reader. e.g. 'lung_reader' in lung_dataloader_utils.py
         Arguments: 
-            --eval: run in inference mode
-            --dataset_folder/ -ds: the path including the dataset splits, which contains train/val/test/debug subfolders
+            --data_json/ -dj: path of data json
             --output_root_folder/ -o: the path of output root folder, we assume the tasks under this folder share the same dataset
-            --task_name / -tn: task name 
             --setting_folder_path/ -ts: path of the folder where settings are saved,should include task_setting.json
+            --model_path/ -m: for learning based approach, the model checkpoint should either provided here (first priority) or set in task_setting.json (second priority)
             --gpu_id/ -g: gpu_id to use
     """
     import argparse
 
     parser = argparse.ArgumentParser(description="An easy interface for training classification models_reg")
-    parser.add_argument('--eval', action='store_true', help='training the task')
-    parser.add_argument('-ds', '--dataset_folder', required=True, type=str,
-                        default=None, help='the path of dataset splits')
+    parser.add_argument('-dj', '--data_json', required=True, type=str,
+                        default=None, help='the path of data json file')
     parser.add_argument('-o', '--output_root_path', required=True, type=str,
                         default=None,help='the path of output root folder')
-    parser.add_argument('-tn', '--task_name', required=True, type=str,
-                        default=None,help='the name of the task')
     parser.add_argument('-ts', '--setting_folder_path', required=True, type=str,
                         default=None,help='path of the folder where settings are saved,should include task_setting.json')
     parser.add_argument('-m', "--model_path", required=False, default=None, help='the path of trained model')
@@ -163,5 +127,5 @@ if __name__ == '__main__':
                      help='list of gpu ids to use')
     args = parser.parse_args()
     print(args)
-    do_learning(args)
+    do_evaluation(args)
 

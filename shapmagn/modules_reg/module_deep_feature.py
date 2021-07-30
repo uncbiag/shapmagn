@@ -7,7 +7,7 @@ from pykeops.torch import LazyTensor
 import torch.nn.functional as F
 from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.modules_reg.networks.pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, PointNetFeaturePropogation
+from pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, PointNetFeaturePropogation
 from shapmagn.metrics.reg_losses import GeomDistance
 from shapmagn.modules_reg.module_gradient_flow import wasserstein_barycenter_mapping
 from shapmagn.modules_reg.networks.dgcnn import DGCNN

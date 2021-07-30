@@ -29,7 +29,7 @@ def build_multi_scale_solver(opt, model):
     scale_shape_sampler_list = [SHAPE_SAMPLER_POOL[shape_sampler_type](scale) for scale in scale_args_list]
     num_scale = len(scale_iter_list)
     stragtegy = opt[("stragtegy", "use_optimizer_defined_from_model','use_optimizer_defined_here")]
-    build_single_scale_solver = build_single_scale_custom_solver if stragtegy =="use_optimizer_defined_here" else build_single_scale_model_embedded_solver
+    build_single_scale_solver = build_single_scale_general_solver if stragtegy =="use_optimizer_defined_here" else build_single_scale_model_embedded_solver
     reg_param_initializer = model.init_reg_param
     param_updater = model.update_reg_param_from_low_scale_to_high_scale
     update_shape_pair_after_upsampling = model.flow
@@ -64,9 +64,9 @@ def build_multi_scale_solver(opt, model):
     return solve
 
 
-def build_single_scale_custom_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_ftol=1e-4, patient=5):
+def build_single_scale_general_solver(opt,model, num_iter,scale=-1, lr=1e-4, rel_ftol=1e-4, patient=5):
     """
-    custom solver where the param needs to optimize iteratively
+    general solver where the param needs to optimize iteratively
     this is typically required by native displacement method, lddmm method,
 
     :param opt:

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from shapmagn.kernels.keops_kernels import LazyKeopsKernel
-from shapmagn.modules_reg.networks.pointnet2.lib import pointnet2_utils as pointutils
+from pointnet2.lib import pointnet2_utils as pointutils
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator
 
 LEAKY_RATE = 0.1

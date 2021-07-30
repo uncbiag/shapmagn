@@ -126,7 +126,7 @@
         "is_train": false,
         "reset_train_epoch": false,
         "load_model_but_train_from_epoch": 20,
-        "continue_train": true,
+        "continue_train": false,
         "continue_train_lr": 2e-5,
         "model_path":""
     }

@@ -6,7 +6,7 @@ from shapmagn.datasets.vtk_utils import convert_faces_into_file_format
 
 
 
-def save_shape_into_file(folder_path, alias,pair_name, ftype= "ply", **args):
+def save_shape_into_file(folder_path, alias,pair_name, ftype= "vtk", **args):
     for key, item in args.items():
         if isinstance(item, torch.Tensor):
             args[key] = item.cpu().detach().numpy()

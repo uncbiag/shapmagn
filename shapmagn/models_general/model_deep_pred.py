@@ -1,4 +1,4 @@
-from shapmagn.modules_custom.module_deep_landmark import *
+from shapmagn.modules_general.module_deep_landmark import *
 from shapmagn.utils.utils import sigmoid_decay
 
 DEEP_PREDICTOR= {"pointconv_landmark_predictor":PointConvLandmarkPredictor}
@@ -80,8 +80,8 @@ class DeepPredictor(nn.Module):
 
     def forward(self, input_data, batch_info=None):
         input_shape = self.create_shape_from_data_dict(input_data)
-        output_shape= self.deep_predictor(input_shape, batch_info)
-        sim_loss, reg_loss = self.loss(input_shape, output_shape, batch_info)
+        output_shape, additional_param= self.deep_predictor(input_shape, batch_info)
+        sim_loss, reg_loss = self.loss(input_shape, output_shape,additional_param, batch_info)
         self.buffer["sim_loss"] = sim_loss.detach()
         self.buffer["reg_loss"] = reg_loss.detach()
         sim_factor, reg_factor = self.get_factor()

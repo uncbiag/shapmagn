@@ -1,8 +1,11 @@
 from pykeops.torch.cluster import grid_cluster
 import numpy as np
 import torch
-from torch_scatter import scatter
-from shapmagn.modules_reg.networks.pointnet2.lib.pointnet2_utils import furthest_point_sample
+try:
+    from torch_scatter import scatter
+except:
+    print("torch scatter is not detected, voxel grid sampling is disabled")
+from pointnet2.lib.pointnet2_utils import furthest_point_sample
 from shapmagn.modules_reg.networks.pointconv_util import index_points_gather
 
 from random import Random

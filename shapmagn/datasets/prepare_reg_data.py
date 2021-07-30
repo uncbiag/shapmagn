@@ -13,7 +13,7 @@ import random
 
 
 
-class CustomDataSet(BaseDataSet):
+class GeneralDataSet(BaseDataSet):
     """
     """
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     # if the id_sess_dic is not set, these sessions would be automatically divided according to divided_ratio
     # the pair can be get by [source_list[ind], target_list[ind]]
     # then final num of pairs per session is determined by divided_ratio*max_total_pairs
-    dataset = CustomDataSet()
+    dataset = GeneralDataSet()
     dataset.set_output_path("./debug/datasets/prepare_data/func_debug")
     dataset.set_coupled_pair_list([synth_data1_list,synth_data2_list])
     dataset.set_divided_ratio((0.6,0.3,0.1))
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     # if the id_sess_dic is not set, these sessions would be automatically divided according to divided_ratio
     # the pair will be randomly collected inside each session
     # then final num of pairs per session is determined by divided_ratio*max_total_pairs
-    dataset = CustomDataSet()
+    dataset = GeneralDataSet()
     dataset.set_output_path("./debug/datasets/prepare_data/func_debug2")
     dataset.set_self_cross_list(synth_data1_list)
     dataset.set_id_sess_dic({"train":list(range(80)),"val":list(range(80,100)),"test":list(range(100,120)),"debug":list(range(0,30))})

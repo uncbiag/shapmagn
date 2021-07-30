@@ -14,7 +14,7 @@ import subprocess
 import torch
 from shapmagn.datasets.data_utils import read_json_into_list, get_pair_obj
 from shapmagn.global_variable import shape_type, obj_factory
-import shapmagn.modules_reg.networks.pointnet2.lib.pointnet2_utils as pointutils
+import pointnet2.lib.pointnet2_utils as pointutils
 from shapmagn.modules_reg.networks.pointconv_util import index_points_group
 from shapmagn.utils.visualizer import visualize_point_pair_overlap
 from shapmagn.shape.point_sampler import point_uniform_sampler, point_grid_sampler,uniform_sampler, grid_sampler

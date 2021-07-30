@@ -239,7 +239,7 @@ class DiscreteFlowOPT(nn.Module):
 
     def standard_spline_forward(self, shape_pair):
         """
-        In this forward, the solver should be built either via build_multi_scale_solver / build_single_scale_custom_solver
+        In this forward, the solver should be built either via build_multi_scale_solver / build_single_scale_general_solver
         reg_param here is the momentum p before kernel operation K,  \tilde{v} = Kp
         :param shape_pair:
         :return:

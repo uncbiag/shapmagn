@@ -210,7 +210,7 @@ L_norm.dtype = np.dtype(
 
 ##########################################################################
 # And our favourite solver will compute, as expected,
-# the smallest eigenvalues of this custom operator:
+# the smallest eigenvalues of this general operator:
 
 
 from time import time
@@ -231,7 +231,7 @@ print(eigenvalues)
 ##########################################################################
 #
 # .. note::
-#   On very large problems, a custom eigenproblem solver
+#   On very large problems, a general eigenproblem solver
 #   implemented with the **PyTorch+KeOps** interface should be sensibly **faster**
 #   than this SciPy wrapper: performing all computations on the GPU
 #   would allow us to perform linear operations in parallel

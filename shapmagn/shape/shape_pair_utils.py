@@ -5,7 +5,7 @@ from shapmagn.global_variable import Shape, shape_type
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator,ridge_kernel_intepolator
 use_fast_fps= False
 try:
-    from shapmagn.modules_reg.networks.pointnet2.lib.pointnet2_utils import FurthestPointSampling
+    from pointnet2.lib.pointnet2_utils import FurthestPointSampling
     use_fast_fps = True
 except:
     pass

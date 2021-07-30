@@ -58,7 +58,7 @@ class BaseDataSet(object):
         print("data preprocessing finished")
 
 
-class CustomDataSet(BaseDataSet):
+class GeneralDataSet(BaseDataSet):
     """
     """
 

@@ -8,7 +8,7 @@ from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
 from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver, \
-    build_single_scale_custom_solver
+    build_single_scale_general_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import *
@@ -311,7 +311,7 @@ shape_pair.reg_param = None
 #
 # model = MODEL_POOL[model_name](model_opt)
 # model.init_reg_param(shape_pair)
-# solver = build_single_scale_custom_solver(solver_opt,model,num_iter=100, scale=-1, lr=1e-2, rel_ftol=1e-9, patient=5)
+# solver = build_single_scale_general_solver(solver_opt,model,num_iter=100, scale=-1, lr=1e-2, rel_ftol=1e-9, patient=5)
 # shape_pair=solver(shape_pair)
 # print("the registration complete")
 # gif_folder = os.path.join(record_path,"gif")

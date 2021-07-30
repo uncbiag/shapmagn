@@ -1,3 +1,4 @@
+import subprocess
 from os import listdir
 from os.path import isfile, join
 import json
@@ -325,5 +326,8 @@ def get_pair_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postproces
     return _get_pair_obj
 
 
-
+def cp_file(source_path, target_path):
+    bashCommand ="cp {} {}".format(source_path, target_path)
+    process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+    process.wait()
 

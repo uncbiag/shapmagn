@@ -306,7 +306,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
-               opacity=0.8,
+               opacity=1.0,
                lighting=True,
                style="points", show_scalar_bar=True)
 
@@ -770,4 +770,5 @@ def shape_capture_plotter(render_by_weight=False, camera_pos=None,add_bg_contras
             cp_command = "cp {} {}".format(path, os.path.join(stage_folder, shape_name + ".png"))
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
     return save
+
 

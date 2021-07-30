@@ -5,7 +5,7 @@ from pykeops.torch import LazyTensor
 import torch.nn.functional as F
 from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.modules_reg.networks.pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, \
+from pointnet2.util import PointNetSetAbstraction, PointNetSetUpConv, \
     PointNetFeaturePropogation, FlowEmbedding, index_points
 from shapmagn.modules_reg.networks.pointpwcnet_original import multiScaleChamferSmoothCurvature, PointConvSceneFlowPWC8192selfglobalPointConv
 from shapmagn.modules_reg.networks.scene_flow import FLOT
@@ -367,11 +367,9 @@ class FlowModel(nn.Module):
             mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
                 flowed, target, geomloss_setting)  # BxN
         else:
-            mapped_position, wasserstein_dist = point_based_gradient_flow_guide(flowed,
-                                                                                        target, geomloss_setting)
+            mapped_position, wasserstein_dist = point_based_gradient_flow_guide(flowed, target, geomloss_setting)
         disp = mapped_position - flowed.points
-        smoothed_disp = self.aniso_post_kernel(flowed.points, flowed.points, disp,
-                                           flowed.weights)
+        smoothed_disp = self.aniso_post_kernel(flowed.points, flowed.points, disp, flowed.weights)
         flowed_points = flowed.points + smoothed_disp
         new_flowed = Shape().set_data_with_refer_to(flowed_points,flowed)
         return new_flowed

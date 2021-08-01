@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from time import time
 import numpy as np
-from shapmagn.modules_reg.networks.pointnet2.lib import pointnet2_utils as pointutils
+from pointnet2.lib import pointnet2_utils as pointutils
+
+
 # import lib.pointnet2_utils as pointutils
 
 def quat2mat(quat):

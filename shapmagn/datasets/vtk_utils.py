@@ -41,7 +41,7 @@ def save_vtk(fpath,attr_dict):
 
 
 if __name__ == "__main__":
-    # file_path = "/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+    # file_path = "/playpen-raid1/Data/UNC_vesselParticles/case1_exp.vtk"
     # data_dict = read_vtk(file_path)
     # for key, val in data_dict.items():
     #     print("attri {} with size {}".format(key, val.shape))

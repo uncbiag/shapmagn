@@ -12,16 +12,11 @@ from shapmagn.modules_reg.networks.scene_flow import FLOT
 from shapmagn.metrics.reg_losses import GeomDistance, GMMLoss
 from shapmagn.modules_reg.module_gradient_flow import wasserstein_barycenter_mapping, point_based_gradient_flow_guide
 from shapmagn.modules_reg.networks.flownet3d import FlowNet3D, FlowNet3DIMP
-# from shapmagn.modules_reg.networks.pointpwcnet2 import PointConvSceneFlowPWC2
 from shapmagn.modules_reg.networks.pointpwcnet2_2 import PointConvSceneFlowPWC2_2
-from shapmagn.modules_reg.networks.pointpwcnet2_3 import PointConvSceneFlowPWC2_3
 from shapmagn.modules_reg.networks.pointpwcnet2_4 import PointConvSceneFlowPWC2_4
-from shapmagn.modules_reg.networks.pointpwcnet2_5 import PointConvSceneFlowPWC2_5
-#from shapmagn.modules_reg.networks.pointpwcnet2_6 import PointConvSceneFlowPWC2_6
-#from shapmagn.modules_reg.networks.pointpwcnet3 import PointConvSceneFlowPWC3
-from shapmagn.modules_reg.networks.geo_flow_net import GeoFlowNet
+from shapmagn.modules_reg.networks.pointpwcnet2_6 import PointConvSceneFlowPWC2_6
 from shapmagn.metrics.reg_losses import CurvatureReg
-
+PWC_POOL = {"disp": PointConvSceneFlowPWC2_2, "reg_param":PointConvSceneFlowPWC2_4, "adaptive":PointConvSceneFlowPWC2_6}
 
 
 
@@ -54,24 +49,7 @@ class DeepFlowNetRegParam(nn.Module):
 
     def init_deep_feature_extractor(self):
         self.flow_predictor = FlowNet3DIMP(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints,init_neigh_num=self.init_neigh_num, param_shrink_factor=self.param_shrink_factor,predict_at_low_resl=self.predict_at_low_resl,use_aniso_kernel=self.use_aniso_kernel)
-        # self.flow_predictor = PointConvSceneFlowPWC3(input_channel=self.input_channel,
-        #                                              initial_input_radius=self.initial_radius,
-        #                                              first_sampling_npoints=self.initial_npoints,
-        #                                              predict_at_low_resl=self.predict_at_low_resl,
-        #                                              param_shrink_factor=self.param_shrink_factor)
-        #PointConvSceneFlowPWC3
-        #self.flow_predictor = FlowNet3D(input_channel=self.input_channel,initial_radius=self.initial_radius,initial_npoints=self.initial_npoints, param_shrink_factor=self.param_shrink_factor,predict_at_low_resl=self.predict_at_low_resl)
-        # pretrained_model_path ="/playpen-raid1/zyshen/data/lung_expri/deep_flow_spline_multi_kernel_hybird_twostep_thisiscorrect/checkpoints/epoch_210_"
-        # checkpoint = torch.load(pretrained_model_path, map_location='cpu')
-        # cur_state = self.state_dict()
-        # for key in list(checkpoint["state_dict"].keys()):
-        #     if 'module.deep_regparam_generator' in key:
-        #         replaced_key = key.replace('module.deep_regparam_generator', 'flow_predictor')
-        #         if replaced_key in cur_state:
-        #             cur_state[replaced_key] = checkpoint["state_dict"].pop(key)
-        #         else:
-        #             print("")
-        # self.load_state_dict(cur_state)
+
     def deep_flow(self,cur_source, target):
         pc1, pc2, feature1, feature2 = cur_source.points, target.points, cur_source.pointfea, target.pointfea
         pc1, pc2, feature1, feature2 = pc1.transpose(2,1).contiguous(),pc2.transpose(2,1).contiguous(), feature1.transpose(2,1).contiguous(), feature2.transpose(2,1).contiguous()
@@ -111,11 +89,13 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.input_channel = self.opt[("input_channel",1,"input channel")]
         self.initial_npoints = self.opt[("initial_npoints",2048,"num of initial sampling points")]
         self.initial_radius = self.opt[("initial_radius",0.001,"initial radius or the resolution of the point cloud")]
+        self.neigh_num = self.opt[("neigh_num", 16,"num of neighbor considered by pointconv")]
+        self.pwc_mode = self.opt[("pwc_mode", "reg_param","network output mode, 'disp','reg_mode','adaptive' ")]
         self.param_shrink_factor = self.opt[("param_shrink_factor",2,"control the number of factor, #params/param_shrink_factor")]
         self.delploy_original_model = self.opt[("delploy_original_model",False,"delploy the original model in pointpwcnet paper")]
         self.predict_at_low_resl = self.opt[("predict_at_low_resl",False,"the reg_param would be predicted for 'initi_npoints'")]
         self.use_aniso_kernel =  self.opt[("use_aniso_kernel",False,"use the aniso kernel in first sampling layer")]
-        self.control_shift_factor =  self.opt[("control_shift_factor",0.01,"factor scaling the predicted shift of the control points")]
+        self.control_shift_factor =  self.opt[("control_shift_factor",0.1,"factor scaling the predicted shift of the control points")]
         self.init_deep_feature_extractor()
         self.buffer = {}
         self.iter = 0
@@ -129,8 +109,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
         self.load_pretrained_model = self.opt[("load_pretrained_model",False,"load_pretrained_model")]
         self.pretrained_model_path = self.opt[("pretrained_model_path","","path of pretrained model")]
         if not self.delploy_original_model:
-            #self.flow_predictor = PointConvSceneFlowPWC2_6(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_shrink_factor=self.param_shrink_factor,use_aniso_kernel=self.use_aniso_kernel,control_shift_factor=self.control_shift_factor)
-            self.flow_predictor = PointConvSceneFlowPWC2_4(input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints, predict_at_low_resl=self.predict_at_low_resl,param_shrink_factor=self.param_shrink_factor,use_aniso_kernel=self.use_aniso_kernel)
+            self.flow_predictor = PWC_POOL[self.pwc_mode](input_channel=self.input_channel, initial_input_radius=self.initial_radius, first_sampling_npoints=self.initial_npoints,neigh_num=self.neigh_num, predict_at_low_resl=self.predict_at_low_resl,param_shrink_factor=self.param_shrink_factor,use_aniso_kernel=self.use_aniso_kernel)
         else:
             self.flow_predictor = PointConvSceneFlowPWC8192selfglobalPointConv(input_channel=self.input_channel,  initial_npoints=self.initial_npoints, predict_at_low_resl= self.predict_at_low_resl)
         if self.load_pretrained_model:

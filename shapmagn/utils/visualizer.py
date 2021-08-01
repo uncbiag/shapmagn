@@ -298,7 +298,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="viridis", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[0],
-               opacity=0.02,
+               opacity='linear',
                lighting=True,
                style="points", show_scalar_bar=True)
     p.add_mesh(pv.PolyData(points2),
@@ -306,7 +306,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
-               opacity=1.0,
+               opacity='linear',
                lighting=True,
                style="points", show_scalar_bar=True)
 
@@ -526,9 +526,9 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
     if flow is not None:
         npoints = flow.shape[0]
         flow_ = np.zeros_like(flow)
-        # index = list(range(0,npoints, 30))
-        # flow_[index,:]= flow[index]
-        obj1.point_arrays['flow'] = flow #flow_
+        index = list(range(0,npoints, 30))
+        flow_[index,:]= flow[index]
+        obj1.point_arrays['flow'] = flow_ #flow_
         geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035)
         arrows =  obj1.glyph( orient="flow",geom=geom)
         p.add_mesh(arrows,color="black",opacity=0.3)

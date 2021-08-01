@@ -1,3 +1,7 @@
+"""
+this script provides lung examples on Robust optimal transport, the goal of this script is to explore the behavior of the OT on lung dataset
+"""
+
 import os, sys
 sys.path.insert(0, os.path.abspath('../..'))
 from shapmagn.utils.module_parameters import ParameterDict
@@ -13,8 +17,8 @@ from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 compute_on_half_lung = True
 assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-source_path = "./data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
-target_path = "./data/lung_vessel_demo_data/10031R_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+source_path = "data/lung_vessel_demo_data/case2_exp.vtk"
+target_path = "data/lung_vessel_demo_data/case2_insp.vtk"
 reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto rescaling
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
@@ -39,7 +43,7 @@ toflow_weights = source.weights
 toflow_points.requires_grad_()
 blur = 0.005
 geomloss_setting= ParameterDict()
-geomloss_setting["geom_obj"] ="geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False)".format(blur)
+geomloss_setting["geom_obj"] ="geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False, backend='online')".format(blur)
 geomloss_fn = obj_factory(geomloss_setting["geom_obj"])
 sim_loss = geomloss_fn(toflow_weights[...,0],toflow_points,target.weights[...,0], target.points)
 print(" geom loss is {}".format(sim_loss.item(),))

@@ -69,7 +69,7 @@ if __name__ == "__main__":
     for pair_id in range(len(pair_name_list)):
         pair_path = pair_path_list[pair_id]
         pair_path = [path_transfer(path) for path in pair_path]
-        get_pair =get_pair_obj(reader_obj=reader_obj,normalizer_obj=normalizer_obj,sampler_obj=sampler_obj,pair_postprocess_obj=pair_postprocess_obj,expand_bch_dim=True)
+        get_pair = get_pair_obj(reader_obj=reader_obj,normalizer_obj=normalizer_obj,sampler_obj=sampler_obj,pair_postprocess_obj=pair_postprocess_obj,expand_bch_dim=True)
         source_dict, target_dict,_,_ = get_pair(*pair_path)
         input_data = {"source": source_dict, "target": target_dict}
         create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")

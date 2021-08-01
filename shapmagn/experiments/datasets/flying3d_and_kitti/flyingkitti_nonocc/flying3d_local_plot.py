@@ -1,9 +1,10 @@
 import os, sys
 import numpy as np
+sys.path.insert(0, os.path.abspath('../../../..'))
+
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
 from shapmagn.utils.visualizer import visualize_point_fea_with_arrow, visualize_point_overlap
 
-sys.path.insert(0, os.path.abspath('../../../..'))
 import torch
 from shapmagn.datasets.data_utils import get_obj, read_json_into_list
 from shapmagn.utils.shape_visual_utils import make_ellipsoid
@@ -26,7 +27,7 @@ pair_id = 5
 pair_path = pair_path_list[pair_id]
 pair_path = [path_transfer(path) for path in pair_path]
 get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device,expand_bch_dim=True)
-source, source_interval = get_obj_func(pair_path[0])
+source, source_interval = get_obj_func(pair_path[1])
 source_points, source_weights = source["points"], source["weights"]
 
 points_1 = source['points'][:,:10000]

@@ -202,4 +202,4 @@ class GradFlowPreAlign(nn.Module):
         weight_map_ratio = torch.log10(weight_map_ratio+1e-8)
         weight_map_ratio = (weight_map_ratio - weight_map_ratio.min())/(weight_map_ratio.max() - weight_map_ratio.min()).repeat(1,1,3)
         visualize_source_flowed_target_overlap(source.points,transformed.points,target.points,source.points, weight_map_ratio,target.points,
-                                               "source","prealigned","target",rgb_on=False,show=True,add_bg_contrast=False)
+                                               "source","attention","target",rgb_on=False,show=True,add_bg_contrast=False)

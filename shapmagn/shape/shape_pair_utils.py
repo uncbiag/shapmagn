@@ -8,7 +8,7 @@ try:
     from pointnet2.lib.pointnet2_utils import FurthestPointSampling
     use_fast_fps = True
 except:
-    pass
+    Warning("failed to import Furthest point sampling from pointnet2 ")
 
 
 def reg_param_initializer():

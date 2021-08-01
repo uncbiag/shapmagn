@@ -18,9 +18,8 @@ scale = 1.0
 
 
 class PointConvSceneFlowPWC2_4(nn.Module):
-    def __init__(self, input_channel=3, initial_input_radius=1.,initial_input_npoints=40000,first_sampling_npoints=2048,predict_at_low_resl=False, param_shrink_factor=1,use_aniso_kernel=False):
+    def __init__(self, input_channel=3, initial_input_radius=1.,initial_input_npoints=40000,first_sampling_npoints=2048,neigh_num=16, predict_at_low_resl=False, param_shrink_factor=1,use_aniso_kernel=False):
         super(PointConvSceneFlowPWC2_4, self).__init__()
-
         flow_nei = 32
         feat_nei = 16
         sbf = partial(shrink_by_factor, factor=param_shrink_factor)
@@ -30,27 +29,27 @@ class PointConvSceneFlowPWC2_4(nn.Module):
         self.level0 = Conv1d(input_channel, sbf(32))
         self.level0_1 = Conv1d(sbf(32), sbf(32))
         self.cost0 = PointConvFlow(flow_nei, sbf(32 + 32 + 32 + 32) + 3, sbf([32, 32]))
-        self.flow0 = SceneFlowEstimatorPointConv2(sbf(32 + 64), sbf(32),channels = sbf([128, 128]), mlp = sbf([128, 64]))
+        self.flow0 = SceneFlowEstimatorPointConv2(sbf(32 + 64), sbf(32),channels = sbf([128, 128]), mlp = sbf([128, 64]), neighbors=neigh_num, weightnet=neigh_num)
         self.level0_2 = Conv1d(sbf(32), sbf(64))
 
         # l1: 2048
         self.level1 = PointConvD(first_sampling_npoints, feat_nei, sbf(64)+3, sbf(64), use_aniso_kernel=use_aniso_kernel, cov_sigma_scale=initial_input_radius*20,aniso_kernel_scale=initial_input_radius*80)
         self.cost1 = PointConvFlow(flow_nei, sbf(64 + 32 + 64 + 32) + 3, sbf([64, 64]))
-        self.flow1 = SceneFlowEstimatorPointConv2(sbf(64 + 64), sbf(64),channels = sbf([128, 128]), mlp = sbf([128, 64]))
+        self.flow1 = SceneFlowEstimatorPointConv2(sbf(64 + 64), sbf(64),channels = sbf([128, 128]), mlp = sbf([128, 64]), neighbors=neigh_num, weightnet=neigh_num)
         self.level1_0 = Conv1d(sbf(64), sbf(64))
         self.level1_1 = Conv1d(sbf(64), sbf(128))
 
         # l2: 512
         self.level2 = PointConvD(int(first_sampling_npoints/4), feat_nei, sbf(128) + 3, sbf(128))
         self.cost2 = PointConvFlow(flow_nei, sbf(128 + 64 + 128 + 64) + 3, sbf([128, 128]))
-        self.flow2 = SceneFlowEstimatorPointConv2(sbf(128 + 64), sbf(128),channels = sbf([128, 128]), mlp = sbf([128, 64]))
+        self.flow2 = SceneFlowEstimatorPointConv2(sbf(128 + 64), sbf(128),channels = sbf([128, 128]), mlp = sbf([128, 64]), neighbors=neigh_num, weightnet=neigh_num)
         self.level2_0 = Conv1d(sbf(128), sbf(128))
         self.level2_1 = Conv1d(sbf(128), sbf(256))
 
         # l3: 256
         self.level3 = PointConvD(int(first_sampling_npoints/8), feat_nei, sbf(256) + 3, sbf(256))
         self.cost3 = PointConvFlow(flow_nei, sbf(256 + 64 + 256 + 64) + 3, sbf([256, 256]))
-        self.flow3 = SceneFlowEstimatorPointConv2(sbf(256), sbf(256), flow_ch=0,channels = sbf([128, 128]), mlp = sbf([128, 64]))
+        self.flow3 = SceneFlowEstimatorPointConv2(sbf(256), sbf(256), flow_ch=0,channels = sbf([128, 128]), mlp = sbf([128, 64]), neighbors=neigh_num, weightnet=neigh_num)
         self.level3_0 = Conv1d(sbf(256), sbf(256))
         self.level3_1 = Conv1d(sbf(256), sbf(512))
 

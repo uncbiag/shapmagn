@@ -1,15 +1,18 @@
+"""
+this script provides lung examples on Robust optimal transpart/spline projection/LDDMM /LDDMM projection/ Discrete flow(point drift)
+(Though we list these solutions here, the optimization approaches doesn't work well on the lung vessel dataset
+To better understand the behaviors of deformation models, we recommend to work on toy_reg.py first)
+"""
+
 import os, sys
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
-import numpy as np
-import torch
+
 from shapmagn.utils.module_parameters import ParameterDict
-from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
-from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver, \
-    build_single_scale_general_solver
-from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
+from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
+from shapmagn.global_variable import MODEL_POOL
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import *
 from shapmagn.demos.demo_utils import *
@@ -67,34 +70,11 @@ def analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True, meth
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
-try:
-    """global setup for the atlas """
-    reader_obj = "lung_dataloader_utils.lung_reader()"
-    normalizer_obj = "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
-    sampler_obj =  "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
-    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device=device, expand_bch_dim=True, return_tensor=True)
-    altas_path = "/playpen-raid1/Data/UNC_vesselParticles/10067M_INSP_STD_MSM_COPD_wholeLungVesselParticles.vtk"
-    altas_path = "/home/zyshen/remote/llr11_mount/Data/UNC_vesselParticles/10067M_INSP_STD_MSM_COPD_wholeLungVesselParticles.vtk"
-    atlas_dict,_ = get_obj_func(altas_path)
-    atlas = Shape().set_data(**atlas_dict)
-    print("take {} as atlas ")
-except:
-    print("the atlas weight matching doesn't work. Ignore this if the altas radius matching is not used")
-
-def get_atlas_distbribution(**kwargs):
-    sampler_obj ="lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
-    sampler = obj_factory(sampler_obj)
-    sampled_atlas, _ = sampler(atlas)
-    return sampled_atlas
-
-
-
 # set shape_type = "pointcloud"  in global_variable.py
 assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
 server_path = "./" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path =  server_path+"data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"  #10031R 10005Q
-target_path = server_path + "data/lung_vessel_demo_data/10031R_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+source_path =  server_path+"data/lung_vessel_demo_data/case2_exp.vtk"  #10031R 10005Q
+target_path = server_path + "data/lung_vessel_demo_data/case2_insp.vtk"
 compute_on_half_lung = True
 
 ####################  prepare data ###########################
@@ -113,9 +93,9 @@ min_interval = min(source_interval,target_interval)
 input_data = {"source":source_obj,"target":target_obj}
 create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
 source, target = create_shape_pair_from_data_dict(input_data)
-#source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
-source, _ = matching_shape_radius(source, atlas,sampled_by_radius=False, show=False)
-target, _ = matching_shape_radius(target, atlas,sampled_by_radius=False, show=False)
+# source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
+# source, _ = matching_shape_radius(source, atlas,sampled_by_radius=False, show=False)
+# target, _ = matching_shape_radius(target, atlas,sampled_by_radius=False, show=False)
 
 # source = get_half_lung(source,normalize_weight=False) if compute_on_half_lung else source
 # target = get_half_lung(target,normalize_weight=False) if compute_on_half_lung else target
@@ -124,100 +104,102 @@ target, _ = matching_shape_radius(target, atlas,sampled_by_radius=False, show=Fa
 #source, target = matching_shape_radius(source, target,sampled_by_radius=False, show=False)
 
 
-shape_pair = create_shape_pair(source, target,pair_name=pair_name,n_control_points=2048)
+#shape_pair = create_shape_pair(source, target,pair_name=pair_name, n_control_points=2048)
+shape_pair = create_shape_pair(source, target,pair_name=pair_name)
 
 
 
 ################  do registration ###########################s############
 
 
-task_name = "prealign_opt"
-solver_opt = ParameterDict()
-record_path = "./output/lung_demo/{}".format(task_name)
-os.makedirs(record_path,exist_ok=True)
-solver_opt = ParameterDict()
-record_path = "./output/lung_demo/{}".format(task_name)
-os.makedirs(record_path,exist_ok=True)
-solver_opt["record_path"] = record_path
-solver_opt["save_2d_capture_every_n_iter"] = 1
-solver_opt["capture_plot_obj"] = "visualizer.capture_plotter()"
-model_name = "prealign_opt"
-model_opt =ParameterDict()
-model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
-model_opt["module_type"] = "gradflow_prealign"
-model_opt[("gradflow_prealign", {}, "settings for gradflow_prealign")]
-blur = 0.001
-model_opt["gradflow_prealign"]["method_name"]="affine"
-model_opt["gradflow_prealign"]["gradflow_mode"]="grad_forward"
-model_opt["gradflow_prealign"]["niter"] = 3
-model_opt["gradflow_prealign"]["search_init_transform"]=False
-model_opt["gradflow_prealign"][("geomloss", {}, "settings for geomloss")]
-model_opt["gradflow_prealign"]['geomloss']["mode"] = "flow"
-model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False, backend='online')".format(blur)
-#model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue'],weight_list=[1.0], radius=0.08,include_pos=True)"
-
-model_opt['sim_loss']['loss_list'] =  ["geomloss"]
-model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
-model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
-model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False, backend='online')".format(blur)
-model = MODEL_POOL[model_name](model_opt)
-solver = build_single_scale_model_embedded_solver(solver_opt,model)
-
-
-
-model.init_reg_param(shape_pair)
-shape_pair = solver(shape_pair)
-print("the registration complete")
-gif_folder = os.path.join(record_path,"gif")
-os.makedirs(gif_folder,exist_ok=True)
-saving_gif_path = os.path.join(gif_folder,task_name+".gif")
-fea_to_map =  shape_pair.source.points[0]
-shape_pair.source.pointfea, shape_pair.target.pointfea = shape_pair.source.points, shape_pair.target.points
-mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
-#analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True,method_name="prealigned")
-shape_pair.source.points = shape_pair.flowed.points.detach()
-shape_pair.control_points = shape_pair.flowed_control_points.detach()
-shape_pair.flowed = None
-shape_pair.reg_param = None
-
-
-
-
-
-
-
-#
-# """ Experiment 1:  gradient flow """
-# task_name = "gradient_flow"
+# task_name = "prealign_opt"
 # solver_opt = ParameterDict()
-# record_path = server_path+"output/lung_demo/{}".format(task_name)
+# record_path = "./output/lung_demo/{}".format(task_name)
+# os.makedirs(record_path,exist_ok=True)
+# solver_opt = ParameterDict()
+# record_path = "./output/lung_demo/{}".format(task_name)
 # os.makedirs(record_path,exist_ok=True)
 # solver_opt["record_path"] = record_path
 # solver_opt["save_2d_capture_every_n_iter"] = 1
-# #solver_opt["capture_plot_obj"] = "visualizer.capture_plotter(render_by_weight=True,add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])"
-# model_name = "gradient_flow_opt"
+# solver_opt["capture_plot_obj"] = "visualizer.capture_plotter()"
+# model_name = "prealign_opt"
 # model_opt =ParameterDict()
-# model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
 # model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+# model_opt["module_type"] = "gradflow_prealign"
+# model_opt[("gradflow_prealign", {}, "settings for gradflow_prealign")]
+# blur = 0.001
+# model_opt["gradflow_prealign"]["method_name"]="affine"
+# model_opt["gradflow_prealign"]["gradflow_mode"]="grad_forward"
+# model_opt["gradflow_prealign"]["niter"] = 3
+# model_opt["gradflow_prealign"]["search_init_transform"]=False
+# model_opt["gradflow_prealign"][("geomloss", {}, "settings for geomloss")]
+# model_opt["gradflow_prealign"]['geomloss']["mode"] = "flow"
+# model_opt["gradflow_prealign"]['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False, backend='online')".format(blur)
+# #model_opt["gradflow_prealign"]["pair_feature_extractor_obj"] ="local_feature_extractor.pair_feature_extractor(fea_type_list=['eigenvalue'],weight_list=[1.0], radius=0.08,include_pos=True)"
+#
 # model_opt['sim_loss']['loss_list'] =  ["geomloss"]
 # model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
 # model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
-# model_opt["running_result_visualize"] = True
-#
-# blur = 0.01
-# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=None,debias=False,backend='online')".format(blur)
+# model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={},reach=1, scaling=0.8,debias=False, backend='online')".format(blur)
 # model = MODEL_POOL[model_name](model_opt)
 # solver = build_single_scale_model_embedded_solver(solver_opt,model)
+#
+#
+#
 # model.init_reg_param(shape_pair)
-# shape_pair=solver(shape_pair)
+# shape_pair = solver(shape_pair)
 # print("the registration complete")
 # gif_folder = os.path.join(record_path,"gif")
 # os.makedirs(gif_folder,exist_ok=True)
 # saving_gif_path = os.path.join(gif_folder,task_name+".gif")
 # fea_to_map =  shape_pair.source.points[0]
-# shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
+# shape_pair.source.pointfea, shape_pair.target.pointfea = shape_pair.source.points, shape_pair.target.points
 # mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
-# analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
+# #analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=False,method_name="prealigned")
+# shape_pair.source.points = shape_pair.flowed.points.detach()
+# shape_pair.control_points = shape_pair.flowed_control_points.detach()
+# shape_pair.flowed = None
+# shape_pair.reg_param = None
+
+
+
+
+
+
+
+
+""" Experiment 1:  gradient flow """
+# here we use  the dense mode
+task_name = "gradient_flow"
+solver_opt = ParameterDict()
+record_path = server_path+"output/lung_demo/{}".format(task_name)
+os.makedirs(record_path,exist_ok=True)
+solver_opt["record_path"] = record_path
+solver_opt["save_2d_capture_every_n_iter"] = 1
+#solver_opt["capture_plot_obj"] = "visualizer.capture_plotter(render_by_weight=True,add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])"
+model_name = "gradient_flow_opt"
+model_opt =ParameterDict()
+model_opt["interpolator_obj"] ="point_interpolator.nadwat_kernel_interpolator(scale=0.01, exp_order=2)"
+model_opt[("sim_loss", {}, "settings for sim_loss_opt")]
+model_opt['sim_loss']['loss_list'] =  ["geomloss"]
+model_opt['sim_loss'][("geomloss", {}, "settings for geomloss")]
+model_opt['sim_loss']['geomloss']["attr"] = "pointfea"
+model_opt["running_result_visualize"] = True
+
+blur = 0.01
+model_opt['sim_loss']['geomloss']["geom_obj"] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=1,debias=False,backend='online')".format(blur)
+model = MODEL_POOL[model_name](model_opt)
+solver = build_single_scale_model_embedded_solver(solver_opt,model)
+model.init_reg_param(shape_pair)
+shape_pair=solver(shape_pair)
+print("the registration complete")
+gif_folder = os.path.join(record_path,"gif")
+os.makedirs(gif_folder,exist_ok=True)
+saving_gif_path = os.path.join(gif_folder,task_name+".gif")
+fea_to_map =  shape_pair.source.points[0]
+shape_pair.source, shape_pair.target = model.extract_fea(shape_pair.source, shape_pair.target)
+mapped_fea = get_omt_mapping(model_opt['sim_loss']['geomloss'], shape_pair.source, shape_pair.target,fea_to_map ,p=2,mode="hard",confid=0.0)
+analysis(shape_pair, fea_to_map, mapped_fea, compute_on_half_lung=True)
 
 
 

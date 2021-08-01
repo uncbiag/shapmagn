@@ -558,7 +558,7 @@ class UpsampleFlow3(nn.Module):
 
 class SceneFlowEstimatorPointConv(nn.Module):
 
-    def __init__(self, feat_ch, cost_ch, flow_ch = 3, channels = [128, 128], mlp = [128, 64], neighbors = 9, clamp = [-200, 200], use_leaky = True):
+    def __init__(self, feat_ch, cost_ch, flow_ch = 3, channels = [128, 128], mlp = [128, 64], neighbors = 9,weightnet=16, clamp = [-200, 200], use_leaky = True):
         super(SceneFlowEstimatorPointConv, self).__init__()
         self.clamp = clamp
         self.use_leaky = use_leaky
@@ -566,7 +566,7 @@ class SceneFlowEstimatorPointConv(nn.Module):
         last_channel = feat_ch + cost_ch + flow_ch
 
         for _, ch_out in enumerate(channels):
-            pointconv = PointConv(neighbors, last_channel + 3, ch_out, bn = True, use_leaky = True)
+            pointconv = PointConv(neighbors, last_channel + 3, ch_out,weightnet=weightnet, bn = True, use_leaky = True)
             self.pointconv_list.append(pointconv)
             last_channel = ch_out 
         
@@ -600,7 +600,7 @@ class SceneFlowEstimatorPointConv(nn.Module):
 
 class SceneFlowEstimatorPointConv2(nn.Module):
 
-    def __init__(self, feat_ch, cost_ch, flow_ch=3, channels=[128, 128], mlp=[128, 64], neighbors=9, clamp=[-200, 200],
+    def __init__(self, feat_ch, cost_ch, flow_ch=3, channels=[128, 128], mlp=[128, 64], neighbors=9,weightnet=16, clamp=[-200, 200],
                  use_leaky=True):
         super(SceneFlowEstimatorPointConv2, self).__init__()
         self.clamp = clamp
@@ -609,7 +609,7 @@ class SceneFlowEstimatorPointConv2(nn.Module):
         last_channel = feat_ch + cost_ch + flow_ch
 
         for _, ch_out in enumerate(channels):
-            pointconv = PointConv(neighbors, last_channel + 3, ch_out, bn=True, use_leaky=True)
+            pointconv = PointConv(neighbors, last_channel + 3, ch_out,weightnet=weightnet, bn=True, use_leaky=True)
             self.pointconv_list.append(pointconv)
             last_channel = ch_out
 
@@ -645,7 +645,7 @@ class SceneFlowEstimatorPointConv2(nn.Module):
 
 class SceneFlowEstimatorPointConv3(nn.Module):
 
-    def __init__(self, feat_ch, cost_ch, flow_ch=3, channels=[128, 128], mlp=[128, 64], neighbors=9, clamp=[-200, 200],
+    def __init__(self, feat_ch, cost_ch, flow_ch=3, channels=[128, 128], mlp=[128, 64], neighbors=9,weightnet=16, clamp=[-200, 200],
                  use_leaky=True):
         super(SceneFlowEstimatorPointConv3, self).__init__()
         self.clamp = clamp
@@ -654,7 +654,7 @@ class SceneFlowEstimatorPointConv3(nn.Module):
         last_channel = feat_ch + cost_ch + flow_ch
 
         for _, ch_out in enumerate(channels):
-            pointconv = PointConv(neighbors, last_channel + 3, ch_out, bn=True, use_leaky=True)
+            pointconv = PointConv(neighbors, last_channel + 3, ch_out,weightnet=weightnet, bn=True, use_leaky=True)
             self.pointconv_list.append(pointconv)
             last_channel = ch_out
 

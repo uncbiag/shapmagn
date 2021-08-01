@@ -36,8 +36,8 @@ from scipy.sparse.linalg.interface import IdentityOperator
 assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 server_path = "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path =  server_path+"data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
-target_path = server_path + "data/lung_vessel_demo_data/10031R_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+source_path =  server_path+"data/lung_vessel_demo_data/case2_exp.vtk"
+target_path = server_path + "data/lung_vessel_demo_data/case2_insp.vtk"
 compute_on_half_lung = True
 
 ####################  prepare data ###########################

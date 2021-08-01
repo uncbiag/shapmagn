@@ -127,7 +127,7 @@ if __name__ == "__main__":
     from vtk.util import numpy_support as ns
 
     reader = vtk.vtkGenericDataObjectReader()
-    reader.SetFileName("/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk")
+    reader.SetFileName("/playpen-raid1/Data/UNC_vesselParticles/case1_exp.vtk")
     reader.Update()
     pointData = reader.GetOutput()
     pointData.GetNumberOfPoints()

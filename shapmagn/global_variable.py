@@ -1,7 +1,7 @@
 from shapmagn.shape.point_cloud import PointCloud
 from shapmagn.shape.surface_mesh import SurfaceMesh, SurfaceMesh_Point
 from shapmagn.shape.poly_line import PolyLine
-shape_type = "surfacemesh_pointmode"
+shape_type = "pointcloud"
 SHAPE_POOL = {"pointcloud": PointCloud, "surfacemesh": SurfaceMesh, "surfacemesh_pointmode":SurfaceMesh_Point, "polyline": PolyLine}
 Shape = SHAPE_POOL[shape_type]
 
@@ -26,7 +26,7 @@ from shapmagn.models_reg.model_prealign import PrealignOPT
 from shapmagn.models_reg.model_deep_feature import DeepFeature
 from shapmagn.models_reg.model_deep_flow import DeepDiscreteFlow
 from shapmagn.models_reg.model_wasserstein_barycenter import WasserBaryCenterOPT
-from shapmagn.models_custom.model_deep_pred import DeepPredictor
+from shapmagn.models_general.model_deep_pred import DeepPredictor
 MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prealign_opt": PrealignOPT,"gradient_flow_opt":GradientFlowOPT,
               "feature_deep":DeepFeature, "flow_deep":DeepDiscreteFlow,
               "discrete_flow_deep": DeepDiscreteFlow,"barycenter_opt":WasserBaryCenterOPT,"probreg_opt":ProRegOPT,"deep_predictor":DeepPredictor}

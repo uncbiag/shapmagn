@@ -8,10 +8,10 @@ def sinkhorn(feature1, feature2, pcloud1, pcloud2, epsilon, gamma, max_iter):
     Parameters
     ----------
     feature1 : torch.Tensor
-        Feature for points cloud 1. Used to computed transport cost. 
+        Feature for points cloud 1. Used to computed transport cost.
         Size B x N x C.
     feature2 : torch.Tensor
-        Feature for points cloud 2. Used to computed transport cost. 
+        Feature for points cloud 2. Used to computed transport cost.
         Size B x M x C.
     pcloud1 : torch.Tensor
         Point cloud 1. Size B x N x 3.

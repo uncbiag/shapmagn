@@ -42,11 +42,11 @@ class SetConv(torch.nn.Module):
         signal : torch.Tensor
             Input features of size B x N x nb_feat_in.
         graph : flot.models_reg.graph.Graph
-            Graph build on the input point cloud on with the input features 
-            live. The graph contains the list of nearest neighbors (NN) for 
-            each point and all edge features (relative point coordinates with 
+            Graph build on the input point cloud on with the input features
+            live. The graph contains the list of nearest neighbors (NN) for
+            each point and all edge features (relative point coordinates with
             NN).
-            
+
         Returns
         -------
         torch.Tensor

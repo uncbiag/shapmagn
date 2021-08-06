@@ -2,10 +2,11 @@ import os
 import glob
 import numpy as np
 from shapmagn.datasets.data_utils import get_file_name, save_json
+
 # Get list of filenames / directories
 root_dir = "/playpen-raid1/Data/data_processed_maxcut_35_20k_2k_8192"
 output_dir = "/playpen-raid1/zyshen/data/flying3d_hasocc"
-for mode in ["train","val","test"]:
+for mode in ["train", "val", "test"]:
     if mode == "train" or mode == "val":
         pattern = "TRAIN_*.npz"
     elif mode == "test":
@@ -15,9 +16,7 @@ for mode in ["train","val","test"]:
     file_path_list = glob.glob(os.path.join(root_dir, pattern))
 
     # Remove one sample containing a nan value in train set
-    scan_with_nan_value = os.path.join(
-        root_dir, "TRAIN_C_0140_left_0006-0.npz"
-    )
+    scan_with_nan_value = os.path.join(root_dir, "TRAIN_C_0140_left_0006-0.npz")
     if scan_with_nan_value in file_path_list:
         file_path_list.remove(scan_with_nan_value)
 

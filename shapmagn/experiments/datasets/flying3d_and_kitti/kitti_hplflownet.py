@@ -8,9 +8,9 @@ class Kitti(SceneFlowDataset):
         """
         Construct the KITTI scene flow datatset as in:
         Gu, X., Wang, Y., Wu, C., Lee, Y.J., Wang, P., HPLFlowNet: Hierarchical
-        Permutohedral Lattice FlowNet for scene ﬂow estimation on large-scale 
-        point clouds. IEEE Conf. Computer Vision and Pattern Recognition 
-        (CVPR). pp. 3254–3263 (2019) 
+        Permutohedral Lattice FlowNet for scene ﬂow estimation on large-scale
+        point clouds. IEEE Conf. Computer Vision and Pattern Recognition
+        (CVPR). pp. 3254–3263 (2019)
 
         Parameters
         ----------
@@ -31,8 +31,8 @@ class Kitti(SceneFlowDataset):
 
     def make_dataset(self):
         """
-        Find and filter out paths to all examples in the dataset. 
-        
+        Find and filter out paths to all examples in the dataset.
+
         """
 
         #
@@ -64,12 +64,12 @@ class Kitti(SceneFlowDataset):
         Returns
         -------
         sequence : list(np.array, np.array)
-            List [pc1, pc2] of point clouds between which to estimate scene 
+            List [pc1, pc2] of point clouds between which to estimate scene
             flow. pc1 has size n x 3 and pc2 has size m x 3.
-            
+
         ground_truth : list(np.array, np.array)
-            List [mask, flow]. mask has size n x 1 and pc1 has size n x 3. 
-            flow is the ground truth scene flow between pc1 and pc2. mask is 
+            List [mask, flow]. mask has size n x 1 and pc1 has size n x 3.
+            flow is the ground truth scene flow between pc1 and pc2. mask is
             binary with zeros indicating where the flow is not valid/occluded.
 
         """

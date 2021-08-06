@@ -1,5 +1,5 @@
 import torch
-import shapmagn.modules_reg.networks.ot  as ot
+import shapmagn.modules_reg.networks.ot as ot
 from shapmagn.modules_reg.networks.graph import Graph
 from shapmagn.modules_reg.networks.gconv import SetConv
 
@@ -46,7 +46,7 @@ class FLOT(torch.nn.Module):
         Compute deep features for each point of the input point cloud. These
         features are used to compute the transport cost matrix between two
         point clouds.
-        
+
         Parameters
         ----------
         pcloud : torch.Tensor
@@ -59,7 +59,7 @@ class FLOT(torch.nn.Module):
         x : torch.Tensor
             Deep features for each point. Size B x N x 128
         graph : flot.models_reg.graph.Graph
-            Graph build on input point cloud containing list of nearest 
+            Graph build on input point cloud containing list of nearest
             neighbors (NN) and edge features (relative coordinates with NN).
 
         """

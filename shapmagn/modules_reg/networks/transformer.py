@@ -6,8 +6,10 @@ import torch.nn.functional as F
 
 # Part of the code is referred from: http://nlp.seas.harvard.edu/2018/04/03/attention.html#positional-encoding
 
+
 def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+
 
 def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
@@ -17,11 +19,16 @@ def attention(query, key, value, mask=None, dropout=None):
     p_attn = F.softmax(scores, dim=-1)
     return torch.matmul(p_attn, value), p_attn
 
+
 def nearest_neighbor(src, dst):
-    inner = -2 * torch.matmul(src.transpose(1, 0).contiguous(), dst)  # src, dst (num_dims, num_points)
-    distances = -torch.sum(src ** 2, dim=0, keepdim=True).transpose(1, 0).contiguous() - inner - torch.sum(dst ** 2,
-                                                                                                           dim=0,
-                                                                                                           keepdim=True)
+    inner = -2 * torch.matmul(
+        src.transpose(1, 0).contiguous(), dst
+    )  # src, dst (num_dims, num_points)
+    distances = (
+        -torch.sum(src ** 2, dim=0, keepdim=True).transpose(1, 0).contiguous()
+        - inner
+        - torch.sum(dst ** 2, dim=0, keepdim=True)
+    )
     distances, indices = distances.topk(k=1, dim=-1)
     return distances, indices
 
@@ -42,28 +49,31 @@ class EncoderDecoder(nn.Module):
 
     def forward(self, src, tgt, src_mask, tgt_mask):
         "Take in and process masked src and target sequences."
-        return self.decode(self.encode(src, src_mask), src_mask,
-                           tgt, tgt_mask)
+        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
 
     def encode(self, src, src_mask):
         return self.encoder(self.src_embed(src), src_mask)
 
     def decode(self, memory, src_mask, tgt, tgt_mask):
-        return self.generator(self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask))
+        return self.generator(
+            self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask)
+        )
 
 
 class Generator(nn.Module):
     def __init__(self, emb_dims):
         super(Generator, self).__init__()
-        self.nn = nn.Sequential(nn.Linear(emb_dims, emb_dims // 2),
-                                nn.BatchNorm1d(emb_dims // 2),
-                                nn.ReLU(),
-                                nn.Linear(emb_dims // 2, emb_dims // 4),
-                                nn.BatchNorm1d(emb_dims // 4),
-                                nn.ReLU(),
-                                nn.Linear(emb_dims // 4, emb_dims // 8),
-                                nn.BatchNorm1d(emb_dims // 8),
-                                nn.ReLU())
+        self.nn = nn.Sequential(
+            nn.Linear(emb_dims, emb_dims // 2),
+            nn.BatchNorm1d(emb_dims // 2),
+            nn.ReLU(),
+            nn.Linear(emb_dims // 2, emb_dims // 4),
+            nn.BatchNorm1d(emb_dims // 4),
+            nn.ReLU(),
+            nn.Linear(emb_dims // 4, emb_dims // 8),
+            nn.BatchNorm1d(emb_dims // 8),
+            nn.ReLU(),
+        )
         self.proj_rot = nn.Linear(emb_dims // 8, 4)
         self.proj_trans = nn.Linear(emb_dims // 8, 3)
 
@@ -151,7 +161,9 @@ class DecoderLayer(nn.Module):
         "Follow Figure 1 (right) for connections."
         m = memory
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))  # zyshen here we can pair target x with source m, and merge them
+        x = self.sublayer[1](
+            x, lambda x: self.src_attn(x, m, m, src_mask)
+        )  # zyshen here we can pair target x with source m, and merge them
         return self.sublayer[2](x, self.feed_forward)
 
 
@@ -175,17 +187,16 @@ class MultiHeadedAttention(nn.Module):
         nbatches = query.size(0)
 
         # 1) Do all the linear projections in batch from d_model => h x d_k
-        query, key, value = \
-            [l(x).view(nbatches, -1, self.h, self.d_k).transpose(1, 2).contiguous()
-             for l, x in zip(self.linears, (query, key, value))]
+        query, key, value = [
+            l(x).view(nbatches, -1, self.h, self.d_k).transpose(1, 2).contiguous()
+            for l, x in zip(self.linears, (query, key, value))
+        ]
 
         # 2) Apply attention on all the projected vectors in batch.
-        x, self.attn = attention(query, key, value, mask=mask,
-                                 dropout=self.dropout)
+        x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
 
         # 3) "Concat" using a view and apply a final linear.
-        x = x.transpose(1, 2).contiguous() \
-            .view(nbatches, -1, self.h * self.d_k)
+        x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
         return self.linears[-1](x)
 
 
@@ -200,7 +211,11 @@ class PositionwiseFeedForward(nn.Module):
         self.dropout = None
 
     def forward(self, x):
-        return self.w_2(self.norm(F.relu(self.w_1(x)).transpose(2, 1).contiguous()).transpose(2, 1).contiguous())
+        return self.w_2(
+            self.norm(F.relu(self.w_1(x)).transpose(2, 1).contiguous())
+            .transpose(2, 1)
+            .contiguous()
+        )
 
 
 class Identity(nn.Module):
@@ -222,11 +237,16 @@ class Transformer(nn.Module):
         c = copy.deepcopy
         attn = MultiHeadedAttention(self.n_heads, self.emb_dims)
         ff = PositionwiseFeedForward(self.emb_dims, self.ff_dims, self.dropout)
-        self.model = EncoderDecoder(Encoder(EncoderLayer(self.emb_dims, c(attn), c(ff), self.dropout), self.N),
-                                    Decoder(DecoderLayer(self.emb_dims, c(attn), c(attn), c(ff), self.dropout), self.N),
-                                    nn.Sequential(),
-                                    nn.Sequential(),
-                                    nn.Sequential())
+        self.model = EncoderDecoder(
+            Encoder(EncoderLayer(self.emb_dims, c(attn), c(ff), self.dropout), self.N),
+            Decoder(
+                DecoderLayer(self.emb_dims, c(attn), c(attn), c(ff), self.dropout),
+                self.N,
+            ),
+            nn.Sequential(),
+            nn.Sequential(),
+            nn.Sequential(),
+        )
 
     def forward(self, *input):
         src = input[0]

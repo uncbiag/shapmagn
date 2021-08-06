@@ -16,7 +16,7 @@ class AverageMeter(object):
         self.count = 0
 
     def update(self, val, n=1):
-        """ Add new value.
+        """Add new value.
 
         Args:
             val (float): Value to add
@@ -29,7 +29,7 @@ class AverageMeter(object):
 
 
 class TensorBoardLogger(SummaryWriter):
-    """ Writes entries directly to event files in the logdir to be consumed by TensorBoard.
+    """Writes entries directly to event files in the logdir to be consumed by TensorBoard.
 
     The logger keeps track of scalar values, allowing to easily log either the last value or the average value.
 
@@ -43,7 +43,7 @@ class TensorBoardLogger(SummaryWriter):
         self.log_dict = {}
 
     def reset(self, prefix=None):
-        """ Resets all saved scalars and description prefix.
+        """Resets all saved scalars and description prefix.
 
         Args:
             prefix (str, optional): The logger's prefix description used when printing the logger status
@@ -51,8 +51,8 @@ class TensorBoardLogger(SummaryWriter):
         self.prefix = prefix
         self.log_dict.clear()
 
-    def update(self, category='losses', **kwargs):
-        """ Add named scalar values to the logger. If a scalar with the same name already exists, the new value will
+    def update(self, category="losses", **kwargs):
+        """Add named scalar values to the logger. If a scalar with the same name already exists, the new value will
         be associated with it.
 
         Args:
@@ -68,7 +68,7 @@ class TensorBoardLogger(SummaryWriter):
             category_dict[key].update(val)
 
     def log_scalars_val(self, main_tag, global_step=None):
-        """ Log the last value of all scalars.
+        """Log the last value of all scalars.
 
         Args:
             main_tag (str): The parent name for the tags
@@ -77,10 +77,12 @@ class TensorBoardLogger(SummaryWriter):
         if self.__tb_logger is not None:
             for category, category_dict in self.log_dict.items():
                 val_dict = {k: v.val for k, v in category_dict.items()}
-                self.__tb_logger.add_scalars(main_tag + '/' + category, val_dict, global_step)
+                self.__tb_logger.add_scalars(
+                    main_tag + "/" + category, val_dict, global_step
+                )
 
     def log_scalars_avg(self, main_tag, global_step=None):
-        """ Log the average value of all scalars.
+        """Log the average value of all scalars.
 
         Args:
             main_tag (str): The parent name for the tags
@@ -89,10 +91,12 @@ class TensorBoardLogger(SummaryWriter):
         if self.__tb_logger is not None:
             for category, category_dict in self.log_dict.items():
                 val_dict = {k: v.avg for k, v in category_dict.items()}
-                self.__tb_logger.add_scalars(main_tag + '/' + category, val_dict, global_step)
+                self.__tb_logger.add_scalars(
+                    main_tag + "/" + category, val_dict, global_step
+                )
 
     def log_image(self, tag, img_tensor, global_step=None):
-        """ Add an image tensor to the log.
+        """Add an image tensor to the log.
 
         Args:
             tag (str): Name identifier for the image
@@ -103,11 +107,11 @@ class TensorBoardLogger(SummaryWriter):
             self.__tb_logger.add_image(tag, img_tensor, global_step)
 
     def __str__(self):
-        desc = '' if self.prefix is None else self.prefix
+        desc = "" if self.prefix is None else self.prefix
         for category, category_dict in self.log_dict.items():
-            desc += '{}: ['.format(category)
+            desc += "{}: [".format(category)
             for key, log in category_dict.items():
-                desc += '{}: {:.4f} ({:.4f}); '.format(key, log.val, log.avg)
-            desc += '] '
+                desc += "{}: {:.4f} ({:.4f}); ".format(key, log.val, log.avg)
+            desc += "] "
 
         return desc

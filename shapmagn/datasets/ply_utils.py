@@ -1,31 +1,35 @@
 # clone from DGCNN repository
 import os
 import sys
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
-from plyfile import (PlyData, PlyElement, make2d, PlyParseError, PlyProperty)
+from plyfile import PlyData, PlyElement, make2d, PlyParseError, PlyProperty
 import numpy as np
 import h5py
 
-SAMPLING_BIN = os.path.join(BASE_DIR, 'third_party/mesh_sampling/build/pcsample')
+SAMPLING_BIN = os.path.join(BASE_DIR, "third_party/mesh_sampling/build/pcsample")
 
 SAMPLING_POINT_NUM = 2048
 SAMPLING_LEAF_SIZE = 0.005
 
-MODELNET40_PATH = '/modelnet40'
+MODELNET40_PATH = "/modelnet40"
+
+
 def export_ply(pc, filename):
-	vertex = np.zeros(pc.shape[0], dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
-	for i in range(pc.shape[0]):
-		vertex[i] = (pc[i][0], pc[i][1], pc[i][2])
-	ply_out = PlyData([PlyElement.describe(vertex, 'vertex', comments=['vertices'])])
-	ply_out.write(filename)
+    vertex = np.zeros(pc.shape[0], dtype=[("x", "f4"), ("y", "f4"), ("z", "f4")])
+    for i in range(pc.shape[0]):
+        vertex[i] = (pc[i][0], pc[i][1], pc[i][2])
+    ply_out = PlyData([PlyElement.describe(vertex, "vertex", comments=["vertices"])])
+    ply_out.write(filename)
+
 
 # Sample points on the obj shape
 def get_sampling_command(obj_filename, ply_filename):
-    cmd = SAMPLING_BIN + ' ' + obj_filename
-    cmd += ' ' + ply_filename
-    cmd += ' -n_samples %d ' % SAMPLING_POINT_NUM
-    cmd += ' -leaf_size %f ' % SAMPLING_LEAF_SIZE
+    cmd = SAMPLING_BIN + " " + obj_filename
+    cmd += " " + ply_filename
+    cmd += " -n_samples %d " % SAMPLING_POINT_NUM
+    cmd += " -leaf_size %f " % SAMPLING_LEAF_SIZE
     return cmd
 
 
@@ -34,59 +38,69 @@ def get_sampling_command(obj_filename, ply_filename):
 # ----------------------------------------------------------------
 
 # Write numpy array data and label to h5_filename
-def save_h5_data_label_normal(h5_filename, data, label, normal,
-		data_dtype='float32', label_dtype='uint8', normal_dtype='float32'):
+def save_h5_data_label_normal(
+    h5_filename,
+    data,
+    label,
+    normal,
+    data_dtype="float32",
+    label_dtype="uint8",
+    normal_dtype="float32",
+):
     h5_fout = h5py.File(h5_filename)
     h5_fout.create_dataset(
-            'data', data=data,
-            compression='gzip', compression_opts=4,
-            dtype=data_dtype)
+        "data", data=data, compression="gzip", compression_opts=4, dtype=data_dtype
+    )
     h5_fout.create_dataset(
-            'normal', data=normal,
-            compression='gzip', compression_opts=4,
-            dtype=normal_dtype)
+        "normal",
+        data=normal,
+        compression="gzip",
+        compression_opts=4,
+        dtype=normal_dtype,
+    )
     h5_fout.create_dataset(
-            'label', data=label,
-            compression='gzip', compression_opts=1,
-            dtype=label_dtype)
+        "label", data=label, compression="gzip", compression_opts=1, dtype=label_dtype
+    )
     h5_fout.close()
 
 
 # Write numpy array data and label to h5_filename
-def save_h5(h5_filename, data, label, data_dtype='uint8', label_dtype='uint8'):
+def save_h5(h5_filename, data, label, data_dtype="uint8", label_dtype="uint8"):
     h5_fout = h5py.File(h5_filename)
     h5_fout.create_dataset(
-            'data', data=data,
-            compression='gzip', compression_opts=4,
-            dtype=data_dtype)
+        "data", data=data, compression="gzip", compression_opts=4, dtype=data_dtype
+    )
     h5_fout.create_dataset(
-            'label', data=label,
-            compression='gzip', compression_opts=1,
-            dtype=label_dtype)
+        "label", data=label, compression="gzip", compression_opts=1, dtype=label_dtype
+    )
     h5_fout.close()
+
 
 # Read numpy array data and label from h5_filename
 def load_h5_data_label_normal(h5_filename):
     f = h5py.File(h5_filename)
-    data = f['data'][:]
-    label = f['label'][:]
-    normal = f['normal'][:]
+    data = f["data"][:]
+    label = f["label"][:]
+    normal = f["normal"][:]
     return (data, label, normal)
+
 
 # Read numpy array data and label from h5_filename
 def load_h5_data_label_seg(h5_filename):
     f = h5py.File(h5_filename)
-    data = f['data'][:]
-    label = f['label'][:]
-    seg = f['pid'][:]
+    data = f["data"][:]
+    label = f["label"][:]
+    seg = f["pid"][:]
     return (data, label, seg)
+
 
 # Read numpy array data and label from h5_filename
 def load_h5(h5_filename):
     f = h5py.File(h5_filename)
-    data = f['data'][:]
-    label = f['label'][:]
+    data = f["data"][:]
+    label = f["label"][:]
     return (data, label)
+
 
 # ----------------------------------------------------------------
 # Following are the helper functions to load save/load PLY files
@@ -95,30 +109,31 @@ def load_h5(h5_filename):
 # Load PLY file
 def load_ply_data(filename, point_num):
     plydata = PlyData.read(filename)
-    pc = plydata['vertex'].data[:point_num]
-    pc_array = np.array([[x, y, z] for x,y,z in pc])
+    pc = plydata["vertex"].data[:point_num]
+    pc_array = np.array([[x, y, z] for x, y, z in pc])
     return pc_array
+
 
 # Load PLY file
 def load_ply_normal(filename, point_num):
     plydata = PlyData.read(filename)
-    pc = plydata['normal'].data[:point_num]
-    pc_array = np.array([[x, y, z] for x,y,z in pc])
+    pc = plydata["normal"].data[:point_num]
+    pc_array = np.array([[x, y, z] for x, y, z in pc])
     return pc_array
+
 
 # Make up rows for Nxk array
 # Input Pad is 'edge' or 'constant'
-def pad_arr_rows(arr, row, pad='edge'):
-    assert(len(arr.shape) == 2)
-    assert(arr.shape[0] <= row)
-    assert(pad == 'edge' or pad == 'constant')
+def pad_arr_rows(arr, row, pad="edge"):
+    assert len(arr.shape) == 2
+    assert arr.shape[0] <= row
+    assert pad == "edge" or pad == "constant"
     if arr.shape[0] == row:
         return arr
-    if pad == 'edge':
-        return np.lib.pad(arr, ((0, row-arr.shape[0]), (0, 0)), 'edge')
-    if pad == 'constant':
-        return np.lib.pad(arr, ((0, row-arr.shape[0]), (0, 0)), 'constant', (0, 0))
-
+    if pad == "edge":
+        return np.lib.pad(arr, ((0, row - arr.shape[0]), (0, 0)), "edge")
+    if pad == "constant":
+        return np.lib.pad(arr, ((0, row - arr.shape[0]), (0, 0)), "constant", (0, 0))
 
 
 if __name__ == "__main__":
@@ -142,17 +157,3 @@ if __name__ == "__main__":
         numpy_array = ns.vtk_to_numpy(assosciatedData.GetAbstractArray(j))
         print(numpy_array.shape)
         print(numpy_array)
-
-
-
-
-
-
-
-
-
-
-
-
-
-

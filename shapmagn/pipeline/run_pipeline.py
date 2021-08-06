@@ -4,13 +4,14 @@ from shapmagn.pipeline.test_model import eval_model
 from shapmagn.pipeline.initializer import Initializer
 
 
-class Pipline():
+class Pipline:
     """
     Pipeline class,
     initialize env : data_manager, log settings and task settings
     run_task : run training based model or evaluation based model
     """
-    def initialize(self,task_setting_pth='../settings/task_settings.json'):
+
+    def initialize(self, task_setting_pth="../settings/task_settings.json"):
         """
         initialize task environment
         :param task_setting_pth: the path of current task setting file
@@ -24,7 +25,7 @@ class Pipline():
         self.tsk_opt = initializer.get_task_option()
         self.data_loaders = initializer.build_data_loader()
         self.device, self.gpus = initializer.initialize_compute_env()
-        self.model = build_model(self.tsk_opt,self.device, self.gpus)
+        self.model = build_model(self.tsk_opt, self.device, self.gpus)
 
     def clean_up(self):
         """
@@ -32,32 +33,30 @@ class Pipline():
         :return: None
         """
         self.tsk_opt = None
-        self.writer  = None
+        self.writer = None
         self.model = None
 
-    def run_task(self,is_train=True):
+    def run_task(self, is_train=True):
         """
         run training based model or evaluation based model
         :return: None
         """
         _run_model = train_model if is_train else eval_model
-        _run_model(self.tsk_opt, self.model, self.data_loaders,self.writer, self.device)
-        saving_comment_path = self.task_setting_pth.replace('.json','_comment.json')
+        _run_model(
+            self.tsk_opt, self.model, self.data_loaders, self.writer, self.device
+        )
+        saving_comment_path = self.task_setting_pth.replace(".json", "_comment.json")
         self.tsk_opt.write_JSON_comments(saving_comment_path)
 
 
-
-def run_one_task(task_setting_pth='../settings/task_settings.json',is_train=True):
+def run_one_task(task_setting_pth="../settings/task_settings.json", is_train=True):
     pipline = Pipline()
     pipline.initialize(task_setting_pth)
     pipline.run_task(is_train)
     return pipline
 
 
-if __name__ == '__main__':
-    pipline= Pipline()
+if __name__ == "__main__":
+    pipline = Pipline()
     pipline.initialize()
     pipline.run_task()
-
-
-

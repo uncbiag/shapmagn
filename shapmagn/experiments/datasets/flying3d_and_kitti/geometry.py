@@ -1,6 +1,7 @@
 import numpy as np
 import os.path as osp
 
+
 def get_batch_2d_flow(pc1, pc2, predicted_pc2, paths, is_kitti=False):
     if is_kitti:
         focallengths = []
@@ -12,15 +13,19 @@ def get_batch_2d_flow(pc1, pc2, predicted_pc2, paths, is_kitti=False):
         for path in paths:
             fname = osp.split(path)[-1]
             calib_path = osp.join(
-                osp.dirname(__file__),
-                'calib_cam_to_cam',
-                fname + '.txt')
+                osp.dirname(__file__), "calib_cam_to_cam", fname + ".txt"
+            )
             with open(calib_path) as fd:
                 lines = fd.readlines()
-                P_rect_left = \
-                    np.array([float(item) for item in
-                              [line for line in lines if line.startswith('P_rect_02')][0].split()[1:]],
-                             dtype=np.float32).reshape(3, 4)
+                P_rect_left = np.array(
+                    [
+                        float(item)
+                        for item in [
+                            line for line in lines if line.startswith("P_rect_02")
+                        ][0].split()[1:]
+                    ],
+                    dtype=np.float32,
+                ).reshape(3, 4)
                 focallengths.append(-P_rect_left[0, 0])
                 cxs.append(P_rect_left[0, 2])
                 cys.append(P_rect_left[1, 2])
@@ -34,12 +39,33 @@ def get_batch_2d_flow(pc1, pc2, predicted_pc2, paths, is_kitti=False):
         consty = np.array(consty)[:, None, None]
         constz = np.array(constz)[:, None, None]
 
-        px1, py1 = project_3d_to_2d(pc1, f=focallengths, cx=cxs, cy=cys,
-                                    constx=constx, consty=consty, constz=constz)
-        px2, py2 = project_3d_to_2d(predicted_pc2, f=focallengths, cx=cxs, cy=cys,
-                                    constx=constx, consty=consty, constz=constz)
-        px2_gt, py2_gt = project_3d_to_2d(pc2, f=focallengths, cx=cxs, cy=cys,
-                                          constx=constx, consty=consty, constz=constz)
+        px1, py1 = project_3d_to_2d(
+            pc1,
+            f=focallengths,
+            cx=cxs,
+            cy=cys,
+            constx=constx,
+            consty=consty,
+            constz=constz,
+        )
+        px2, py2 = project_3d_to_2d(
+            predicted_pc2,
+            f=focallengths,
+            cx=cxs,
+            cy=cys,
+            constx=constx,
+            consty=consty,
+            constz=constz,
+        )
+        px2_gt, py2_gt = project_3d_to_2d(
+            pc2,
+            f=focallengths,
+            cx=cxs,
+            cy=cys,
+            constx=constx,
+            consty=consty,
+            constz=constz,
+        )
     else:
         px1, py1 = project_3d_to_2d(pc1)
         px2, py2 = project_3d_to_2d(predicted_pc2)
@@ -56,7 +82,7 @@ def get_batch_2d_flow(pc1, pc2, predicted_pc2, paths, is_kitti=False):
     return flow_pred, flow_gt
 
 
-def project_3d_to_2d(pc, f=-1050., cx=479.5, cy=269.5, constx=0, consty=0, constz=0):
+def project_3d_to_2d(pc, f=-1050.0, cx=479.5, cy=269.5, constx=0, consty=0, constz=0):
     x = (pc[..., 0] * f + cx * pc[..., 2] + constx) / (pc[..., 2] + constz)
     y = (pc[..., 1] * f + cy * pc[..., 2] + consty) / (pc[..., 2] + constz)
 

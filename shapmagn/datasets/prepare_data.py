@@ -1,14 +1,14 @@
 import os
 import copy
 from shapmagn.datasets.data_utils import saving_shape_info, divide_sess_set
-sesses = ['train', 'val', 'test', 'debug']
+
+sesses = ["train", "val", "test", "debug"]
 number_of_workers = 10
 warning_once = True
 import random
 
 
 class BaseDataSet(object):
-
     def __init__(self):
         """
         :param name: name of data set
@@ -24,13 +24,12 @@ class BaseDataSet(object):
         self.divided_ratio = (0.7, 0.1, 0.2)
         """divided the data into train, val, test set"""
 
-
     def set_data_path(self, path):
         self.data_path = path
 
     def set_output_path(self, path):
         self.output_path = path
-        os.makedirs(path,exist_ok=True)
+        os.makedirs(path, exist_ok=True)
 
     def set_divided_ratio(self, ratio):
         """set dataset divide ratio, (train_ratio, val_ratio, test_ratio)"""
@@ -59,31 +58,26 @@ class BaseDataSet(object):
 
 
 class GeneralDataSet(BaseDataSet):
-    """
-    """
+    """"""
 
     def __init__(self):
         BaseDataSet.__init__(self)
         self.id_sess_dic = None
         self.file_list = None
 
-
     def set_file_list(self, file_list):
         self.file_list = file_list
 
-
-    def set_id_sess_dic(self,id_sess_dic):
+    def set_id_sess_dic(self, id_sess_dic):
         """
         {"train": id_list, "val":id_list, "test":id_list, "debug": id_list}
         :return:
         """
         self.id_sess_dic = id_sess_dic
 
-
-
     def __gen_pair(self, pair_fn, pair_list, pair_num_limit=1000):
         obj_list_1, obj_list_2 = pair_list
-        pair_list = pair_fn(obj_list_1,obj_list_2)
+        pair_list = pair_fn(obj_list_1, obj_list_2)
 
         if pair_num_limit >= 0:
             num_limit = min(len(pair_list), pair_num_limit)
@@ -92,22 +86,27 @@ class GeneralDataSet(BaseDataSet):
         else:
             return pair_list
 
-
     def gen_sess_dic(self):
-        file_list  = self.file_list
+        file_list = self.file_list
         num_file = len(file_list)
         if self.id_sess_dic is None:
-            sub_folder_dic, id_sess_dic = divide_sess_set(self.output_path, num_file,self.divided_ratio)
+            sub_folder_dic, id_sess_dic = divide_sess_set(
+                self.output_path, num_file, self.divided_ratio
+            )
         else:
-            sub_folder_dic = {x: os.path.join(self.output_path, x) for x in ['train', 'val', 'test', 'debug']}
+            sub_folder_dic = {
+                x: os.path.join(self.output_path, x)
+                for x in ["train", "val", "test", "debug"]
+            }
             id_sess_dic = self.id_sess_dic
         ind_filter = lambda x_list, ind_list: [x_list[ind] for ind in ind_list]
-        shape_sess_dic = {sess: ind_filter(file_list,id_sess_dic[sess])
-                             for sess in  ['train', 'val', 'test', 'debug']}
+        shape_sess_dic = {
+            sess: ind_filter(file_list, id_sess_dic[sess])
+            for sess in ["train", "val", "test", "debug"]
+        }
         if self.max_train_pairs > -1:
-            shape_sess_dic['train'] = shape_sess_dic['train'][:self.max_train_pairs]
+            shape_sess_dic["train"] = shape_sess_dic["train"][: self.max_train_pairs]
         return sub_folder_dic, shape_sess_dic
-
 
     def save_sess_to_txt(self, info_dict=None):
         """
@@ -123,10 +122,3 @@ class GeneralDataSet(BaseDataSet):
         """
         sub_folder_dic, shape_sess_dic = info_dict
         saving_shape_info(sub_folder_dic, shape_sess_dic)
-
-
-
-
-
-
-

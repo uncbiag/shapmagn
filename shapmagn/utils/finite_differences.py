@@ -6,6 +6,7 @@ The package supports first and second order derivatives and Neumann and linear e
 boundary conditions (though the latter have not been tested extensively yet).
 """
 from __future__ import absolute_import
+
 # from builtins import object
 from abc import ABCMeta, abstractmethod
 import torch
@@ -20,7 +21,7 @@ class FD(with_metaclass(ABCMeta, object)):
     In this way the numpy and pytorch versions can easily be derived. All the method expect BxXxYxZ format (i.e., they process a batch at a time)
     """
 
-    def __init__(self, spacing, mode='linear'):
+    def __init__(self, spacing, mode="linear"):
         """
         Constructor
         :param spacing: 1D numpy array defining the spatial spacing, e.g., [0.1,0.1,0.1] for a 3D image
@@ -32,12 +33,18 @@ class FD(with_metaclass(ABCMeta, object)):
         """spatial dimension"""
         self.spacing = np.ones(self.dim)
         """spacing"""
-        assert mode in ['linear', 'neumann_zero', 'dirichlet_zero'], \
-            " boundary condition {} is not supported , supported list 'linear', 'neumann_zero', 'dirichlet_zero'".format(
-                mode)
-        self.bcNeumannZero = mode == 'neumann_zero'  # if false then linear interpolation
-        self.bclinearInterp = mode == 'linear'
-        self.bcDirichletZero = mode == 'dirichlet_zero'
+        assert mode in [
+            "linear",
+            "neumann_zero",
+            "dirichlet_zero",
+        ], " boundary condition {} is not supported , supported list 'linear', 'neumann_zero', 'dirichlet_zero'".format(
+            mode
+        )
+        self.bcNeumannZero = (
+            mode == "neumann_zero"
+        )  # if false then linear interpolation
+        self.bclinearInterp = mode == "linear"
+        self.bcDirichletZero = mode == "dirichlet_zero"
         """should Neumann boundary conditions be used? (otherwise linear extrapolation)"""
         if spacing.size == 1:
             self.spacing[0] = spacing[0]
@@ -47,7 +54,9 @@ class FD(with_metaclass(ABCMeta, object)):
         elif spacing.size == 3:
             self.spacing = spacing
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
 
     def dXb(self, I):
         """
@@ -57,7 +66,7 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in x direction using backward differences
         """
-        res = (I - self.xm(I)) * (1. / self.spacing[0])
+        res = (I - self.xm(I)) * (1.0 / self.spacing[0])
         return res
 
     def dXf(self, I):
@@ -68,7 +77,7 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in x direction using forward differences
         """
-        res = (self.xp(I) - I) * (1. / self.spacing[0])
+        res = (self.xp(I) - I) * (1.0 / self.spacing[0])
         return res
 
     def dXc(self, I):
@@ -79,7 +88,9 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in x direction using central differences
         """
-        res = (self.xp(I, central=True) - self.xm(I, central=True)) * (0.5 / self.spacing[0])
+        res = (self.xp(I, central=True) - self.xm(I, central=True)) * (
+            0.5 / self.spacing[0]
+        )
         return res
 
     def ddXc(self, I):
@@ -89,7 +100,9 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the second derivative in x direction
         """
-        res = (self.xp(I, central=True) - I - I + self.xm(I, central=True)) * (1 / (self.spacing[0] ** 2))
+        res = (self.xp(I, central=True) - I - I + self.xm(I, central=True)) * (
+            1 / (self.spacing[0] ** 2)
+        )
         return res
 
     def dYb(self, I):
@@ -99,7 +112,7 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in y direction using backward differences
         """
-        res = (I - self.ym(I)) * (1. / self.spacing[1])
+        res = (I - self.ym(I)) * (1.0 / self.spacing[1])
         return res
 
     def dYf(self, I):
@@ -109,7 +122,7 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in y direction using forward differences
         """
-        res = (self.yp(I) - I) * (1. / self.spacing[1])
+        res = (self.yp(I) - I) * (1.0 / self.spacing[1])
         return res
 
     def dYc(self, I):
@@ -119,7 +132,9 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in y direction using central differences
         """
-        res = (self.yp(I, central=True) - self.ym(I, central=True)) * (0.5 / self.spacing[1])
+        res = (self.yp(I, central=True) - self.ym(I, central=True)) * (
+            0.5 / self.spacing[1]
+        )
         return res
 
     def ddYc(self, I):
@@ -129,7 +144,9 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the second derivative in the y direction
         """
-        res = (self.yp(I, central=True) - I - I + self.ym(I, central=True)) * (1 / (self.spacing[1] ** 2))
+        res = (self.yp(I, central=True) - I - I + self.ym(I, central=True)) * (
+            1 / (self.spacing[1] ** 2)
+        )
         return res
 
     def dZb(self, I):
@@ -139,7 +156,7 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in the z direction using backward differences
         """
-        res = (I - self.zm(I)) * (1. / self.spacing[2])
+        res = (I - self.zm(I)) * (1.0 / self.spacing[2])
         return res
 
     def dZf(self, I):
@@ -149,7 +166,7 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in the z direction using forward differences
         """
-        res = (self.zp(I) - I) * (1. / self.spacing[2])
+        res = (self.zp(I) - I) * (1.0 / self.spacing[2])
         return res
 
     def dZc(self, I):
@@ -159,7 +176,9 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input image
         :return: Returns the first derivative in the z direction using central differences
         """
-        res = (self.zp(I, central=True) - self.zm(I, central=True)) * (0.5 / self.spacing[2])
+        res = (self.zp(I, central=True) - self.zm(I, central=True)) * (
+            0.5 / self.spacing[2]
+        )
         return res
 
     def ddZc(self, I):
@@ -169,7 +188,9 @@ class FD(with_metaclass(ABCMeta, object)):
         :param I: Input iamge
         :return: Returns the second derivative in the z direction
         """
-        res = (self.zp(I, central=True) - I - I + self.zm(I, central=True)) * (1 / (self.spacing[2] ** 2))
+        res = (self.zp(I, central=True) - I - I + self.zm(I, central=True)) * (
+            1 / (self.spacing[2] ** 2)
+        )
         return res
 
     def lap(self, I):
@@ -187,11 +208,13 @@ class FD(with_metaclass(ABCMeta, object)):
         if ndim == 1 + 1:
             return self.ddXc(I)
         elif ndim == 2 + 1:
-            return (self.ddXc(I) + self.ddYc(I))
+            return self.ddXc(I) + self.ddYc(I)
         elif ndim == 3 + 1:
-            return (self.ddXc(I) + self.ddYc(I) + self.ddZc(I))
+            return self.ddXc(I) + self.ddYc(I) + self.ddZc(I)
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
 
     def grad_norm_sqr_c(self, I):
         """
@@ -208,11 +231,13 @@ class FD(with_metaclass(ABCMeta, object)):
         if ndim == 1 + 1:
             return self.dXc(I) ** 2
         elif ndim == 2 + 1:
-            return (self.dXc(I) ** 2 + self.dYc(I) ** 2)
+            return self.dXc(I) ** 2 + self.dYc(I) ** 2
         elif ndim == 3 + 1:
-            return (self.dXc(I) ** 2 + self.dYc(I) ** 2 + self.dZc(I) ** 2)
+            return self.dXc(I) ** 2 + self.dYc(I) ** 2 + self.dZc(I) ** 2
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
 
     def grad_norm_sqr_f(self, I):
         """
@@ -229,11 +254,13 @@ class FD(with_metaclass(ABCMeta, object)):
         if ndim == 1 + 1:
             return self.dXf(I) ** 2
         elif ndim == 2 + 1:
-            return (self.dXf(I) ** 2 + self.dYf(I) ** 2)
+            return self.dXf(I) ** 2 + self.dYf(I) ** 2
         elif ndim == 3 + 1:
-            return (self.dXf(I) ** 2 + self.dYf(I) ** 2 + self.dZf(I) ** 2)
+            return self.dXf(I) ** 2 + self.dYf(I) ** 2 + self.dZf(I) ** 2
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
 
     def grad_norm_sqr_b(self, I):
         """
@@ -250,11 +277,13 @@ class FD(with_metaclass(ABCMeta, object)):
         if ndim == 1 + 1:
             return self.dXb(I) ** 2
         elif ndim == 2 + 1:
-            return (self.dXb(I) ** 2 + self.dYb(I) ** 2)
+            return self.dXb(I) ** 2 + self.dYb(I) ** 2
         elif ndim == 3 + 1:
-            return (self.dXb(I) ** 2 + self.dYb(I) ** 2 + self.dZb(I) ** 2)
+            return self.dXb(I) ** 2 + self.dYb(I) ** 2 + self.dZb(I) ** 2
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
 
     @abstractmethod
     def getdimension(self, I):
@@ -311,9 +340,11 @@ class FD(with_metaclass(ABCMeta, object)):
             elif self.bclinearInterp:
                 rxp[:, -1] = 2 * I[:, -1] - I[:, -2]
             elif self.bcDirichletZero:
-                rxp[:, -1] = 0.
+                rxp[:, -1] = 0.0
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
         return rxp
 
     def xm(self, I, central=False):
@@ -338,11 +369,13 @@ class FD(with_metaclass(ABCMeta, object)):
                 if central:
                     rxm[:, -1] = I[:, -1]
             elif self.bclinearInterp:
-                rxm[:, 0] = 2. * I[:, 0] - I[:, 1]
+                rxm[:, 0] = 2.0 * I[:, 0] - I[:, 1]
             elif self.bcDirichletZero:
-                rxm[:, 0] = 0.
+                rxm[:, 0] = 0.0
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
         return rxm
 
     def yp(self, I, central=False):
@@ -368,11 +401,13 @@ class FD(with_metaclass(ABCMeta, object)):
                 if central:
                     ryp[:, :, 0] = I[:, :, 0]
             elif self.bclinearInterp:
-                ryp[:, :, -1] = 2. * I[:, :, -1] - I[:, :, -2]
+                ryp[:, :, -1] = 2.0 * I[:, :, -1] - I[:, :, -2]
             elif self.bcDirichletZero:
-                ryp[:, :, -1] = 0.
+                ryp[:, :, -1] = 0.0
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
         return ryp
 
     def ym(self, I, central=False):
@@ -400,11 +435,13 @@ class FD(with_metaclass(ABCMeta, object)):
                 if central:
                     rym[:, :, -1] = I[:, :, -1]
             elif self.bclinearInterp:
-                rym[:, :, 0] = 2. * I[:, :, 0] - I[:, :, 1]
+                rym[:, :, 0] = 2.0 * I[:, :, 0] - I[:, :, 1]
             elif self.bcDirichletZero:
-                rym[:, :, 0] = 0.
+                rym[:, :, 0] = 0.0
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
         return rym
 
     def zp(self, I, central=False):
@@ -430,11 +467,13 @@ class FD(with_metaclass(ABCMeta, object)):
                 if central:
                     rzp[:, :, :, 0] = I[:, :, :, 0]
             elif self.bclinearInterp:
-                rzp[:, :, :, -1] = 2. * I[:, :, :, -1] - I[:, :, :, -2]
+                rzp[:, :, :, -1] = 2.0 * I[:, :, :, -1] - I[:, :, :, -2]
             elif self.bcDirichletZero:
-                rzp[:, :, :, -1] = 0.
+                rzp[:, :, :, -1] = 0.0
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
         return rzp
 
     def zm(self, I, central=False):
@@ -460,11 +499,13 @@ class FD(with_metaclass(ABCMeta, object)):
                 if central:
                     rzm[:, :, :, -1] = I[:, :, :, -1]
             elif self.bclinearInterp:
-                rzm[:, :, :, 0] = 2. * I[:, :, :, 0] - I[:, :, :, 1]
+                rzm[:, :, :, 0] = 2.0 * I[:, :, :, 0] - I[:, :, :, 1]
             elif self.bcDirichletZero:
-                rzm[:, :, :, 0] = 0.
+                rzm[:, :, :, 0] = 0.0
         else:
-            raise ValueError('Finite differences are only supported in dimensions 1 to 3')
+            raise ValueError(
+                "Finite differences are only supported in dimensions 1 to 3"
+            )
         return rzm
 
 
@@ -473,7 +514,7 @@ class FD_np(FD):
     Defnitions of the abstract methods for numpy
     """
 
-    def __init__(self, dim, mode='linear'):
+    def __init__(self, dim, mode="linear"):
         """
         Constructor for numpy finite differences
         :param spacing: spatial spacing (array with as many entries as there are spatial dimensions)
@@ -511,12 +552,12 @@ class FD_torch(FD):
     Defnitions of the abstract methods for torch
     """
 
-    def __init__(self, dim, mode='linear'):
+    def __init__(self, dim, mode="linear"):
         """
-          Constructor for torch finite differences
-          :param spacing: spatial spacing (array with as many entries as there are spatial dimensions)
-          :param bcNeumannZero: Specifies if zero Neumann conditions should be used (if not, uses linear extrapolation)
-          """
+        Constructor for torch finite differences
+        :param spacing: spatial spacing (array with as many entries as there are spatial dimensions)
+        :param bcNeumannZero: Specifies if zero Neumann conditions should be used (if not, uses linear extrapolation)
+        """
         super(FD_torch, self).__init__(dim, mode)
 
     def getdimension(self, I):

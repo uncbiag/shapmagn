@@ -1,5 +1,5 @@
 """
-run shape registration
+run shape learning/optimization
 """
 
 import os, sys
@@ -77,7 +77,7 @@ def init_task_env(setting_path,output_root_path, task_name):
 
 
 
-def __do_registration(args):
+def _do_learning(args):
     """
     set running env and run the task
 
@@ -117,7 +117,7 @@ def addition_test_setting(args, tsm):
     return tsm
 
 
-def do_registration(args):
+def do_learning(args):
     """
 
     :param args: the parsed arguments
@@ -125,7 +125,7 @@ def do_registration(args):
     """
     task_name = args.task_name
     args.task_name_record = task_name
-    __do_registration(args)
+    _do_learning(args)
 
 
 
@@ -135,8 +135,9 @@ def do_registration(args):
 
 if __name__ == '__main__':
     """
-        An interface for shape registration approaches.
+        An interface for shape learning approaches.
         Assume there is two level folder, output_root_folder/task_name
+        The inference mode here is for learning pipeline, namely estimated on the test set. if you want to use model on wild data, please refer to run_eval.py
         Arguments: 
             --eval: run in inference mode
             --dataset_folder/ -ds: the path including the dataset splits, which contains train/val/test/debug subfolders
@@ -147,20 +148,20 @@ if __name__ == '__main__':
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="An easy interface for training classification models")
+    parser = argparse.ArgumentParser(description="An easy interface for training classification models_reg")
     parser.add_argument('--eval', action='store_true', help='training the task')
-    parser.add_argument('-ds', '--dataset_folder', required=False, type=str,
+    parser.add_argument('-ds', '--dataset_folder', required=True, type=str,
                         default=None, help='the path of dataset splits')
-    parser.add_argument('-o', '--output_root_path', required=False, type=str,
+    parser.add_argument('-o', '--output_root_path', required=True, type=str,
                         default=None,help='the path of output root folder')
-    parser.add_argument('-tn', '--task_name', required=False, type=str,
+    parser.add_argument('-tn', '--task_name', required=True, type=str,
                         default=None,help='the name of the task')
-    parser.add_argument('-ts', '--setting_folder_path', required=False, type=str,
+    parser.add_argument('-ts', '--setting_folder_path', required=True, type=str,
                         default=None,help='path of the folder where settings are saved,should include task_setting.json')
     parser.add_argument('-m', "--model_path", required=False, default=None, help='the path of trained model')
     parser.add_argument('-g', '--gpus', default=None, nargs='+', type=int, metavar='N',
                      help='list of gpu ids to use')
     args = parser.parse_args()
     print(args)
-    do_registration(args)
+    do_learning(args)
 

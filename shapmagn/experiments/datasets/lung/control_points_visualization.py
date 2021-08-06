@@ -14,8 +14,8 @@ import subprocess
 import torch
 from shapmagn.datasets.data_utils import read_json_into_list, get_pair_obj
 from shapmagn.global_variable import shape_type, obj_factory
-import shapmagn.modules.networks.pointnet2.lib.pointnet2_utils as pointutils
-from shapmagn.modules.networks.pointconv_util import index_points_group
+import pointnet2.lib.pointnet2_utils as pointutils
+from shapmagn.modules_reg.networks.pointconv_util import index_points_group
 from shapmagn.utils.visualizer import visualize_point_pair_overlap
 from shapmagn.shape.point_sampler import point_uniform_sampler, point_grid_sampler,uniform_sampler, grid_sampler
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     for pair_id in range(len(pair_name_list)):
         pair_path = pair_path_list[pair_id]
         pair_path = [path_transfer(path) for path in pair_path]
-        get_pair =get_pair_obj(reader_obj=reader_obj,normalizer_obj=normalizer_obj,sampler_obj=sampler_obj,pair_postprocess_obj=pair_postprocess_obj,expand_bch_dim=True)
+        get_pair = get_pair_obj(reader_obj=reader_obj,normalizer_obj=normalizer_obj,sampler_obj=sampler_obj,pair_postprocess_obj=pair_postprocess_obj,expand_bch_dim=True)
         source_dict, target_dict,_,_ = get_pair(*pair_path)
         input_data = {"source": source_dict, "target": target_dict}
         create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")

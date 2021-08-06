@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 import random
+
+from shapmagn.shape.point_interpolator import KNNInterpolater
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.global_variable import Shape
 from shapmagn.utils.utils import get_grid_wrap_points
@@ -8,7 +10,7 @@ from shapmagn.shape.point_sampler import point_uniform_sampler, point_grid_sampl
 
 
 
-def visualize(points, deformed_points, point_weights=None, deformed_point_weights=None):
+def visualize(points, deformed_points, point_weights=None, deformed_point_weights=None, deformed_coupled_points=None):
     from shapmagn.utils.visualizer import visualize_point_pair_overlap
     from shapmagn.experiments.datasets.lung.lung_data_analysis import flowed_weight_transform, \
         target_weight_transform
@@ -17,16 +19,18 @@ def visualize(points, deformed_points, point_weights=None, deformed_point_weight
     #                              target_weight_transform(deformed_point_weights, True),
     #                              title1="original", title2="deformed", rgb_on=False)
 
-    visualize_point_pair_overlap(points, deformed_points,
-                                 point_weights,
-                                 deformed_point_weights,
-                                 title1="original", title2="deformed", rgb_on=False)
     # visualize_point_pair_overlap(points, deformed_points,
-    #                              points,
-    #                              deformed_points,
-    #                              title1="original", title2="deformed", rgb_on=True)
+    #                              point_weights,
+    #                              deformed_point_weights,
+    #                              title1="original", title2="deformed", rgb_on=False)
+    visualize_point_pair_overlap(points, deformed_points,
+                                 points,
+                                 deformed_points,
+                                 title1="original", title2="deformed", rgb_on=True)
 
 
+    visualize_point_pair_overlap(deformed_points, deformed_coupled_points, deformed_points,deformed_coupled_points, "deformed",
+                                 "deformed with coupled", rgb_on=False,  show=True)
 
 
 class PointAug(object):
@@ -105,16 +109,18 @@ class SplineAug(object):
         local_deform_aug_settings = self.aug_settings["local_deform_aug"]
         grid_spline_kernel_obj = grid_aug_settings[("grid_spline_kernel_obj","","grid spline kernel object")]
         local_deform_spline_kernel_obj = local_deform_aug_settings[("local_deform_spline_kernel_obj","","local deform spline kernel object")]
+        knn_interp_kernel_obj = local_deform_aug_settings[("knn_interp_kernel_obj","","local KNN interpolation kernel kernel object")]
         self.grid_spline_kernel = obj_factory(grid_spline_kernel_obj) if grid_spline_kernel_obj else None
         self.local_deform_spline_kernel = obj_factory(local_deform_spline_kernel_obj)  if local_deform_spline_kernel_obj else None
+        self.knn_interp_kernel =  obj_factory(knn_interp_kernel_obj)  if knn_interp_kernel_obj else None
         self.plot = aug_settings["plot"]
 
 
-    def grid_spline_deform(self,points,point_weights):
+    def grid_spline_deform(self,points,point_weights, coupled_points=None):
         grid_aug_settings = self.aug_settings["grid_spline_aug"]
         grid_spacing = grid_aug_settings["grid_spacing"]
         scale = grid_aug_settings["disp_scale"]
-        scale = 1/3*scale*random.random()+scale*2/3
+        scale = scale*random.random()
 
         # grid_control_points, _ = get_grid_wrap_points(points, np.array([grid_spacing]*3).astype(np.float32))
         # grid_control_disp = torch.ones_like(grid_control_points).uniform_(-1,1)*scale
@@ -124,24 +130,41 @@ class SplineAug(object):
         sampler = grid_sampler(grid_spacing)
         grid_control_points,grid_control_weights, _ = sampler(points, point_weights)
         grid_control_disp = torch.ones_like(grid_control_points).uniform_(-1,1)*scale
-
         points_disp = self.grid_spline_kernel(points[None], grid_control_points[None], grid_control_disp[None],grid_control_weights[None])
-        deformed_points =points + points_disp[0]
-        return deformed_points, point_weights
+        # visualize(points, grid_control_points, point_weights, grid_control_weights)
 
-    def local_deform_spline_deform(self,points, point_weights):
+        points_disp = points_disp.squeeze()
+        deformed_points =points + points_disp
+        if coupled_points is None:
+            deformed_coupled_points = None
+        else:
+            coupled_points_disp = self.grid_spline_kernel(coupled_points[None], grid_control_points[None], grid_control_disp[None],grid_control_weights[None])
+            deformed_coupled_points = coupled_points + coupled_points_disp
+            deformed_coupled_points = deformed_coupled_points.squeeze()
+        return deformed_points, point_weights, deformed_coupled_points
+
+    def local_deform_spline_deform(self,points, point_weights,coupled_points=None):
         local_deform_aug_settings = self.aug_settings["local_deform_aug"]
         num_sample = local_deform_aug_settings["num_sample"]
         scale = local_deform_aug_settings["disp_scale"]
         sampler = uniform_sampler(num_sample,fixed_random_seed=False,sampled_by_weight=False)
         sampling_control_points,sampling_control_weights, _ = sampler(points, point_weights)
         sampling_control_disp = torch.ones_like(sampling_control_points).uniform_(-1,1)*scale
+        #visualize(points, sampling_control_points, point_weights, sampling_control_weights)
         points_disp = self.local_deform_spline_kernel(points[None], sampling_control_points[None], sampling_control_disp[None],sampling_control_weights[None])
-        deformed_points =points + points_disp[0]
-        return deformed_points, point_weights
+        points_disp = points_disp.squeeze()
+        deformed_points =points + points_disp
+        if coupled_points is None:
+            deformed_coupled_points = None
+        else:
+            coupled_points_disp = self.knn_interp_kernel(coupled_points[None], points[None],
+                                                          points_disp[None])
+            deformed_coupled_points = coupled_points + coupled_points_disp
+            deformed_coupled_points = deformed_coupled_points.squeeze()
+        return deformed_points, point_weights, deformed_coupled_points
 
 
-    def rigid_deform(self, points, point_weights=None):
+    def rigid_deform(self, points, point_weights=None, coupled_points=None):
         from scipy.spatial.transform import Rotation as R
         rigid_aug_settings = self.aug_settings["rigid_aug"]
         rotation_range = rigid_aug_settings["rotation_range"]
@@ -156,7 +179,11 @@ class SplineAug(object):
         r_matrix = r.as_matrix()*scale
         r_matrix = torch.tensor(r_matrix,dtype=torch.float, device=points.device)
         deformed_points = points@r_matrix+translation
-        return deformed_points, point_weights
+        if coupled_points is None:
+            deformed_coupled_points = None
+        else:
+            deformed_coupled_points = coupled_points@r_matrix+translation
+        return deformed_points, point_weights, deformed_coupled_points
 
 
 
@@ -164,29 +191,38 @@ class SplineAug(object):
 
 
 
-    def __call__(self,batch_points, batch_point_weights):
+
+    def __call__(self,batch_points, batch_point_weights, batch_coupled_points=None):
         """
-        :param points: torch.tensor  NxD
-        :param point_weights: torch.tensor Nx1
+        :param batch_points: torch.tensor  BxNxD
+        :param batch_point_weights: torch.tensor BxNx1
+        :param batch_coupled_points: torch.tensor BxNx1
         :return:
         """
-        deformed_points_list, deformed_weights_list = [], []
-        for points, point_weights in zip(batch_points, batch_point_weights):
+        deformed_points_list, deformed_weights_list, deformed_coupled_points_list = [], [], []
+        B = batch_points.shape[0]
+        batch_coupled_points = [None]*B if batch_coupled_points is None else batch_coupled_points
+        for points, point_weights, coupled_points in zip(batch_points, batch_point_weights, batch_coupled_points):
             deformed_points = points
             deformed_weights = point_weights
+            deformed_coupled_points = coupled_points
             if self.do_local_deform_aug:
-                deformed_points, deformed_weights = self.local_deform_spline_deform(deformed_points,deformed_weights)
-            if self.plot:
-                visualize(points,deformed_points,point_weights,deformed_weights)
+                deformed_points, deformed_weights, deformed_coupled_points = self.local_deform_spline_deform(deformed_points,deformed_weights, deformed_coupled_points)
+                if self.plot:
+                    visualize(points,deformed_points,point_weights,deformed_weights, deformed_coupled_points)
             if self.do_grid_aug:
-                deformed_points, deformed_weights = self.grid_spline_deform(deformed_points,deformed_weights)
-            if self.plot:
-                visualize(points,deformed_points,point_weights,deformed_weights)
+                deformed_points, deformed_weights, deformed_coupled_points = self.grid_spline_deform(deformed_points,deformed_weights,deformed_coupled_points)
+                if self.plot:
+                    visualize(points,deformed_points,point_weights,deformed_weights, deformed_coupled_points)
             if self.do_rigid_aug:
-                deformed_points, deformed_weights = self.rigid_deform(deformed_points, deformed_weights)
-            if self.plot:
-                visualize(points,deformed_points,point_weights,deformed_weights)
+                deformed_points, deformed_weights, deformed_coupled_points = self.rigid_deform(deformed_points, deformed_weights,deformed_coupled_points)
+                if self.plot:
+                    visualize(points,deformed_points,point_weights,deformed_weights, deformed_coupled_points)
             deformed_points_list.append(deformed_points)
             deformed_weights_list.append(deformed_weights)
-        return torch.stack(deformed_points_list), torch.stack(deformed_weights_list)
+            deformed_coupled_points_list.append(deformed_coupled_points)
+        if deformed_coupled_points_list[0] is None:
+            return torch.stack(deformed_points_list), torch.stack(deformed_weights_list)
+        else:
+            return torch.stack(deformed_points_list), torch.stack(deformed_weights_list), torch.stack(deformed_coupled_points_list)
 

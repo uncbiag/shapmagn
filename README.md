@@ -1,7 +1,7 @@
 ## Shapmagn
 
-shapmagn is a research project for Shape Registration. The repository provides a general framework for the point cloud/mesh registration task, supporting both optimization and learning
-based approaches. Currently, we are at the early stage of the development.
+shapmagn is a research project for Shape Registration. The repository provides a general framework for the point cloud/mesh registration and general deep learning frameworks, supporting both optimization and learning
+based approaches. 
 
 ## Installation
 
@@ -19,7 +19,8 @@ Finally, we can install shapmagn by
 git clone https://github.com/uncbiag/shapmagn.git
 cd shapmagn/shapmagn
 pip install -r requirement.txt
-cd modules/networks/pointnet2/lib
+cd ..
+cd pointnet2/lib
 python setup.py install
 ```
 torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
@@ -39,27 +40,25 @@ cd shapmagn/shapmagn/demos/data
 gdown https://drive.google.com/uc?id=19YG-je_7QfKd-Z8Rhg4R0nL6hVIpEco6
 unzip lung_vessel_demo_data.zip
 cd ..
-python lung_reg.py
+python 2d_toy_reg.py
 python toy_reg.py
+python partial_prealign_reg.py
+python lung_reg.py
+python flyingkitti_reg.py
 ```
 
 Here is an example on training deep feature learning network based on one synthesized pair:
 ```
 python run_task.py -ds SHAPEMAGN_PATH/demos/data/lung_synth_dataset_splits -o SHAPEMAGN_PATH/demos/output/training_one_synth_case -tn deepfeature_pointconv -ts SHAPEMAGN_PATH/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0
 ```
-Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair:
+Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair (the model needs to be updated):
 
 ```
 python run_task.py --eval -ds SHAPEMAGN_PATH/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/demos/output/test_one_case -tn deepflow_pwc_lddmm -ts SHAPEMAGN_PATH/demos/settings/lung/test_deep_lddmm_pwcnet_on_one_case  -m   /SHAPEMAGN_PATH/demos/pretrained_models/pretrained_deep_lddmm -g 0
 ```
 
 ## TODO
-7. confidence map
 10. test flot net, prnet
 14. add transformer
-17. update control point strategy (currently farthest point sampling) maybe introduce altas control points for the lung task
 21. test gmm model, local laplacian, main vessel
-22. rewrite backbone of pwcnet and flownet to make them clean and fast
 23. do distribution analysis for the landmarks
-24. fix lung data util
-25. fix postprocess order

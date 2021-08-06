@@ -1,3 +1,4 @@
+import subprocess
 from os import listdir
 from os.path import isfile, join
 import json
@@ -103,6 +104,16 @@ def get_extra_info_path_list(file_path_list, extra_info_folder_path=None, replac
         extra_info_path_list = [ replace_fn(file_path) for file_path in file_path_list]
     return extra_info_path_list
 
+
+def saving_shape_info(sub_folder_dic, shape_list_dic):
+    for sess, sub_folder_path in sub_folder_dic.items():
+        shape_sess_list = shape_list_dic[sess]
+        shape_name_list = [shape["name"] for shape in shape_sess_list]
+        shape_path_list = [shape["data_path"] for shape in shape_sess_list]
+        output_dict = {shape_name:shape_info for shape_name, shape_info in zip(shape_name_list,shape_sess_list)}
+        save_json(os.path.join(sub_folder_path,"shape_data.json"), output_dict)
+        write_list_into_txt(os.path.join(sub_folder_path,"shape_name_list.txt"), shape_name_list)
+        write_list_into_txt(os.path.join(sub_folder_path,"shape_path_list.txt"), shape_path_list)
 
 
 def saving_pair_info(sub_folder_dic, pair_list_dic):
@@ -225,7 +236,8 @@ def compute_interval(vertices):
         vert_dist = ((vert_i-vert_j)**2).sum(-1)
         vert_dist = np.sqrt(vert_dist)
         min_interval = np.min(vert_dist[np.where(vert_dist>0)])
-        print("the min interval is {}".format(min_interval))
+
+        #print("the min interval is {}".format(min_interval))
         return min_interval
     else:
         sampled_index = random.sample(list(range(len(vertices)-1)), 2000)
@@ -234,7 +246,7 @@ def compute_interval(vertices):
         vertices_sampled_plus = vertices[sampled_index_plus]
         vert_dist = np.sqrt(((vertices_sampled-vertices_sampled_plus)**2).sum(-1))
         sampled_min_interval = np.min(vert_dist[np.where(vert_dist>0)])
-        print("the min interval is {}".format(sampled_min_interval))
+        #print("the min interval is {}".format(sampled_min_interval))
         return sampled_min_interval
 
 
@@ -255,9 +267,10 @@ def get_obj(reader_obj,normalizer_obj=None,sampler_obj=None, device=None, expand
         else:
             return data[None]
 
-    def _get_obj(file_path):
-        name = get_file_name(file_path)
-        file_info = {"name":name,"data_path":file_path}
+    def _get_obj(file_path,file_info=None):
+        if file_info is None:
+            name = get_file_name(file_path)
+            file_info = {"name":name,"data_path":file_path}
         reader = obj_factory(reader_obj)
         raw_data_dict  = reader(file_info)
         normalizer = obj_factory(normalizer_obj) if normalizer_obj else None
@@ -295,7 +308,7 @@ def get_pair_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postproces
         data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
         min_interval = compute_interval(data_dict["points"])
         sampler = obj_factory(sampler_obj) if sampler_obj else None
-        data_dict,_= sampler(data_dict) if sampler_obj else data_dict
+        data_dict,_= sampler(data_dict) if sampler_obj else (data_dict,None)
         return data_dict, min_interval
 
     def _get_pair_obj(source_path, target_path):
@@ -313,5 +326,8 @@ def get_pair_obj(reader_obj,normalizer_obj=None,sampler_obj=None,pair_postproces
     return _get_pair_obj
 
 
-
+def cp_file(source_path, target_path):
+    bashCommand ="cp {} {}".format(source_path, target_path)
+    process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+    process.wait()
 

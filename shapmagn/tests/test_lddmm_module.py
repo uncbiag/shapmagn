@@ -4,7 +4,7 @@
 import torch
 from torch.autograd import grad
 import unittest
-from shapmagn.modules.lddmm_module import LDDMMHamilton, LDDMMVariational
+from shapmagn.modules_reg.module_lddmm import LDDMMHamilton, LDDMMVariational
 from shapmagn.utils.module_parameters import ParameterDict
 torch.backends.cudnn.deterministic = True
 torch.manual_seed(123)

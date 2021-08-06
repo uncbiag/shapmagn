@@ -21,7 +21,7 @@ class SurfaceMesh(ShapeBase):
         self.type = 'surfacemesh'
         self.faces =None
         self.index = None
-        self.attr_list=["points","faces","index","label","landmarks","name_list","pointfea","weights","seg","mask"]
+        self.attr_list=["points","faces","index","label","landmarks","pointfea","weights","seg","mask"]
         self.points_mode_on = False
         """the mesh sampling is not implemented, if the topology changed, only points related operators are allowed"""
 
@@ -36,14 +36,14 @@ class SurfaceMesh(ShapeBase):
         :return:
         """
         ShapeBase.set_data(self,**args)
-        faces = args["faces"]
-        assert faces is not None
+        faces = args["faces"] if "faces" in args else None # faces are not always consistent, when run in batch
+        #assert faces is not None
         self.faces = faces
         index = args["index"] if "index" in args else None
         reindex = args["reindex"] if "reindex" in args else False
         if index is not None:
             self.index = index
-        if self.index is None or reindex:
+        if not self.points_mode_on and (self.index is None or reindex):
             index_a_list = []
             index_b_list = []
             index_c_list = []
@@ -53,6 +53,7 @@ class SurfaceMesh(ShapeBase):
                 index_c_list += faces[b,2]+ b*self.npoints
             self.index = [index_a_list, index_b_list, index_c_list]
         self.update_info()
+        return self
 
 
     def set_data_with_refer_to(self, points, mesh, detach=False):
@@ -69,6 +70,8 @@ class SurfaceMesh(ShapeBase):
         self.pointfea = fn(mesh.pointfea)
         self.weights = fn(mesh.weights)
         self.seg = fn(mesh.seg)
+        self.mask = fn(mesh.mask)
+        self.extra_info = mesh.extra_info
         self.scale = mesh.scale
         self.points_mode_on = self.scale != -1
         self.update_info()
@@ -98,3 +101,11 @@ class SurfaceMesh(ShapeBase):
             normals.data[zero_normal_index] = 1e-7
             print(" {} zero normal is detected, set the zero value to 1e-7".format(len(zero_normal_index)))
         return centers.view([self.nbatch,-1, self.dimension]), normals.view([self.nbatch,-1, self.dimension])
+
+
+
+
+class SurfaceMesh_Point(SurfaceMesh):
+    def __init__(self):
+        super(SurfaceMesh_Point,self).__init__()
+        self.points_mode_on = True

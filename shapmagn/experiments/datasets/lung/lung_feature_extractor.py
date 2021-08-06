@@ -1,7 +1,7 @@
 from shapmagn.utils.local_feature_extractor import *
 from shapmagn.utils.obj_factory import *
 from shapmagn.utils.module_parameters import  ParameterDict
-import shapmagn.modules.deep_feature_module as deep_feature_module
+import shapmagn.modules_reg.module_deep_feature as deep_feature_module
 import torch.nn as nn
 
 # lung_pair_feature_extractor = pair_feature_extractor

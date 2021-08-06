@@ -1,32 +1,35 @@
 from shapmagn.shape.point_cloud import PointCloud
-from shapmagn.shape.surface_mesh import SurfaceMesh
+from shapmagn.shape.surface_mesh import SurfaceMesh, SurfaceMesh_Point
 from shapmagn.shape.poly_line import PolyLine
 shape_type = "pointcloud"
-SHAPE_POOL = {"pointcloud": PointCloud, "surfacemesh": SurfaceMesh, "polyline": PolyLine}
+SHAPE_POOL = {"pointcloud": PointCloud, "surfacemesh": SurfaceMesh, "surfacemesh_pointmode":SurfaceMesh_Point, "polyline": PolyLine}
 Shape = SHAPE_POOL[shape_type]
 
 
-from shapmagn.metrics.losses import *
+from shapmagn.metrics.reg_losses import *
 LOSS_POOL = {"current": CurrentDistance, "varifold": VarifoldDistance, "geomloss": GeomDistance, "l2": L2Distance, "localreg":LocalReg,"gmm":GMMLoss}
 
 
-from shapmagn.datasets.reg_pair_dataset import RegistrationPairDataset
+from shapmagn.datasets.custom_dataset import CustomDataset
+from shapmagn.datasets.pair_dataset import RegistrationPairDataset
 DATASET_POOL = {
+    "custom_dataset": CustomDataset,
     "pair_dataset": RegistrationPairDataset
 }
 
 
-from shapmagn.models.model_lddmm import LDDMMOPT
-from shapmagn.models.model_discrete_flow import DiscreteFlowOPT
-from shapmagn.models.model_gradient_flow import GradientFlowOPT
-from shapmagn.models.model_probreg import ProRegOPT
-from shapmagn.models.model_prealign import PrealignOPT
-from shapmagn.models.model_deep_feature import DeepFeature
-from shapmagn.models.model_deep_flow import DeepDiscreteFlow
-from shapmagn.models.model_wasserstein_barycenter import WasserBaryCenterOPT
+from shapmagn.models_reg.model_lddmm import LDDMMOPT
+from shapmagn.models_reg.model_discrete_flow import DiscreteFlowOPT
+from shapmagn.models_reg.model_gradient_flow import GradientFlowOPT
+from shapmagn.models_reg.model_probreg import ProRegOPT
+from shapmagn.models_reg.model_prealign import PrealignOPT
+from shapmagn.models_reg.model_deep_feature import DeepFeature
+from shapmagn.models_reg.model_deep_flow import DeepDiscreteFlow
+from shapmagn.models_reg.model_wasserstein_barycenter import WasserBaryCenterOPT
+from shapmagn.models_general.model_deep_pred import DeepPredictor
 MODEL_POOL = {"lddmm_opt": LDDMMOPT, "discrete_flow_opt": DiscreteFlowOPT, "prealign_opt": PrealignOPT,"gradient_flow_opt":GradientFlowOPT,
               "feature_deep":DeepFeature, "flow_deep":DeepDiscreteFlow,
-              "discrete_flow_deep": DeepDiscreteFlow,"barycenter_opt":WasserBaryCenterOPT,"probreg_opt":ProRegOPT}
+              "discrete_flow_deep": DeepDiscreteFlow,"barycenter_opt":WasserBaryCenterOPT,"probreg_opt":ProRegOPT,"deep_predictor":DeepPredictor}
 
 
 from shapmagn.shape.point_sampler import point_grid_sampler, point_uniform_sampler

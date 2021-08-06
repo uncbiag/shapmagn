@@ -2,7 +2,7 @@ from glob import glob
 import os
 
 from shapmagn.datasets.data_utils import save_json
-from shapmagn.datasets.prepare_data import CustomDataSet
+from shapmagn.datasets.prepare_reg_data import GeneralDataSet
 use_dirlab_as_val = True
 data_folder_path = "/playpen-raid1/Data/UNC_vesselParticles"
 data_output_folder_path = "/playpen-raid1/zyshen/data/lung_pointcloud/debugging"
@@ -22,7 +22,7 @@ insp_list = [{"name":insp_name, "data_path":insp_path}
              for insp_name, insp_path in zip(insp_name_list, insp_path_list)]
 exp_list = [{"name":exp_name, "data_path":exp_path}
              for exp_name, exp_path in zip(exp_name_list, exp_path_list)]
-dataset = CustomDataSet()
+dataset = GeneralDataSet()
 dataset.set_output_path(data_output_folder_path)
 dataset.set_coupled_pair_list([exp_list,insp_list])
 dataset.set_divided_ratio((0.6,0.1,0.3))

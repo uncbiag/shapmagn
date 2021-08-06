@@ -38,7 +38,8 @@ def visualize_point_fea(points, fea, rgb_on=True, saving_gif_path=None, saving_c
     if camera_pos is not None:
         p.camera_position = camera_pos
     if show:
-        p.show(auto_close=False)
+        pos = p.show(auto_close=False)
+        print(pos)
     elif saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
@@ -108,7 +109,7 @@ def visualize_point_fea_with_arrow(points, fea, vectors, rgb_on=True, saving_gif
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
     point_obj = pv.PolyData(points)
     point_obj.vectors = vectors
-    p.add_mesh(point_obj.arrows, scalars='GlyphScale', lighting=False, stitle="Vector Magnitude")
+    p.add_mesh(point_obj.arrows, scalars='GlyphScale', lighting=True, stitle="Vector Magnitude")
     p.add_mesh(point_obj,
                      scalars=color_adaptive(fea),
                      cmap="magma", point_size=10,
@@ -297,7 +298,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="viridis", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[0],
-               opacity=0.02,
+               opacity='linear',
                lighting=True,
                style="points", show_scalar_bar=True)
     p.add_mesh(pv.PolyData(points2),
@@ -305,7 +306,7 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
                rgb=rgb_on[1],
-               opacity=0.8,
+               opacity='linear',
                lighting=True,
                style="points", show_scalar_bar=True)
 
@@ -556,7 +557,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
         flow_ = np.zeros_like(flow)
         index = list(range(0,npoints, 30))
         flow_[index,:]= flow[index]
-        obj1.point_arrays['flow'] = flow_
+        obj1.point_arrays['flow'] = flow_ #flow_
         geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035)
         arrows =  obj1.glyph( orient="flow",geom=geom)
         p.add_mesh(arrows,color="black",opacity=0.3)
@@ -657,7 +658,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
 
     if show:
         cur_pos=p.show(auto_close=False)
-        print(cur_pos)
+        # print(cur_pos)
     if saving_capture_path:
         #p.show(screenshot=saving_capture_path)
         p.screenshot(saving_capture_path)
@@ -807,3 +808,25 @@ def capture_plotter(render_by_weight=False, camera_pos=None,add_bg_contrast=True
             cp_command = "cp {} {}".format(path, os.path.join(stage_folder, pair_name + "_flowed_target.png"))
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
     return save
+
+
+
+def shape_capture_plotter(render_by_weight=False, camera_pos=None,add_bg_contrast=True):
+    def save(record_path,stage_suffix,shape_name_list, shape):
+        # due to the bug of vtk 9.0, at most around 200+ plots can be saved, so this function would be safe if calling less than 50 times
+        stage_folder = os.path.join(record_path,stage_suffix)
+        os.makedirs(stage_folder,exist_ok=True)
+        for sp,sw, shape_name in zip(shape.points, shape.weights, shape_name_list):
+            case_folder = os.path.join(record_path,shape_name)
+            os.makedirs(case_folder,exist_ok=True)
+            path = os.path.join(case_folder, stage_suffix + ".png")
+            if render_by_weight:
+                visualize_point_fea(sp,sw, rgb_on=False,saving_capture_path=path,camera_pos=camera_pos,show=False)
+            else:
+                visualize_point_fea(sp, sp, rgb_on=True, saving_capture_path=path, camera_pos=camera_pos, show=False)
+
+            cp_command = "cp {} {}".format(path, os.path.join(stage_folder, shape_name + ".png"))
+            subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
+    return save
+
+

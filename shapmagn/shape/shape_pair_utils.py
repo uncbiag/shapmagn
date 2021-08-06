@@ -5,10 +5,10 @@ from shapmagn.global_variable import Shape, shape_type
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator,ridge_kernel_intepolator
 use_fast_fps= False
 try:
-    from shapmagn.modules.networks.pointnet2.lib.pointnet2_utils import FurthestPointSampling
+    from pointnet2.lib.pointnet2_utils import FurthestPointSampling
     use_fast_fps = True
 except:
-    pass
+    Warning("failed to import Furthest point sampling from pointnet2 ")
 
 
 def reg_param_initializer():
@@ -36,7 +36,6 @@ def farthest_point_sample(xyz, npoint):
     Return:
         centroids: sampled pointcloud index, [B, npoint]
     """
-    #import ipdb; ipdb.set_trace()
     device = xyz.device
     B, N, C = xyz.shape
     centroids = torch.zeros(B, npoint, dtype=torch.long).to(device)
@@ -64,7 +63,7 @@ def create_shape_pair(source, target, toflow=None,pair_name=None,n_control_point
         if not use_fast_fps:
             control_idx = farthest_point_sample(source.points, n_control_points)  # non-gpu accerlatation
         else:
-            control_idx = FurthestPointSampling()(source.points, n_control_points)
+            control_idx = FurthestPointSampling.apply(source.points, n_control_points)
         assert control_idx.shape[0]==1
         control_idx = control_idx.squeeze().long()
         control_points = source.points[:, control_idx]
@@ -86,7 +85,20 @@ def prepare_shape_pair(n_control_points=-1):
         return create_shape_pair(source, target, toflow=toflow, pair_name=pair_name, n_control_points=n_control_points,extra_info=extra_info)
     return prepare
 
-def create_shape_pair_from_data_dict():
+
+def create_shape_from_data_dict(attr_list=None):
+    def create(data_dict):
+        shape = Shape()
+        shape.set_data(**data_dict)
+        if attr_list is not None:
+            # todo test
+            for attr in attr_list:
+                if attr in data_dict:
+                    setattr( shape, attr, data_dict[attr])
+        return shape
+    return create
+
+def create_shape_pair_from_data_dict(attr_list=None):
     def create(data_dict):
         shape_pair = ShapePair()
         source_dict, target_dict = data_dict["source"], data_dict["target"]
@@ -113,24 +125,33 @@ def create_shape_pair_from_data_dict():
             shape_pair.flowed_control_points = data_dict["flowed_control_points"]
         if "extra_info" in data_dict:
             shape_pair.extra_info = data_dict["extra_info"]
+        if attr_list is not None:
+            # todo test
+            for attr in attr_list:
+                setattr( shape_pair, attr, data_dict["attr"])
         return shape_pair
     return create
 
 
 
-def decompose_shape_into_dict(shape):
-    data_dict = {attr:getattr(shape,attr) for attr in shape.attr_list if getattr(shape,attr) is not None}
-    return data_dict
+def decompose_shape_into_dict():
+    def decompose(shape):
+        data_dict = {attr:getattr(shape,attr) for attr in shape.attr_list if getattr(shape,attr) is not None}
+        if shape.extra_info is not None:
+            data_dict["extra_info"] = shape.extra_info
+        return data_dict
+    return decompose
+
 
 def decompose_shape_pair_into_dict():
     def decompose(shape_pair):
         data_dict = {}
-        data_dict["source"] = decompose_shape_into_dict(shape_pair.source)
-        data_dict["target"] = decompose_shape_into_dict(shape_pair.target)
+        data_dict["source"] = decompose_shape_into_dict()(shape_pair.source)
+        data_dict["target"] = decompose_shape_into_dict()(shape_pair.target)
         if shape_pair.toflow is not None:
-            data_dict["toflow"] = decompose_shape_into_dict(shape_pair.toflow)
+            data_dict["toflow"] = decompose_shape_into_dict()(shape_pair.toflow)
         if shape_pair.flowed is not None:
-            data_dict["flowed"] = decompose_shape_into_dict(shape_pair.flowed)
+            data_dict["flowed"] = decompose_shape_into_dict()(shape_pair.flowed)
         if shape_pair.reg_param is not None:
             data_dict["reg_param"] = shape_pair.reg_param
         if shape_pair.control_points is not None:

@@ -294,7 +294,7 @@ def test_parameter_dict():
     p = ParameterDict()
 
     # we can directly assign
-    p['registration_model'] = ({},'general settings for registration models')
+    p['registration_model'] = ({},'general settings for registration models_reg')
     p['registration_model']['similarity_measure'] = ({},'settings for the similarity measures')
     p['registration_model']['similarity_measure']['type']=('ssd','similarity measure type')
     # we can also ask for a parameter and use a default parameter if it does not exist

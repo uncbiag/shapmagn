@@ -8,7 +8,7 @@ from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
-from shapmagn.models.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
+from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
 from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import *
@@ -36,8 +36,8 @@ from scipy.sparse.linalg.interface import IdentityOperator
 assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 server_path = "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path =  server_path+"data/lung_vessel_demo_data/10031R_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
-target_path = server_path + "data/lung_vessel_demo_data/10031R_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+source_path =  server_path+"data/lung_vessel_demo_data/case2_exp.vtk"
+target_path = server_path + "data/lung_vessel_demo_data/case2_insp.vtk"
 compute_on_half_lung = True
 
 ####################  prepare data ###########################
@@ -210,7 +210,7 @@ L_norm.dtype = np.dtype(
 
 ##########################################################################
 # And our favourite solver will compute, as expected,
-# the smallest eigenvalues of this custom operator:
+# the smallest eigenvalues of this general operator:
 
 
 from time import time
@@ -231,7 +231,7 @@ print(eigenvalues)
 ##########################################################################
 #
 # .. note::
-#   On very large problems, a custom eigenproblem solver
+#   On very large problems, a general eigenproblem solver
 #   implemented with the **PyTorch+KeOps** interface should be sensibly **faster**
 #   than this SciPy wrapper: performing all computations on the GPU
 #   would allow us to perform linear operations in parallel

@@ -36,13 +36,13 @@ def save_shape_into_file(folder_path, alias,pair_name, ftype= "vtk", **args):
 
 
 
-def save_shape_into_files(folder_path,alias, pair_name,shape):
+def save_shape_into_files(folder_path, alias, name,shape):
 
     attri_dict_to_save = {"points":shape.points, "weights":shape.weights}
     attri_dict_to_save["faces"] = shape.faces if not shape.points_mode_on else None
     if shape.pointfea is not None:
         attri_dict_to_save["pointfea"] = torch.norm(shape.pointfea, 2, dim=2)
-    save_shape_into_file(folder_path,alias,pair_name, **attri_dict_to_save)
+    save_shape_into_file(folder_path,alias, name, **attri_dict_to_save)
 
 
 def save_shape_pair_into_files(folder_path, stage_name, pair_name,shape_pair):

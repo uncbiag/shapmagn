@@ -103,7 +103,7 @@ def lung_aug_data(**kwargs):
     local_deform_aug["num_sample"] = 1000
     local_deform_aug["disp_scale"] = 0.03
     kernel_scale = 0.04
-    spline_param = "cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True".format(
+    spline_param = "cov_sigma_scale=0.03,aniso_kernel_scale={},eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=False, is_interp=True, self_center=True".format(
         kernel_scale)
     local_deform_aug['local_deform_spline_kernel_obj'] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(
         spline_param)

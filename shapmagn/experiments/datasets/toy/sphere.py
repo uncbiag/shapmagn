@@ -56,7 +56,7 @@ def ico_sphere(level: int = 0, device=None):
     Args:
         level: integer specifying the number of iterations for subdivision
                of the mesh faces. Each additional level will result in four new
-               faces per face.
+               faces per dhface.
         device: A torch.device object on which the outputs will be allocated.
 
     Returns:

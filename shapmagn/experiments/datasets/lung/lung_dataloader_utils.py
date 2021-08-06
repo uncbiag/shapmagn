@@ -190,7 +190,7 @@ if __name__ == "__main__":
     reader = obj_factory(reader_obj)
     normalizer = obj_factory(normalizer_obj)
     sampler = obj_factory(sampler_obj)
-    file_path = "/playpen-raid1/Data/UNC_vesselParticles/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+    file_path = "/playpen-raid1/Data/UNC_vesselParticles/case1_exp.vtk"
     file_info = {"name":file_path,"data_path":file_path}
     raw_data_dict  = reader(file_info)
     normalized_data_dict = normalizer(raw_data_dict)

@@ -40,8 +40,7 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
                     continue
                 i = i - running_range[0]
 
-            batch_size = len(data["pair_name"])
-            batch_size_list.append(batch_size)
+
             model.set_test()
             input_data = model.set_input(data, device, phase)
             ex_time = time()
@@ -50,13 +49,16 @@ def eval_model(opt,model,dataloaders,writer,device, task_name=""):
             time_total += batch_time
             print("the batch prediction takes {} to complete".format(batch_time))
             records_time_np[i] = batch_time
+            batch_size = len(test_res[0]["score"])
+            batch_size_list.append(batch_size)
             score, detailed_scores = model.analyze_res(test_res,cache_res=True)
             update_res(detailed_scores,runing_detailed_scores)
             print("the loss_detailed is {}".format(detailed_scores))
             running_test_score += score * batch_size
             records_score_np[i] = score
             sum_batch = sum(batch_size_list)
-            print("id {} and current name is : {}".format(i,data['pair_name']))
+            name_attr = list(filter(lambda x:"name" in x, data.keys()))[0]
+            print("id {} and current name is : {}".format(i,data[name_attr]))  #todo follow the same name general, e.g "name"
             print('the current running_score:{}'.format(score))
             print('the current average running_score:{}'.format(running_test_score/sum_batch))
             print('the current average running detailed score:{}'.format({metric:np.sum(score)/sum_batch for metric, score in runing_detailed_scores.items()}))

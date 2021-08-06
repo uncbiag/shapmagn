@@ -14,8 +14,8 @@ from shapmagn.utils.visualizer import visualize_point_fea_with_arrow,visualize_p
 
 
 server_path = "/home/zyshen/remote/llr11_mount/zyshen/proj/shapmagn/shapmagn/demos/" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-path_1 =  server_path+"data/lung_vessel_demo_data/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
-path_2 = server_path + "data/lung_vessel_demo_data/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"
+path_1 =  server_path+"data/lung_vessel_demo_data/case1_exp.vtk"
+path_2 = server_path + "data/lung_vessel_demo_data/case1_insp.vtk"
 
 saving_path = "/playpen-raid1/zyshen/debug/debugg_point_visual2.vtk"
 reader_obj = "lung_dataloader_utils.lung_reader()"

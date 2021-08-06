@@ -1,7 +1,11 @@
 from pykeops.torch.cluster import grid_cluster
 import numpy as np
 import torch
-from torch_scatter import scatter
+try:
+    from torch_scatter import scatter
+except ImportError:
+    print("Could not load torch-scatter.")
+
 from shapmagn.modules.networks.pointnet2.lib.pointnet2_utils import furthest_point_sample
 from shapmagn.modules.networks.pointconv_util import index_points_gather
 

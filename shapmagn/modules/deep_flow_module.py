@@ -17,7 +17,12 @@ from shapmagn.modules.networks.pointpwcnet2_2 import PointConvSceneFlowPWC2_2
 from shapmagn.modules.networks.pointpwcnet2_3 import PointConvSceneFlowPWC2_3
 from shapmagn.modules.networks.pointpwcnet2_4 import PointConvSceneFlowPWC2_4
 from shapmagn.modules.networks.pointpwcnet2_5 import PointConvSceneFlowPWC2_5
-from shapmagn.modules.networks.pointpwcnet2_6 import PointConvSceneFlowPWC2_6
+
+try:
+    from shapmagn.modules.networks.pointpwcnet2_6 import PointConvSceneFlowPWC2_6
+except ImportError:
+    print("Could not load PointPWCNet v2.6.")
+
 #from shapmagn.modules.networks.pointpwcnet3 import PointConvSceneFlowPWC3
 from shapmagn.modules.networks.geo_flow_net import GeoFlowNet
 from shapmagn.metrics.losses import CurvatureReg

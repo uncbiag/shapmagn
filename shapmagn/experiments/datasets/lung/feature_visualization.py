@@ -22,7 +22,10 @@ def reader(file_path):
     pointfea = raw_data_dict["pointfea"][:, None]
     shape = Shape().set_data(points=points,weights=weights, pointfea=pointfea)
     return shape
-folder_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/records/fea_visual"
+
+# folder_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/records/fea_visual"
+folder_path = "~/Documents/Travail/Codes/Pytorch/lungs/paper_results/feavisual"
+
 case_name = "12829U"
 source_path = os.path.join(folder_path,"{}_source.vtk".format(case_name))
 target_path = os.path.join(folder_path,"{}_target.vtk".format(case_name))

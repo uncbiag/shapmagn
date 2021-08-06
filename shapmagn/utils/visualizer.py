@@ -491,7 +491,8 @@ def visualize_point_pair_overlap(points1, points2, feas1, feas2, title1, title2,
 
 
 
-def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, add_bg_contrast=True,show=True):
+def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas2, feas3, title1, title2, title3,flow=None, rgb_on=True, saving_gif_path=None, saving_capture_path=None,camera_pos=None, add_bg_contrast=True,show=True, sharp=True):
+    
     points1 = format_input(points1)
     points2 = format_input(points2)
     points3 = format_input(points3)
@@ -506,22 +507,50 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
         rgb_on = [rgb_on]* 3
 
     p = pv.Plotter(window_size=[3000, 1024], shape=(1, 4), border=False, off_screen= not show)
+
+
+    def plot_lungs(cloud, radii, nradii=10, **kwargs):
+
+        for k in range(nradii):
+            mask = (radii > (k / nradii)) * (radii <= ((k+1) / nradii))
+
+            p.add_mesh(pv.PolyData(cloud[mask,:]),
+                        scalars=radii[mask],
+                        point_size= 15 * (((k+1) + .5) / nradii),
+                        render_points_as_spheres=True,
+                        lighting=True,
+                        clim=[-.6,1.1],
+                        style="points", show_scalar_bar=True,
+                        **kwargs)
+
+    # Plot 1
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
 
-    obj1 = pv.PolyData(points1)
-    p.add_mesh(obj1,
-                     scalars=color_adaptive(feas1),
-                     cmap="viridis", point_size=10,
-                     render_points_as_spheres=True,
-                     rgb=rgb_on[0],
-                     opacity="linear",
-                     lighting=True,
-                     style="points", show_scalar_bar=True)
+
+    if sharp:
+        plot_lungs(points1, color_adaptive(feas1),
+                        cmap="Reds", 
+                        rgb=rgb_on[0])
+
+    else:
+        obj1 = pv.PolyData(points1)
+        p.add_mesh(obj1,
+                        scalars=color_adaptive(feas1),
+                        cmap="viridis", point_size=10,
+                        render_points_as_spheres=True,
+                        rgb=rgb_on[0],
+                        opacity="linear",
+                        lighting=True,
+                        style="points", show_scalar_bar=True)
+
+
+    # Plot 2
     p.subplot(0, 1)
     p.add_text(title2, font_size=18)
 
     obj1 = pv.PolyData(points1)
+
     if flow is not None:
         npoints = flow.shape[0]
         flow_ = np.zeros_like(flow)
@@ -531,6 +560,7 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
         geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035)
         arrows =  obj1.glyph( orient="flow",geom=geom)
         p.add_mesh(arrows,color="black",opacity=0.3)
+
     if add_bg_contrast:
         p.add_mesh(obj1,
                    color="gray",
@@ -539,19 +569,26 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
                    opacity=0.05,
                    style="points", show_scalar_bar=True)
 
-    p.add_mesh(pv.PolyData(points2),
-               scalars=color_adaptive(feas2),
-               cmap="viridis", point_size=10,
-               render_points_as_spheres=True,
-               rgb=rgb_on[1],
-               opacity="linear",
-               lighting=True,
-               style="points", show_scalar_bar=True)
+    if sharp:
+        plot_lungs(points2, color_adaptive(feas2),
+                        cmap="Reds", 
+                        rgb=rgb_on[1])
+
+    else:
+        p.add_mesh(pv.PolyData(points2),
+                scalars=color_adaptive(feas2),
+                cmap="viridis", point_size=10,
+                render_points_as_spheres=True,
+                rgb=rgb_on[1],
+                opacity="linear",
+                lighting=True,
+                style="points", show_scalar_bar=True)
 
 
-
+    # Plot 3
     p.subplot(0, 2)
     p.add_text(title3, font_size=18)
+
     if add_bg_contrast:
         p.add_mesh(pv.PolyData(points1),
                    color="gray",
@@ -560,7 +597,14 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
                    opacity=0.05,
                    style="points", show_scalar_bar=True)
 
-    p.add_mesh(pv.PolyData(points3),
+
+    if sharp:
+        plot_lungs(points3, color_adaptive(feas3),
+                        cmap="Blues", 
+                        rgb=rgb_on[2])
+    
+    else:
+        p.add_mesh(pv.PolyData(points3),
                scalars=color_adaptive(feas3),
                cmap="magma", point_size=10,
                render_points_as_spheres=True,
@@ -570,23 +614,37 @@ def visualize_source_flowed_target_overlap(points1, points2,points3, feas1, feas
                style="points", show_scalar_bar=True)
 
 
+    # Plot 4:
     p.subplot(0, 3)
-    p.add_mesh(pv.PolyData(points2),
-               scalars=color_adaptive(feas2),
-               cmap="viridis", point_size=10,
-               render_points_as_spheres=True,
-               rgb=rgb_on[1],
-               opacity="linear",
-               lighting=True,
-               style="points", show_scalar_bar=True)
-    p.add_mesh(pv.PolyData(points3),
-               scalars=color_adaptive(feas3),
-               cmap="magma", point_size=10,
-               render_points_as_spheres=True,
-               rgb=rgb_on[2],
-               opacity="linear",
-               lighting=True,
-               style="points", show_scalar_bar=True)
+    if sharp:
+
+        plot_lungs(points2, color_adaptive(feas2),
+                        cmap="Reds", 
+                        rgb=rgb_on[1], opacity=.5)
+
+        plot_lungs(points3, color_adaptive(feas3),
+                        cmap="Blues", 
+                        rgb=rgb_on[2], opacity=.5)
+    
+    else:
+
+        p.add_mesh(pv.PolyData(points2),
+                scalars=color_adaptive(feas2),
+                cmap="viridis", point_size=10,
+                render_points_as_spheres=True,
+                rgb=rgb_on[1],
+                opacity="linear",
+                lighting=True,
+                style="points", show_scalar_bar=True)
+        p.add_mesh(pv.PolyData(points3),
+                scalars=color_adaptive(feas3),
+                cmap="magma", point_size=10,
+                render_points_as_spheres=True,
+                rgb=rgb_on[2],
+                opacity="linear",
+                lighting=True,
+                style="points", show_scalar_bar=True)
+
     p.add_text(title2+"_overlap_"+title3, font_size=22)
 
 

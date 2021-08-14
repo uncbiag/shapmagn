@@ -8,6 +8,7 @@ from shapmagn.utils.shape_visual_utils import save_shape_pair_into_files
 from shapmagn.shape.shape_pair_utils import create_shape_pair
 from shapmagn.utils.utils import timming
 
+
 class OptModel(ModelBase):
     """
     Optimization models_reg include two step optimization: affine and non-parametric optimization
@@ -18,9 +19,9 @@ class OptModel(ModelBase):
     """
 
     def name(self):
-        return 'Optimization Model'
+        return "Optimization Model"
 
-    def initialize(self, opt,device, gpus=None):
+    def initialize(self, opt, device, gpus=None):
         """
         initialize variable settings of Optimization Approches
         multi-gpu is not supported for optimization tasks
@@ -28,28 +29,44 @@ class OptModel(ModelBase):
         :param opt: ParameterDict, task settings
         :return:
         """
-        ModelBase.initialize(self,opt, device, gpus)
-        self.init_optimization_env(self.opt,device)
+        ModelBase.initialize(self, opt, device, gpus)
+        self.init_optimization_env(self.opt, device)
         self.step_count = 0
         """ count of the step"""
         self.cur_epoch = 0
         """visualize condition"""
-        prepare_shape_pair_obj = opt[("prepare_shape_pair", "shape_pair_utils.prepare_shape_pair()", "shape pair initialization func")]
+        prepare_shape_pair_obj = opt[
+            (
+                "prepare_shape_pair",
+                "shape_pair_utils.prepare_shape_pair()",
+                "shape pair initialization func",
+            )
+        ]
         self.prepare_shape_pair = obj_factory(prepare_shape_pair_obj)
         create_shape_pair_from_data_dict_obj = opt[
-            ("create_shape_pair_from_data_dict","shape_pair_utils.create_shape_pair_from_data_dict()", "input data generator func")]
-        self.create_shape_pair_from_data_dict = obj_factory(create_shape_pair_from_data_dict_obj)
-        prepare_input_object = opt[("prepare_input_object", "", "input processing function")]
-        self.prepare_input = obj_factory(prepare_input_object) if prepare_input_object else self._set_input
-        analyzer_obj = opt[
-            ("analyzer_obj", "", "result analyzer")]
+            (
+                "create_shape_pair_from_data_dict",
+                "shape_pair_utils.create_shape_pair_from_data_dict()",
+                "input data generator func",
+            )
+        ]
+        self.create_shape_pair_from_data_dict = obj_factory(
+            create_shape_pair_from_data_dict_obj
+        )
+        prepare_input_object = opt[
+            ("prepare_input_object", "", "input processing function")
+        ]
+        self.prepare_input = (
+            obj_factory(prepare_input_object)
+            if prepare_input_object
+            else self._set_input
+        )
+        analyzer_obj = opt[("analyzer_obj", "", "result analyzer")]
         self.external_analyzer = obj_factory(analyzer_obj) if analyzer_obj else None
 
-
-
     def init_optimization_env(self, opt, device):
-        method_name = opt[('method_name', "lddmm_opt", "specific optimization method")]
-        prealign_opt = opt[("prealign_opt",{}, "method settings")]
+        method_name = opt[("method_name", "lddmm_opt", "specific optimization method")]
+        prealign_opt = opt[("prealign_opt", {}, "method settings")]
         if "_and_prealign_opt" in method_name:
             self.run_prealign = True
             self.run_nonparametric = True
@@ -58,7 +75,13 @@ class OptModel(ModelBase):
             method_opt = opt[(method_name, {}, "method settings")]
             self._model = MODEL_POOL[method_name](method_opt).to(device)
 
-        elif method_name in ["lddmm_opt","discrete_flow_opt","gradient_flow_opt","barycenter_opt","probreg_opt"]:
+        elif method_name in [
+            "lddmm_opt",
+            "discrete_flow_opt",
+            "gradient_flow_opt",
+            "barycenter_opt",
+            "probreg_opt",
+        ]:
             self.run_prealign = False
             self.run_nonparametric = True
             self._prealign_model = None
@@ -74,20 +97,35 @@ class OptModel(ModelBase):
         # if gpus and len(gpus) >= 1:
         #     self._model = nn.DataParallel(self._model, gpus)
         if self._prealign_model is not None:
-            print('---------- A model instance for {} is initialized -------------'.format("prealign_opt"))
+            print(
+                "---------- A model instance for {} is initialized -------------".format(
+                    "prealign_opt"
+                )
+            )
             print_model(self._prealign_model)
-            print('-----------------------------------------------')
+            print("-----------------------------------------------")
         if self._model is not None:
-            print('---------- A model instance for {} is initialized -------------'.format(method_name))
+            print(
+                "---------- A model instance for {} is initialized -------------".format(
+                    method_name
+                )
+            )
             print_model(self._model)
-            print('-----------------------------------------------')
+            print("-----------------------------------------------")
 
     def _set_input(self, input_data, batch_info):
-        input_data["extra_info"] = {key: item for key, item in input_data["target"].get("extra_info", {}).items()}
+        input_data["extra_info"] = {
+            key: item
+            for key, item in input_data["target"].get("extra_info", {}).items()
+        }
 
         if "gt_flow" in input_data["source"].get("extra_info", {}):
-            input_data["extra_info"]["gt_flow"] = input_data["source"]["extra_info"]["gt_flow"]
-            input_data["extra_info"]["gt_flowed"] = input_data["extra_info"]["gt_flow"] + input_data["source"]["points"]
+            input_data["extra_info"]["gt_flow"] = input_data["source"]["extra_info"][
+                "gt_flow"
+            ]
+            input_data["extra_info"]["gt_flowed"] = (
+                input_data["extra_info"]["gt_flow"] + input_data["source"]["points"]
+            )
             batch_info["corr_source_target"] = True
             batch_info["has_gt"] = True
             return input_data, batch_info
@@ -95,7 +133,6 @@ class OptModel(ModelBase):
             batch_info["corr_source_target"] = False
             batch_info["has_gt"] = False
             return input_data, batch_info
-
 
     def set_input(self, input_data, device, phase=None):
         """
@@ -110,23 +147,25 @@ class OptModel(ModelBase):
             else:
                 return item.to(device)
 
-        batch_info = {"pair_name": input_data["pair_name"],
-                      "source_info": input_data["source_info"],
-                      "target_info": input_data["target_info"],
-                      "is_synth": False, "phase": phase, "epoch": self.cur_epoch}
+        batch_info = {
+            "pair_name": input_data["pair_name"],
+            "source_info": input_data["source_info"],
+            "target_info": input_data["target_info"],
+            "is_synth": False,
+            "phase": phase,
+            "epoch": self.cur_epoch,
+        }
         input_data["source"] = to_device(input_data["source"], device)
         input_data["target"] = to_device(input_data["target"], device)
         batch_info["record_path"] = self.record_path
-        input_data, self.batch_info =  self.prepare_input(input_data, batch_info)
+        input_data, self.batch_info = self.prepare_input(input_data, batch_info)
 
         return input_data
 
-
     def get_debug_info(self):
         """ get filename of the failed cases"""
-        info = {'file_name': self.batch_info["fname_list"]}
+        info = {"file_name": self.batch_info["fname_list"]}
         return info
-
 
     def optimize_parameters(self, data=None):
         """
@@ -137,26 +176,50 @@ class OptModel(ModelBase):
         """
         shape_pair = self.create_shape_pair_from_data_dict(data)
         source, target = shape_pair.source, shape_pair.target
-        shape_pair = self.prepare_shape_pair(source, target,extra_info = shape_pair.extra_info)
+        shape_pair = self.prepare_shape_pair(
+            source, target, extra_info=shape_pair.extra_info
+        )
         shape_pair.set_pair_name(self.batch_info["pair_name"])
         forward_t_prealign, forward_t_nonp = 0, 0
         if self.run_prealign:
-            multi_scale_opt = self.opt[("multi_scale_optimization_prealign",{},"settings for multi_scale_optimization_prealign")]
-            multi_scale_opt['record_path'] = self.record_path
-            sovler = build_multi_scale_solver(multi_scale_opt,self._prealign_model)
-            shape_pair, forward_t_prealign = timming(sovler,return_t=True)(shape_pair)
-            save_shape_pair_into_files(self.record_path, "shape_prealigned",shape_pair.get_pair_name(), shape_pair)
+            multi_scale_opt = self.opt[
+                (
+                    "multi_scale_optimization_prealign",
+                    {},
+                    "settings for multi_scale_optimization_prealign",
+                )
+            ]
+            multi_scale_opt["record_path"] = self.record_path
+            sovler = build_multi_scale_solver(multi_scale_opt, self._prealign_model)
+            shape_pair, forward_t_prealign = timming(sovler, return_t=True)(shape_pair)
+            save_shape_pair_into_files(
+                self.record_path,
+                "shape_prealigned",
+                shape_pair.get_pair_name(),
+                shape_pair,
+            )
             if self.run_nonparametric:
                 shape_pair.control_points = shape_pair.flowed_control_points.detach()
                 shape_pair.source.points = shape_pair.flowed.points.detach()
         if self.run_nonparametric:
-            multi_scale_opt = self.opt[("multi_scale_optimization",{},"settings for multi_scale_optimization")]
-            multi_scale_opt['record_path'] = self.record_path
-            sovler = build_multi_scale_solver(multi_scale_opt,self._model)
-            shape_pair, forward_t_nonp = timming(sovler,return_t=True)(shape_pair)
-            save_shape_pair_into_files(self.record_path, "shape_nonparametric",shape_pair.get_pair_name(), shape_pair)
+            multi_scale_opt = self.opt[
+                (
+                    "multi_scale_optimization",
+                    {},
+                    "settings for multi_scale_optimization",
+                )
+            ]
+            multi_scale_opt["record_path"] = self.record_path
+            sovler = build_multi_scale_solver(multi_scale_opt, self._model)
+            shape_pair, forward_t_nonp = timming(sovler, return_t=True)(shape_pair)
+            save_shape_pair_into_files(
+                self.record_path,
+                "shape_nonparametric",
+                shape_pair.get_pair_name(),
+                shape_pair,
+            )
         forward_t = forward_t_prealign + forward_t_nonp
-        return shape_pair,forward_t
+        return shape_pair, forward_t
 
     def get_evaluation(self, input_data):
         """
@@ -169,8 +232,12 @@ class OptModel(ModelBase):
         if self._model is not None:
             scores, shape_pair = self._model.model_eval(shape_pair, self.batch_info)
         elif self._prealign_model is not None:
-            scores, shape_pair = self._prealign_model.model_eval(shape_pair, self.batch_info)
-        scores.update({"forward_t":[forward_t/shape_pair.nbatch]*shape_pair.nbatch})
+            scores, shape_pair = self._prealign_model.model_eval(
+                shape_pair, self.batch_info
+            )
+        scores.update(
+            {"forward_t": [forward_t / shape_pair.nbatch] * shape_pair.nbatch}
+        )
 
         return scores, shape_pair
 
@@ -178,16 +245,17 @@ class OptModel(ModelBase):
         """ handle in optimizer"""
         pass
 
-
-
-
-
     def analyze_res(self, eval_res, cache_res=True):
         import numpy as np
+
         eval_metrics, shape_pair = eval_res
-        assert "score" in eval_metrics, "at least there should be one metric named 'score'"
+        assert (
+            "score" in eval_metrics
+        ), "at least there should be one metric named 'score'"
         if self.external_analyzer:
-            self.external_analyzer(shape_pair, self.batch_info["pair_name"], self._model, self.record_path)
+            self.external_analyzer(
+                shape_pair, self.batch_info["pair_name"], self._model, self.record_path
+            )
         if cache_res:
             if len(self.caches) == 0:
                 self.caches.update(eval_metrics)
@@ -195,15 +263,12 @@ class OptModel(ModelBase):
             else:
                 for metric in eval_metrics:
                     self.caches[metric] += eval_metrics[metric]
-                self.caches['pair_name'] += self.batch_info["pair_name"]
+                self.caches["pair_name"] += self.batch_info["pair_name"]
 
         if len(eval_metrics):
             return np.array(eval_metrics["score"]).mean(), eval_metrics
         else:
             return -1, np.array([-1])
-
-
-
 
     def get_extra_to_plot(self):
         """
@@ -213,8 +278,5 @@ class OptModel(ModelBase):
         """
         return self._model.get_extra_to_plot()
 
-
     def set_test(self):
         torch.set_grad_enabled(True)
-
-

@@ -14,7 +14,9 @@ import scipy.ndimage.interpolation as scipy_interpolation
 
 class DataProcessing(object):
     @classmethod
-    def resample_image_itk(cls, image, output_size, output_type=None, interpolator=sitk.sitkBSpline):
+    def resample_image_itk(
+        cls, image, output_size, output_type=None, interpolator=sitk.sitkBSpline
+    ):
         """
         Image resampling using ITK
         :param image: simpleITK image
@@ -33,12 +35,16 @@ class DataProcessing(object):
         resampler.SetSize(output_size.tolist())
         resampler.SetInterpolator(interpolator)
         resampler.SetOutputSpacing(output_spacing)
-        resampler.SetOutputPixelType(output_type if output_type is not None else image.GetPixelIDValue())
+        resampler.SetOutputPixelType(
+            output_type if output_type is not None else image.GetPixelIDValue()
+        )
         resampler.SetOutputOrigin(image.GetOrigin())
         return resampler.Execute(image), output_spacing
 
     @classmethod
-    def resample_image_itk_by_spacing(cls, image, output_spacing, output_type=None, interpolator=sitk.sitkBSpline):
+    def resample_image_itk_by_spacing(
+        cls, image, output_spacing, output_type=None, interpolator=sitk.sitkBSpline
+    ):
         """
         Image resampling using ITK
         :param image: simpleITK image
@@ -50,20 +56,32 @@ class DataProcessing(object):
         if not isinstance(output_spacing, np.ndarray):
             output_spacing = np.array(output_spacing)
         factor = np.asarray(image.GetSpacing()) / output_spacing.astype(np.float32)
-        output_size = np.round(np.asarray(image.GetSize()) * factor + 0.0005).astype(np.uint32)
+        output_size = np.round(np.asarray(image.GetSize()) * factor + 0.0005).astype(
+            np.uint32
+        )
 
         resampler = sitk.ResampleImageFilter()
         resampler.SetOutputDirection(image.GetDirection())
         resampler.SetSize(output_size.tolist())
         resampler.SetInterpolator(interpolator)
         resampler.SetOutputSpacing(output_spacing)
-        resampler.SetOutputPixelType(output_type if output_type is not None else image.GetPixelIDValue())
+        resampler.SetOutputPixelType(
+            output_type if output_type is not None else image.GetPixelIDValue()
+        )
         resampler.SetOutputOrigin(image.GetOrigin())
         return resampler.Execute(image)
 
     @classmethod
-    def resample_image_itk_by_spacing_and_size(cls, image, output_spacing, output_size, output_type=None,
-                                               interpolator=sitk.sitkBSpline, padding_value=-1024, center_padding=True):
+    def resample_image_itk_by_spacing_and_size(
+        cls,
+        image,
+        output_spacing,
+        output_size,
+        output_type=None,
+        interpolator=sitk.sitkBSpline,
+        padding_value=-1024,
+        center_padding=True,
+    ):
         """
         Image resampling using ITK
         :param image: simpleITK image
@@ -80,12 +98,18 @@ class DataProcessing(object):
         resampler.SetDefaultPixelValue(padding_value)
         resampler.SetInterpolator(interpolator)
         resampler.SetOutputSpacing(np.array(output_spacing))
-        resampler.SetOutputPixelType(output_type if output_type is not None else image.GetPixelIDValue())
-        factor = np.asarray(image.GetSpacing()) / np.asarray(output_spacing).astype(np.float32)
+        resampler.SetOutputPixelType(
+            output_type if output_type is not None else image.GetPixelIDValue()
+        )
+        factor = np.asarray(image.GetSpacing()) / np.asarray(output_spacing).astype(
+            np.float32
+        )
 
         # Get new output origin
         if center_padding:
-            real_output_size = np.round(np.asarray(image.GetSize()) * factor + 0.0005).astype(np.uint32)
+            real_output_size = np.round(
+                np.asarray(image.GetSize()) * factor + 0.0005
+            ).astype(np.uint32)
             diff = ((output_size - real_output_size) * np.asarray(output_spacing)) / 2
             output_origin = np.asarray(image.GetOrigin()) - diff
         else:
@@ -95,7 +119,9 @@ class DataProcessing(object):
         return resampler.Execute(image)
 
     @classmethod
-    def reslice_3D_image_vtk(cls, image, x_axis, y_axis, z_axis, center_point, target_size, output_spacing):
+    def reslice_3D_image_vtk(
+        cls, image, x_axis, y_axis, z_axis, center_point, target_size, output_spacing
+    ):
         """
         3D image reslicing using vtk.
         :param image: VTK image
@@ -109,22 +135,37 @@ class DataProcessing(object):
         """
         reslice = vtk.vtkImageReslice()
         reslice.SetInputData(image)
-        reslice.SetResliceAxesDirectionCosines(x_axis[0], x_axis[1], x_axis[2], y_axis[0], y_axis[1], y_axis[2],
-                                               z_axis[0], z_axis[1], z_axis[2])
+        reslice.SetResliceAxesDirectionCosines(
+            x_axis[0],
+            x_axis[1],
+            x_axis[2],
+            y_axis[0],
+            y_axis[1],
+            y_axis[2],
+            z_axis[0],
+            z_axis[1],
+            z_axis[2],
+        )
         reslice.SetResliceAxesOrigin(center_point)
         reslice.SetOutputDimensionality(3)
 
         reslice.SetInterpolationMode(vtk.VTK_RESLICE_CUBIC)
         reslice.SetOutputSpacing(output_spacing)
-        reslice.SetOutputExtent(0, target_size[0] - 1, 0, target_size[1] - 1, 0, target_size[2] - 1)
-        reslice.SetOutputOrigin(-(target_size[0] * 0.5 - 0.5) * output_spacing[0],
-                                -(target_size[1] * 0.5 - 0.5) * output_spacing[1],
-                                -(target_size[2] * 0.5 - 0.5) * output_spacing[2])
+        reslice.SetOutputExtent(
+            0, target_size[0] - 1, 0, target_size[1] - 1, 0, target_size[2] - 1
+        )
+        reslice.SetOutputOrigin(
+            -(target_size[0] * 0.5 - 0.5) * output_spacing[0],
+            -(target_size[1] * 0.5 - 0.5) * output_spacing[1],
+            -(target_size[2] * 0.5 - 0.5) * output_spacing[2],
+        )
         reslice.Update()
         return reslice.GetOutput().GetPointData().GetScalars()
 
     @classmethod
-    def reslice_2D_image_vtk(cls, image, x_axis, y_axis, z_axis, center_point, target_size, output_spacing):
+    def reslice_2D_image_vtk(
+        cls, image, x_axis, y_axis, z_axis, center_point, target_size, output_spacing
+    ):
         """
         2D image reslicing using vtk.
         :param image: VTK image
@@ -138,23 +179,42 @@ class DataProcessing(object):
         """
         reslice = vtk.vtkImageReslice()
         reslice.SetInputData(image)
-        reslice.SetResliceAxesDirectionCosines(x_axis[0], x_axis[1], x_axis[2], y_axis[0], y_axis[1], y_axis[2],
-                                               z_axis[0], z_axis[1], z_axis[2])
+        reslice.SetResliceAxesDirectionCosines(
+            x_axis[0],
+            x_axis[1],
+            x_axis[2],
+            y_axis[0],
+            y_axis[1],
+            y_axis[2],
+            z_axis[0],
+            z_axis[1],
+            z_axis[2],
+        )
         reslice.SetResliceAxesOrigin(center_point)
         reslice.SetOutputDimensionality(2)
 
         reslice.SetInterpolationMode(vtk.VTK_RESLICE_CUBIC)
         reslice.SetOutputSpacing(output_spacing)
         reslice.SetOutputExtent(0, target_size[0] - 1, 0, target_size[1] - 1, 0, 1)
-        reslice.SetOutputOrigin(-(target_size[0] * 0.5 - 0.5) * output_spacing[0],
-                                -(target_size[1] * 0.5 - 0.5) * output_spacing[1],
-                                0)
+        reslice.SetOutputOrigin(
+            -(target_size[0] * 0.5 - 0.5) * output_spacing[0],
+            -(target_size[1] * 0.5 - 0.5) * output_spacing[1],
+            0,
+        )
         reslice.Update()
         return reslice.GetOutput().GetPointData().GetScalars()
 
     @classmethod
-    def similarity_3D_transform_with_coords(cls, img, coords, output_size, translation, scale,
-                                            interpolator=sitk.sitkBSpline, default_pixel_value=0.):
+    def similarity_3D_transform_with_coords(
+        cls,
+        img,
+        coords,
+        output_size,
+        translation,
+        scale,
+        interpolator=sitk.sitkBSpline,
+        default_pixel_value=0.0,
+    ):
         """
         Apply a 3D similarity transform to an image and use the same transformation for a list of coordinates
         (rotation not implemented at the moment)
@@ -169,7 +229,9 @@ class DataProcessing(object):
         output_size_arr = np.array(output_size)
         reference_image.SetOrigin(img.GetOrigin())
         reference_image.SetDirection(img.GetDirection())
-        spacing = (np.array(img.GetSize()) * np.array(img.GetSpacing())) / output_size_arr
+        spacing = (
+            np.array(img.GetSize()) * np.array(img.GetSpacing())
+        ) / output_size_arr
         reference_image.SetSpacing(spacing)
 
         # Create the transformation
@@ -180,7 +242,9 @@ class DataProcessing(object):
             tr.SetScale(scale)
 
         # Apply the transformation to the image
-        img2 = sitk.Resample(img, reference_image, tr, interpolator, default_pixel_value)
+        img2 = sitk.Resample(
+            img, reference_image, tr, interpolator, default_pixel_value
+        )
 
         if coords is not None:
             # Apply the transformation to the coordinates
@@ -188,7 +252,9 @@ class DataProcessing(object):
             for i in range(coords.shape[0]):
                 coords_ph = img.TransformContinuousIndexToPhysicalPoint(coords[i])
                 coords_ph = tr.GetInverse().TransformPoint(coords_ph)
-                transformed_coords[i] = np.array(img2.TransformPhysicalPointToContinuousIndex(coords_ph))
+                transformed_coords[i] = np.array(
+                    img2.TransformPhysicalPointToContinuousIndex(coords_ph)
+                )
         else:
             transformed_coords = None
 
@@ -235,7 +301,9 @@ class DataProcessing(object):
                 # First, copy the source values, as we will apply the operations to image object
                 image[:] = image_array[:]
 
-        assert image.dtype == np.float32, "The out array must contain float32 elements, because the transformation will be performed in place"
+        assert (
+            image.dtype == np.float32
+        ), "The out array must contain float32 elements, because the transformation will be performed in place"
 
         if mean_value is None:
             mean_value = image.mean()
@@ -251,8 +319,15 @@ class DataProcessing(object):
         return image
 
     @classmethod
-    def normalize_CT_image_intensity(cls, image_array, min_value=-300, max_value=700, min_output=0.0, max_output=1.0,
-                                     out=None):
+    def normalize_CT_image_intensity(
+        cls,
+        image_array,
+        min_value=-300,
+        max_value=700,
+        min_output=0.0,
+        max_output=1.0,
+        out=None,
+    ):
         """
         Threshold and adjust contrast range in a CT image.
         :param image_array: int numpy array (CT or partial CT image)
@@ -280,21 +355,23 @@ class DataProcessing(object):
                 # First, copy the source values, as we will apply the operations to image object
                 image[:] = image_array[:]
 
-        assert image.dtype == np.float32, "The out array must contain float32 elements, because the transformation will be performed in place"
+        assert (
+            image.dtype == np.float32
+        ), "The out array must contain float32 elements, because the transformation will be performed in place"
 
         if clip:
             np.clip(image, min_value, max_value, image)
 
         # Change of range
         image -= min_value
-        image /= (max_value - min_value)
-        image *= (max_output - min_output)
+        image /= max_value - min_value
+        image *= max_output - min_output
         image += min_output
 
         return image
 
     @classmethod
-    def elastic_transform(cls, image, alpha, sigma, fill_mode='constant', cval=0.):
+    def elastic_transform(cls, image, alpha, sigma, fill_mode="constant", cval=0.0):
         """
         Elastic deformation of images as described in  http://doi.ieeecomputersociety.org/10.1109/ICDAR.2003.1227801
         :param image: numpy array
@@ -306,15 +383,27 @@ class DataProcessing(object):
         """
         random_state = np.random.RandomState(None)
         shape = image.shape
-        dx = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode=fill_mode, cval=cval) * alpha
-        dy = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode=fill_mode, cval=cval) * alpha
-        x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
+        dx = (
+            gaussian_filter(
+                (random_state.rand(*shape) * 2 - 1), sigma, mode=fill_mode, cval=cval
+            )
+            * alpha
+        )
+        dy = (
+            gaussian_filter(
+                (random_state.rand(*shape) * 2 - 1), sigma, mode=fill_mode, cval=cval
+            )
+            * alpha
+        )
+        x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing="ij")
         indices = np.reshape(x + dx, (-1, 1)), np.reshape(y + dy, (-1, 1))
         distorted_image = map_coordinates(image, indices, order=1).reshape(shape)
         return distorted_image
 
     @classmethod
-    def elastic_deformation_2D(cls, image, grid_width=2, grid_height=2, magnitude=4, resampling='bicubic'):
+    def elastic_deformation_2D(
+        cls, image, grid_width=2, grid_height=2, magnitude=4, resampling="bicubic"
+    ):
         """
         Distorts a 2D image according to the parameters and returns the newly distorted image. Class taken from Augmentor methods
         :param image:
@@ -340,26 +429,44 @@ class DataProcessing(object):
 
         for vertical_tile in range(vertical_tiles):
             for horizontal_tile in range(horizontal_tiles):
-                if vertical_tile == (vertical_tiles - 1) and horizontal_tile == (horizontal_tiles - 1):
-                    dimensions.append([horizontal_tile * width_of_square,
-                                       vertical_tile * height_of_square,
-                                       width_of_last_square + (horizontal_tile * width_of_square),
-                                       height_of_last_square + (height_of_square * vertical_tile)])
+                if vertical_tile == (vertical_tiles - 1) and horizontal_tile == (
+                    horizontal_tiles - 1
+                ):
+                    dimensions.append(
+                        [
+                            horizontal_tile * width_of_square,
+                            vertical_tile * height_of_square,
+                            width_of_last_square + (horizontal_tile * width_of_square),
+                            height_of_last_square + (height_of_square * vertical_tile),
+                        ]
+                    )
                 elif vertical_tile == (vertical_tiles - 1):
-                    dimensions.append([horizontal_tile * width_of_square,
-                                       vertical_tile * height_of_square,
-                                       width_of_square + (horizontal_tile * width_of_square),
-                                       height_of_last_square + (height_of_square * vertical_tile)])
+                    dimensions.append(
+                        [
+                            horizontal_tile * width_of_square,
+                            vertical_tile * height_of_square,
+                            width_of_square + (horizontal_tile * width_of_square),
+                            height_of_last_square + (height_of_square * vertical_tile),
+                        ]
+                    )
                 elif horizontal_tile == (horizontal_tiles - 1):
-                    dimensions.append([horizontal_tile * width_of_square,
-                                       vertical_tile * height_of_square,
-                                       width_of_last_square + (horizontal_tile * width_of_square),
-                                       height_of_square + (height_of_square * vertical_tile)])
+                    dimensions.append(
+                        [
+                            horizontal_tile * width_of_square,
+                            vertical_tile * height_of_square,
+                            width_of_last_square + (horizontal_tile * width_of_square),
+                            height_of_square + (height_of_square * vertical_tile),
+                        ]
+                    )
                 else:
-                    dimensions.append([horizontal_tile * width_of_square,
-                                       vertical_tile * height_of_square,
-                                       width_of_square + (horizontal_tile * width_of_square),
-                                       height_of_square + (height_of_square * vertical_tile)])
+                    dimensions.append(
+                        [
+                            horizontal_tile * width_of_square,
+                            vertical_tile * height_of_square,
+                            width_of_square + (horizontal_tile * width_of_square),
+                            height_of_square + (height_of_square * vertical_tile),
+                        ]
+                    )
 
         # For loop that generates polygons could be rewritten, but maybe harder to read?
         # polygons = [x1,y1, x1,y2, x2,y2, x2,y1 for x1,y1, x2,y2 in dimensions]
@@ -368,7 +475,10 @@ class DataProcessing(object):
         for i in range(vertical_tiles):
             last_column.append((horizontal_tiles - 1) + horizontal_tiles * i)
 
-        last_row = range((horizontal_tiles * vertical_tiles) - horizontal_tiles, horizontal_tiles * vertical_tiles)
+        last_row = range(
+            (horizontal_tiles * vertical_tiles) - horizontal_tiles,
+            horizontal_tiles * vertical_tiles,
+        )
 
         polygons = []
         for x1, y1, x2, y2 in dimensions:
@@ -377,52 +487,47 @@ class DataProcessing(object):
         polygon_indices = []
         for i in range((vertical_tiles * horizontal_tiles) - 1):
             if i not in last_row and i not in last_column:
-                polygon_indices.append([i, i + 1, i + horizontal_tiles, i + 1 + horizontal_tiles])
+                polygon_indices.append(
+                    [i, i + 1, i + horizontal_tiles, i + 1 + horizontal_tiles]
+                )
 
         for a, b, c, d in polygon_indices:
             dx = np.random.randint(-magnitude, magnitude)
             dy = np.random.randint(-magnitude, magnitude)
 
             x1, y1, x2, y2, x3, y3, x4, y4 = polygons[a]
-            polygons[a] = [x1, y1,
-                           x2, y2,
-                           x3 + dx, y3 + dy,
-                           x4, y4]
+            polygons[a] = [x1, y1, x2, y2, x3 + dx, y3 + dy, x4, y4]
 
             x1, y1, x2, y2, x3, y3, x4, y4 = polygons[b]
-            polygons[b] = [x1, y1,
-                           x2 + dx, y2 + dy,
-                           x3, y3,
-                           x4, y4]
+            polygons[b] = [x1, y1, x2 + dx, y2 + dy, x3, y3, x4, y4]
 
             x1, y1, x2, y2, x3, y3, x4, y4 = polygons[c]
-            polygons[c] = [x1, y1,
-                           x2, y2,
-                           x3, y3,
-                           x4 + dx, y4 + dy]
+            polygons[c] = [x1, y1, x2, y2, x3, y3, x4 + dx, y4 + dy]
 
             x1, y1, x2, y2, x3, y3, x4, y4 = polygons[d]
-            polygons[d] = [x1 + dx, y1 + dy,
-                           x2, y2,
-                           x3, y3,
-                           x4, y4]
+            polygons[d] = [x1 + dx, y1 + dy, x2, y2, x3, y3, x4, y4]
 
         generated_mesh = []
         for i in range(len(dimensions)):
             generated_mesh.append([dimensions[i], polygons[i]])
 
-        if resampling == 'bilinear':
+        if resampling == "bilinear":
             resampling_filter = Image.BILINEAR
-        elif resampling == 'nearest':
+        elif resampling == "nearest":
             resampling_filter = Image.NEAREST
         else:
             resampling_filter = Image.BICUBIC
 
         return np.asarray(
-            image.transform(image.size, Image.MESH, generated_mesh, resample=resampling_filter)).transpose()
+            image.transform(
+                image.size, Image.MESH, generated_mesh, resample=resampling_filter
+            )
+        ).transpose()
 
     @classmethod
-    def perspective_skew_2D_transform(cls, image, skew_amount, skew_type="random", resampling='bicubic'):
+    def perspective_skew_2D_transform(
+        cls, image, skew_amount, skew_type="random", resampling="bicubic"
+    ):
         """
         Apply perspective skewing on images. Class taken from Augmentor methods
         :param image:
@@ -446,7 +551,9 @@ class DataProcessing(object):
         original_plane = [(y1, x1), (y2, x1), (y2, x2), (y1, x2)]
 
         if skew_type == "random":
-            skew = np.random.choice(["tilt", "tilt_left_right", "tilt_top_buttton", "corner"])
+            skew = np.random.choice(
+                ["tilt", "tilt_left_right", "tilt_top_buttton", "corner"]
+            )
         else:
             skew = skew_type
 
@@ -463,28 +570,36 @@ class DataProcessing(object):
 
             if skew_direction == 0:
                 # Left Tilt
-                new_plane = [(y1, x1 - skew_amount),  # Top Left
-                             (y2, x1),  # Top Right
-                             (y2, x2),  # Bottom Right
-                             (y1, x2 + skew_amount)]  # Bottom Left
+                new_plane = [
+                    (y1, x1 - skew_amount),  # Top Left
+                    (y2, x1),  # Top Right
+                    (y2, x2),  # Bottom Right
+                    (y1, x2 + skew_amount),
+                ]  # Bottom Left
             elif skew_direction == 1:
                 # Right Tilt
-                new_plane = [(y1, x1),  # Top Left
-                             (y2, x1 - skew_amount),  # Top Right
-                             (y2, x2 + skew_amount),  # Bottom Right
-                             (y1, x2)]  # Bottom Left
+                new_plane = [
+                    (y1, x1),  # Top Left
+                    (y2, x1 - skew_amount),  # Top Right
+                    (y2, x2 + skew_amount),  # Bottom Right
+                    (y1, x2),
+                ]  # Bottom Left
             elif skew_direction == 2:
                 # Forward Tilt
-                new_plane = [(y1 - skew_amount, x1),  # Top Left
-                             (y2 + skew_amount, x1),  # Top Right
-                             (y2, x2),  # Bottom Right
-                             (y1, x2)]  # Bottom Left
+                new_plane = [
+                    (y1 - skew_amount, x1),  # Top Left
+                    (y2 + skew_amount, x1),  # Top Right
+                    (y2, x2),  # Bottom Right
+                    (y1, x2),
+                ]  # Bottom Left
             elif skew_direction == 3:
                 # Backward Tilt
-                new_plane = [(y1, x1),  # Top Left
-                             (y2, x1),  # Top Right
-                             (y2 + skew_amount, x2),  # Bottom Right
-                             (y1 - skew_amount, x2)]  # Bottom Left
+                new_plane = [
+                    (y1, x1),  # Top Left
+                    (y2, x1),  # Top Right
+                    (y2 + skew_amount, x2),  # Bottom Right
+                    (y1 - skew_amount, x2),
+                ]  # Bottom Left
 
         if skew == "corner":
             skew_direction = np.random.randint(0, 7)
@@ -526,14 +641,22 @@ class DataProcessing(object):
         B = np.array(original_plane).reshape(8)
 
         perspective_skew_coefficients_matrix = np.dot(np.linalg.pinv(A), B)
-        perspective_skew_coefficients_matrix = np.array(perspective_skew_coefficients_matrix).reshape(8)
+        perspective_skew_coefficients_matrix = np.array(
+            perspective_skew_coefficients_matrix
+        ).reshape(8)
 
-        if resampling == 'bilinear':
+        if resampling == "bilinear":
             resampling_filter = Image.BILINEAR
-        elif resampling == 'nearest':
+        elif resampling == "nearest":
             resampling_filter = Image.NEAREST
         else:
             resampling_filter = Image.BICUBIC
 
-        return np.asarray(image.transform(image.size, Image.PERSPECTIVE, perspective_skew_coefficients_matrix,
-                                          resample=resampling_filter)).transpose()
+        return np.asarray(
+            image.transform(
+                image.size,
+                Image.PERSPECTIVE,
+                perspective_skew_coefficients_matrix,
+                resample=resampling_filter,
+            )
+        ).transpose()

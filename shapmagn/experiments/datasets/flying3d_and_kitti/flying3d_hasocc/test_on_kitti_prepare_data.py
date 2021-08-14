@@ -2,11 +2,12 @@ import os
 import glob
 import numpy as np
 from shapmagn.datasets.data_utils import get_file_name, save_json
+
 # Get list of filenames / directories
 root_dir = "/playpen-raid1/Data/data_processed_maxcut_35_20k_2k_8192"
 test_root_dir = "/playpen-raid1/Data/kitti_rm_ground"
 output_dir = "/playpen-raid1/zyshen/data/flying3d_hasocc_test_on_kitti"
-for mode in ["train","val"]:
+for mode in ["train", "val"]:
     if mode == "train" or mode == "val":
         pattern = "TRAIN_*.npz"
     elif mode == "test":
@@ -16,9 +17,7 @@ for mode in ["train","val"]:
     file_path_list = glob.glob(os.path.join(root_dir, pattern))
 
     # Remove one sample containing a nan value in train set
-    scan_with_nan_value = os.path.join(
-        root_dir, "TRAIN_C_0140_left_0006-0.npz"
-    )
+    scan_with_nan_value = os.path.join(root_dir, "TRAIN_C_0140_left_0006-0.npz")
     if scan_with_nan_value in file_path_list:
         file_path_list.remove(scan_with_nan_value)
 
@@ -80,7 +79,6 @@ for mode in ["train","val"]:
         save_json(os.path.join(output_dir, "debug", "pair_data.json"), output_dict)
 
 
-
 file_path_list = glob.glob(os.path.join(test_root_dir, "*.npz"))
 assert len(file_path_list) == 150, "Problem with size of kitti dataset"
 
@@ -90,9 +88,9 @@ for file_path in file_path_list:
     output_dict[pair_name] = {}
     output_dict[pair_name]["source"] = {}
     output_dict[pair_name]["target"] = {}
-    output_dict[pair_name]["source"]["name"] = pair_name+"_source"
+    output_dict[pair_name]["source"]["name"] = pair_name + "_source"
     output_dict[pair_name]["source"]["type"] = "source"
-    output_dict[pair_name]["target"]["name"] = pair_name+"_target"
+    output_dict[pair_name]["target"]["name"] = pair_name + "_target"
     output_dict[pair_name]["target"]["type"] = "target"
     output_dict[pair_name]["source"]["data_path"] = file_path
     output_dict[pair_name]["target"]["data_path"] = file_path

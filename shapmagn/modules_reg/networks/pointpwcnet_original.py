@@ -6,14 +6,27 @@ Date: May 2020
 
 import torch.nn as nn
 import torch
-from shapmagn.modules_reg.networks.pointconv_util_org import PointConvD,PointWarping, UpsampleFlow, PointConvFlow, SceneFlowEstimatorPointConv
-from shapmagn.modules_reg.networks.pointconv_util import index_points_gather as index_points, index_points_group, Conv1d, square_distance
+from shapmagn.modules_reg.networks.pointconv_util_org import (
+    PointConvD,
+    PointWarping,
+    UpsampleFlow,
+    PointConvFlow,
+    SceneFlowEstimatorPointConv,
+)
+from shapmagn.modules_reg.networks.pointconv_util import (
+    index_points_gather as index_points,
+    index_points_group,
+    Conv1d,
+    square_distance,
+)
 
 scale = 1.0
 
 
 class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
-    def __init__(self,input_channel=3,initial_npoints=2048,predict_at_low_resl=False):
+    def __init__(
+        self, input_channel=3, initial_npoints=2048, predict_at_low_resl=False
+    ):
         super(PointConvSceneFlowPWC8192selfglobalPointConv, self).__init__()
 
         flow_nei = 32
@@ -35,14 +48,14 @@ class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
         self.level1_1 = Conv1d(64, 128)
 
         # l2: 512
-        self.level2 = PointConvD(int(initial_npoints/4), feat_nei, 128 + 3, 128)
+        self.level2 = PointConvD(int(initial_npoints / 4), feat_nei, 128 + 3, 128)
         self.cost2 = PointConvFlow(flow_nei, 128 + 64 + 128 + 64 + 3, [128, 128])
         self.flow2 = SceneFlowEstimatorPointConv(128 + 64, 128)
         self.level2_0 = Conv1d(128, 128)
         self.level2_1 = Conv1d(128, 256)
 
         # l3: 256
-        self.level3 = PointConvD(int(initial_npoints/8), feat_nei, 256 + 3, 256)
+        self.level3 = PointConvD(int(initial_npoints / 8), feat_nei, 256 + 3, 256)
         self.cost3 = PointConvFlow(flow_nei, 256 + 64 + 256 + 64 + 3, [256, 256])
         self.flow3 = SceneFlowEstimatorPointConv(256, 256, flow_ch=0)
         self.level3_0 = Conv1d(256, 256)
@@ -165,12 +178,14 @@ class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
 
         feat2_up = self.upsample(pc1_l1, pc1_l2, feat2)
         new_feat1_l1 = torch.cat([feat1_l1, feat2_up], dim=1)
-        feat1, flow1 = self.flow1(pc1_l1, new_feat1_l1, cost1,
-                                  up_flow1)  # todo the flow here maybe replaced as a residue flow
+        feat1, flow1 = self.flow1(
+            pc1_l1, new_feat1_l1, cost1, up_flow1
+        )  # todo the flow here maybe replaced as a residue flow
 
         # l0
-        up_flow0 = self.upsample(pc1_l0, pc1_l1,
-                                 self.scale * flow1)  # todo interpolate the resid flow and then add it with the interoplated prev flow
+        up_flow0 = self.upsample(
+            pc1_l0, pc1_l1, self.scale * flow1
+        )  # todo interpolate the resid flow and then add it with the interoplated prev flow
         pc2_l0_warp = self.warping(pc1_l0, pc2_l0, up_flow0)
         cost0 = self.cost0(pc1_l0, pc2_l0_warp, c_feat1_l0, c_feat2_l0)
 
@@ -179,18 +194,35 @@ class PointConvSceneFlowPWC8192selfglobalPointConv(nn.Module):
         _, flow0 = self.flow0(pc1_l0, new_feat1_l0, cost0, up_flow0)
 
         flows = [flow0, flow1, flow2, flow3]
-        floweds = [flow0 + pc1_l0.detach(), flow1 + pc1_l1.detach(), flow2 + pc1_l2.detach(), flow3 + pc1_l3.detach()]
+        floweds = [
+            flow0 + pc1_l0.detach(),
+            flow1 + pc1_l1.detach(),
+            flow2 + pc1_l2.detach(),
+            flow3 + pc1_l3.detach(),
+        ]
         floweds = [flow.transpose(2, 1).contiguous() for flow in floweds]
         pc1 = [pc1_l0, pc1_l1, pc1_l2, pc1_l3]
         pc2 = [pc2_l0, pc2_l1, pc2_l2, pc2_l3]
         fps_pc1_idxs = [fps_pc1_l1, fps_pc1_l2, fps_pc1_l3]
         fps_pc2_idxs = [fps_pc2_l1, fps_pc2_l2, fps_pc2_l3]
-        additional_param = {"control_points": pc1_l1, "control_points_idx": fps_pc1_l1,"predict_at_low_resl":self.predict_at_low_resl}
+        additional_param = {
+            "control_points": pc1_l1,
+            "control_points_idx": fps_pc1_l1,
+            "predict_at_low_resl": self.predict_at_low_resl,
+        }
         additional_param.update(
-            {"floweds": floweds, "flows": flows, "fps_pc1_idxs": fps_pc1_idxs, "fps_pc2_idxs": fps_pc2_idxs, "pc1": pc1,
-             "pc2": pc2})
+            {
+                "floweds": floweds,
+                "flows": flows,
+                "fps_pc1_idxs": fps_pc1_idxs,
+                "fps_pc2_idxs": fps_pc2_idxs,
+                "pc1": pc1,
+                "pc2": pc2,
+            }
+        )
 
-        return flow0.transpose(2, 1).contiguous(),additional_param
+        return flow0.transpose(2, 1).contiguous(), additional_param
+
 
 def multiScaleLoss(pred_flows, gt_flow, fps_idxs, alpha=[0.02, 0.04, 0.08, 0.16]):
     # num of scale
@@ -223,10 +255,10 @@ def curvature(pc):
 
 
 def computeChamfer(pc1, pc2):
-    '''
+    """
     pc1: B 3 N
     pc2: B 3 M
-    '''
+    """
     pc1 = pc1.permute(0, 2, 1)
     pc2 = pc2.permute(0, 2, 1)
     sqrdist12 = square_distance(pc1, pc2)  # B N M
@@ -251,10 +283,10 @@ def curvatureWarp(pc, warped_pc):
 
 
 def computeSmooth(pc1, pred_flow):
-    '''
+    """
     pc1: B 3 N
     pred_flow: B 3 N
-    '''
+    """
 
     pc1 = pc1.permute(0, 2, 1)
     pred_flow = pred_flow.permute(0, 2, 1)
@@ -263,17 +295,19 @@ def computeSmooth(pc1, pred_flow):
     # Smoothness
     _, kidx = torch.topk(sqrdist, 9, dim=-1, largest=False, sorted=False)
     grouped_flow = index_points_group(pred_flow, kidx)  # B N 9 3
-    diff_flow = torch.norm(grouped_flow - pred_flow.unsqueeze(2), dim=3).sum(dim=2) / 8.0
+    diff_flow = (
+        torch.norm(grouped_flow - pred_flow.unsqueeze(2), dim=3).sum(dim=2) / 8.0
+    )
 
     return diff_flow
 
 
 def interpolateCurvature(pc1, pc2, pc2_curvature):
-    '''
+    """
     pc1: B 3 N
     pc2: B 3 M
     pc2_curvature: B 3 M
-    '''
+    """
 
     B, _, N = pc1.shape
     pc1 = pc1.permute(0, 2, 1)
@@ -286,7 +320,9 @@ def interpolateCurvature(pc1, pc2, pc2_curvature):
     norm = torch.sum(1.0 / (dist + 1e-8), dim=2, keepdim=True)
     weight = (1.0 / (dist + 1e-8)) / norm
 
-    inter_pc2_curvature = torch.sum(weight.view(B, N, 5, 1) * grouped_pc2_curvature, dim=2)
+    inter_pc2_curvature = torch.sum(
+        weight.view(B, N, 5, 1) * grouped_pc2_curvature, dim=2
+    )
     return inter_pc2_curvature
 
 
@@ -320,14 +356,24 @@ def multiScaleChamferSmoothCurvature(pc1, pc2, pred_flows):
         smoothnessLoss = computeSmooth(cur_pc1, cur_flow).sum(dim=1).mean()
 
         # curvature
-        inter_pc2_curvature = interpolateCurvature(cur_pc1_warp, cur_pc2, cur_pc2_curvature)
-        curvatureLoss = torch.sum((inter_pc2_curvature - moved_pc1_curvature) ** 2, dim=2).sum(dim=1).mean()
+        inter_pc2_curvature = interpolateCurvature(
+            cur_pc1_warp, cur_pc2, cur_pc2_curvature
+        )
+        curvatureLoss = (
+            torch.sum((inter_pc2_curvature - moved_pc1_curvature) ** 2, dim=2)
+            .sum(dim=1)
+            .mean()
+        )
 
         chamfer_loss += alpha[i] * chamferLoss
         smoothness_loss += alpha[i] * smoothnessLoss
         curvature_loss += alpha[i] * curvatureLoss
 
-    total_loss = f_chamfer * chamfer_loss + f_curvature * curvature_loss + f_smoothness * smoothness_loss
+    total_loss = (
+        f_chamfer * chamfer_loss
+        + f_curvature * curvature_loss
+        + f_smoothness * smoothness_loss
+    )
 
     return total_loss, chamfer_loss, curvature_loss, smoothness_loss
 
@@ -349,7 +395,9 @@ if __name__ == "__main__":
     model.eval()
     for _ in range(1):
         with torch.no_grad():
-            flows, fps_pc1_idxs, fps_pc2_idxs, pc1, pc2 = model(xyz1, xyz2, color1, color2)
+            flows, fps_pc1_idxs, fps_pc2_idxs, pc1, pc2 = model(
+                xyz1, xyz2, color1, color2
+            )
             torch.cuda.synchronize()
 
     loss = multiScaleLoss(flows, gt_flow, fps_pc1_idxs)

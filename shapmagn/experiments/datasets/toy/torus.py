@@ -1,4 +1,3 @@
-
 from itertools import tee
 from math import cos, pi, sin
 from typing import Iterator, Optional, Tuple

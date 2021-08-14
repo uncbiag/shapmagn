@@ -26,31 +26,43 @@ def get_multi_metric(pred, gt, eval_label_list=None, rm_bg=False, verbose=True):
     pred_list = np.unique(pred).tolist()
     union_set = set(label_list).union(set(pred_list))
     if verbose:
-        if len(union_set)> len(set(label_list)): # in case a certain class is not in batch gt, but was wrongly predicted
-            print("Warning, label {} is in prediction map but not in the ground truth map".format(set(pred_list)-set(label_list)))
+        if len(union_set) > len(
+            set(label_list)
+        ):  # in case a certain class is not in batch gt, but was wrongly predicted
+            print(
+                "Warning, label {} is in prediction map but not in the ground truth map".format(
+                    set(pred_list) - set(label_list)
+                )
+            )
     label_list = list(union_set)
 
     if rm_bg:
         label_list = label_list[1:]
-    if eval_label_list is not None and eval_label_list[0]!=-100:
+    if eval_label_list is not None and eval_label_list[0] != -100:
         # for label in eval_label_list:
         #     assert label in label_list, "label {} is not in label_list".format(label)
         label_list = eval_label_list
     num_label = len(label_list)
     num_batch = pred.shape[0]
-    metrics = ['iou', 'dice', 'recall', 'precision']
+    metrics = ["iou", "dice", "recall", "precision"]
     multi_metric_res = {metric: np.zeros([num_batch, num_label]) for metric in metrics}
     label_avg_res = {metric: np.zeros([num_batch, 1]) for metric in metrics}
     batch_avg_res = {metric: np.zeros([1, num_label]) for metric in metrics}
-    batch_label_avg_res ={metric: np.zeros(1) for metric in metrics}
-    if num_label==0:
+    batch_label_avg_res = {metric: np.zeros(1) for metric in metrics}
+    if num_label == 0:
         print("Warning, there is no label in current img")
         label_avg_res = {metric: np.ones([num_batch, 1]) for metric in metrics}
         batch_avg_res = {metric: np.ones([1, num_label]) for metric in metrics}
-        batch_label_avg_res = {metric: 1. for metric in metrics}
-        label_batch_avg_res = {metric: 1. for metric in metrics}
-        return {'multi_metric_res': multi_metric_res, 'label_avg_res': label_avg_res, 'batch_avg_res': batch_avg_res,
-            'label_list': label_list, 'batch_label_avg_res':batch_label_avg_res,'label_batch_avg_res':label_batch_avg_res}
+        batch_label_avg_res = {metric: 1.0 for metric in metrics}
+        label_batch_avg_res = {metric: 1.0 for metric in metrics}
+        return {
+            "multi_metric_res": multi_metric_res,
+            "label_avg_res": label_avg_res,
+            "batch_avg_res": batch_avg_res,
+            "label_list": label_list,
+            "batch_label_avg_res": batch_label_avg_res,
+            "label_batch_avg_res": label_batch_avg_res,
+        }
 
     for l in range(num_label):
         label_pred = (pred == label_list[l]).astype(np.int32)
@@ -63,19 +75,27 @@ def get_multi_metric(pred, gt, eval_label_list=None, rm_bg=False, verbose=True):
     for metric in multi_metric_res:
         for s in range(num_batch):
             no_n_index = np.where(multi_metric_res[metric][s] != -1)
-            label_avg_res[metric][s] = float(np.mean(multi_metric_res[metric][s][no_n_index]))
+            label_avg_res[metric][s] = float(
+                np.mean(multi_metric_res[metric][s][no_n_index])
+            )
         batch_label_avg_res[metric] = float(np.mean(label_avg_res[metric]))
 
         for l in range(num_label):
             no_n_index = np.where(multi_metric_res[metric][:, l] != -1)
-            batch_avg_res[metric][:, l] = float(np.mean(multi_metric_res[metric][:, l][no_n_index]))
+            batch_avg_res[metric][:, l] = float(
+                np.mean(multi_metric_res[metric][:, l][no_n_index])
+            )
 
-    return {'multi_metric_res': multi_metric_res, 'label_avg_res': label_avg_res, 'batch_avg_res': batch_avg_res,
-            'label_list': label_list, 'batch_label_avg_res':batch_label_avg_res,}
+    return {
+        "multi_metric_res": multi_metric_res,
+        "label_avg_res": label_avg_res,
+        "batch_avg_res": batch_avg_res,
+        "label_list": label_list,
+        "batch_label_avg_res": batch_label_avg_res,
+    }
 
 
-
-def cal_metric(label_pred, label_gt,thred=0.5):
+def cal_metric(label_pred, label_gt, thred=0.5):
     eps = 1e-11
     iou = -1
     recall = -1
@@ -100,18 +120,17 @@ def cal_metric(label_pred, label_gt,thred=0.5):
         precision = tp / (tp + fp + eps)
         dice = 2 * tp / (2 * tp + fn + fp + eps)
     else:
-        if len(pred_loc)>0:
-            iou = 0.
-            recall = 0.
-            precision = 0.
-            dice = 0.
+        if len(pred_loc) > 0:
+            iou = 0.0
+            recall = 0.0
+            precision = 0.0
+            dice = 0.0
         else:
-            iou = 1.
-            recall = 1.
-            precision = 1.
-            dice = 1.
+            iou = 1.0
+            recall = 1.0
+            precision = 1.0
+            dice = 1.0
 
-    res = {'iou': iou, 'dice': dice, 'recall': recall, 'precision': precision}
+    res = {"iou": iou, "dice": dice, "recall": recall, "precision": precision}
 
     return res
-

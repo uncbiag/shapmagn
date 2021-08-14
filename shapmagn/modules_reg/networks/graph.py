@@ -39,10 +39,10 @@ class Graph:
         Returns
         -------
         graph : flot.models_reg.graph.Graph
-            Graph build on input point cloud containing the list of nearest 
-            neighbors (NN) for each point and all edge features (relative 
+            Graph build on input point cloud containing the list of nearest
+            neighbors (NN) for each point and all edge features (relative
             coordinates with NN).
-            
+
         """
 
         # Size

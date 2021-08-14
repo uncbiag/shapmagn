@@ -4,7 +4,8 @@ a ShapePair object records the registration parameters of the source shape to th
 import torch
 from shapmagn.global_variable import Shape
 
-class ShapePair():
+
+class ShapePair:
     """
     1. During training, the control points are flowed to get flowed control points.
 
@@ -39,6 +40,7 @@ class ShapePair():
         >>> shape_pair.set_toflow(toflow)
         >>> do_flow(shape_pair)
     """
+
     def __init__(self, dense_mode=True):
         self.source = None
         self.target = None
@@ -63,7 +65,6 @@ class ShapePair():
         self.nbatch = source.nbatch
         self.dimension = source.dimension
 
-
     def set_pair_name(self, pair_name):
         self.pair_name = pair_name
 
@@ -71,7 +72,10 @@ class ShapePair():
         if self.pair_name is not None:
             return self.pair_name
         if len(self.source.name_list) and len(self.target.name_list):
-            self.pair_name = [s_name+"_"+t_name for s_name, t_name in zip(self.source.name_list, self.target.name_list)]
+            self.pair_name = [
+                s_name + "_" + t_name
+                for s_name, t_name in zip(self.source.name_list, self.target.name_list)
+            ]
             return self.pair_name
         return "not_given"
 
@@ -85,9 +89,8 @@ class ShapePair():
     def set_reg_param(self, reg_param):
         self.reg_param = reg_param
 
-
     def set_extra_info(self, value, name):
-        self.extra_info.update({name:value})
+        self.extra_info.update({name: value})
 
     def set_flowed_control_points(self, flowed_control_points):
         self.flowed_control_points = flowed_control_points
@@ -95,30 +98,31 @@ class ShapePair():
     def infer_flowed(self):
         if self.dense_mode:
             self.flowed = Shape()
-            self.flowed.set_data_with_refer_to(self.flowed_control_points,self.toflow)
+            self.flowed.set_data_with_refer_to(self.flowed_control_points, self.toflow)
             return True
         else:
             return False
 
-
     def set_control_points(self, control_points, control_weights=None):
         self.control_points = control_points
         if control_weights is None and self.control_weights is None:
-            control_weights = torch.ones(control_points.shape[0],control_points.shape[1],1)
-            control_weights = control_weights/control_points.shape[1]
+            control_weights = torch.ones(
+                control_points.shape[0], control_points.shape[1], 1
+            )
+            control_weights = control_weights / control_points.shape[1]
             control_weights = control_weights.to(control_points.device)
         if control_weights is not None:
             self.control_weights = control_weights
-        #self.control_points.requires_grad_()
+        # self.control_points.requires_grad_()
 
-    def get_control_points(self,detach=False):
+    def get_control_points(self, detach=False):
         if self.control_points is None:
             self.control_points = self.source.points.clone()
             self.control_weights = self.source.weights
         return self.control_points if not detach else self.control_points.detach()
 
-    def get_toflow_points(self,detach=False):
+    def get_toflow_points(self, detach=False):
         return self.toflow.points if not detach else self.toflow.points.detach()
 
-    def get_flowed_points(self,detach=False):
+    def get_flowed_points(self, detach=False):
         return self.flowed.points if not detach else self.flowed.points.detach()

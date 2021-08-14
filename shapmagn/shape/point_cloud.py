@@ -1,6 +1,8 @@
 import logging
+
 logger = logging.getLogger(__name__)
 from shapmagn.shape.shape_base import ShapeBase
+
 
 class PointCloud(ShapeBase):
     """
@@ -19,13 +21,12 @@ class PointCloud(ShapeBase):
 
         :param points: BxNxD
         """
-        super(PointCloud,self).__init__()
-        self.type = 'pointcloud'
-        self.attr_list=["points","label","landmarks","pointfea","weights","seg"]
+        super(PointCloud, self).__init__()
+        self.type = "pointcloud"
+        self.attr_list = ["points", "label", "landmarks", "pointfea", "weights", "seg"]
         self.points_mode_on = True
 
-
-    def set_data_with_refer_to(self, points, pointcloud,detach=False):
+    def set_data_with_refer_to(self, points, pointcloud, detach=False):
         if not detach:
             fn = lambda x: x
         else:

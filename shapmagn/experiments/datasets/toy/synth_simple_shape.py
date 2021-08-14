@@ -9,12 +9,18 @@ from shapmagn.shape.shape_utils import get_scale_and_center
 from shapmagn.datasets.vtk_utils import convert_faces_into_file_format
 from shapmagn.datasets.data_utils import compute_interval
 
-PROGRAM_PATH= "/"
-get_shape_path = lambda shape_name: os.path.join(os.path.join(PROGRAM_PATH, "shapes", shape_name, "train", shape_name)) + '.off'
+PROGRAM_PATH = "/"
+get_shape_path = (
+    lambda shape_name: os.path.join(
+        os.path.join(PROGRAM_PATH, "shapes", shape_name, "train", shape_name)
+    )
+    + ".off"
+)
+
 
 def read_off(fpath):
     shape = trimesh.load(fpath)
-    return  shape.vertices, shape.faces
+    return shape.vertices, shape.faces
 
 
 def get_shape(shape_name):
@@ -23,12 +29,11 @@ def get_shape(shape_name):
     return verts, faces
 
 
-
-
 def normalize_vertice(vertices):
-    scale, shift = get_scale_and_center(vertices,percentile=100)
-    vertices = (vertices-shift)/scale
-    return  vertices
+    scale, shift = get_scale_and_center(vertices, percentile=100)
+    vertices = (vertices - shift) / scale
+    return vertices
+
 
 def subdivide(vertices, faces, level=2):
     for _ in range(level):
@@ -36,26 +41,24 @@ def subdivide(vertices, faces, level=2):
     return vertices, faces
 
 
-
-
-
-
-
-
-if __name__ =="__main__":
+if __name__ == "__main__":
     shape_name = "3d_sphere"
-    level =1
-    saving_path = "/playpen-raid1/zyshen/debug/shapmagn/divide_{}_level{}.vtk".format(shape_name,level)
+    level = 1
+    saving_path = "/playpen-raid1/zyshen/debug/shapmagn/divide_{}_level{}.vtk".format(
+        shape_name, level
+    )
     verts, faces = get_shape(shape_name)
-    verts, faces =subdivide(verts, faces, level=level)
+    verts, faces = subdivide(verts, faces, level=level)
     verts = normalize_vertice(verts).astype(np.float32)
     faces = convert_faces_into_file_format(faces)
     compute_interval(verts)
-    data = pv.PolyData(verts,faces)
+    data = pv.PolyData(verts, faces)
     data.save(saving_path)
     shape_name = "3d_cube"
     level = 4
-    saving_path = "/playpen-raid1/zyshen/debug/shapmagn/divide_{}_level{}.vtk".format(shape_name, level)
+    saving_path = "/playpen-raid1/zyshen/debug/shapmagn/divide_{}_level{}.vtk".format(
+        shape_name, level
+    )
     verts, faces = get_shape(shape_name)
     verts, faces = subdivide(verts, faces, level=level)
     verts = normalize_vertice(verts).astype(np.float32)
@@ -64,10 +67,7 @@ if __name__ =="__main__":
     data = pv.PolyData(verts, faces)
     data.save(saving_path)
 
-
     """
     the min interval is 0.0191220190793802
     the min interval is 0.125
     """
-
-

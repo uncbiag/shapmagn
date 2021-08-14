@@ -6,16 +6,33 @@ from vtk.util.numpy_support import vtk_to_numpy
 
 
 class DisplayParticles:
-    def __init__(self, file_list, spacing_list, feature_type_list, irad=1.2, h_th_list=[],
-                 glyph_type='sphere', glyph_scale_factor=1, use_field_data=True, opacity_list=[],
-                 color_list=[], lut_list=[], lung=[]):
+    def __init__(
+        self,
+        file_list,
+        spacing_list,
+        feature_type_list,
+        irad=1.2,
+        h_th_list=[],
+        glyph_type="sphere",
+        glyph_scale_factor=1,
+        use_field_data=True,
+        opacity_list=[],
+        color_list=[],
+        lut_list=[],
+        lung=[],
+    ):
 
         for feature_type in feature_type_list:
             print(feature_type)
-            assert feature_type == "ridge_line" or feature_type == "valley_line" \
-                   or feature_type == "ridge_surface" or feature_type == "valley_surface" \
-                   or feature_type == "vessel" or feature_type == "airway" \
-                   or feature_type == "fissure", "Invalid feature type"
+            assert (
+                feature_type == "ridge_line"
+                or feature_type == "valley_line"
+                or feature_type == "ridge_surface"
+                or feature_type == "valley_surface"
+                or feature_type == "vessel"
+                or feature_type == "airway"
+                or feature_type == "fissure"
+            ), "Invalid feature type"
 
         for kk, feature_type in enumerate(feature_type_list):
 
@@ -42,15 +59,15 @@ class DisplayParticles:
         self.use_field_data = use_field_data
         self.feature_type_list = feature_type_list
         self.normal_map = dict()
-        self.normal_map['ridge_line'] = "hevec0"
-        self.normal_map['valley_line'] = "hevec2"
-        self.normal_map['ridge_surface'] = "hevec2"
-        self.normal_map['valley_surface'] = "hevec0"
+        self.normal_map["ridge_line"] = "hevec0"
+        self.normal_map["valley_line"] = "hevec2"
+        self.normal_map["ridge_surface"] = "hevec2"
+        self.normal_map["valley_surface"] = "hevec0"
         self.strength_map = dict()
-        self.strength_map['ridge_line'] = "h1"
-        self.strength_map['valley_line'] = "h1"
-        self.strength_map['ridge_surface'] = "h2"
-        self.strength_map['valley_surface'] = "h0"
+        self.strength_map["ridge_line"] = "h1"
+        self.strength_map["valley_line"] = "h1"
+        self.strength_map["ridge_surface"] = "h2"
+        self.strength_map["valley_surface"] = "h0"
 
         self.color_by_array_name = None  # By default we color by the particle radius that is computed from scale
 
@@ -60,10 +77,10 @@ class DisplayParticles:
 
         self.lung_opacity = 0.3
 
-        if feature_type == 'ridge_line' or feature_type == 'valley_line':
+        if feature_type == "ridge_line" or feature_type == "valley_line":
             self.height = irad
             self.radius = 0.5
-        elif feature_type == 'ridge_surface' or feature_type == 'valley_surface':
+        elif feature_type == "ridge_surface" or feature_type == "valley_surface":
             self.height = 0.5
             self.radius = irad
 
@@ -123,13 +140,13 @@ class DisplayParticles:
         if self.use_field_data == False:
             scale = poly.GetPointData().GetArray("scale")
             strength = poly.GetPointData().GetArray(self.strength_map[feature_type])
-            val = poly.GetPointData().GetArray('val')
+            val = poly.GetPointData().GetArray("val")
             if radius_array_name is not None:
                 rad_arr = poly.GetPointData().GetArray(radius_array_name)
         else:
             scale = poly.GetFieldData().GetArray("scale")
             strength = poly.GetFieldData().GetArray(self.strength_map[feature_type])
-            val = poly.GetFieldData().GetArray('val')
+            val = poly.GetFieldData().GetArray("val")
             if radius_array_name is not None:
                 rad_arr = poly.GetPointData().GetArray(radius_array_name)
 
@@ -147,17 +164,19 @@ class DisplayParticles:
                 rad = float(rad_arr.GetValue(kk))
             else:
                 ss = float(scale.GetValue(kk))
-                rad = np.sqrt(2.0) * (np.sqrt(spacing ** 2 * (ss ** 2 + si ** 2)) - 1.0 * spacing * s0)
+                rad = np.sqrt(2.0) * (
+                    np.sqrt(spacing ** 2 * (ss ** 2 + si ** 2)) - 1.0 * spacing * s0
+                )
                 # rad=np.sqrt(2.0)*spacing*ss
                 # rad=np.sqrt(2.0)*np.sqrt(spacing**2 * (ss**2 + si**2) )
             if h_th != None:
-                if feature_type == 'ridge_line':
+                if feature_type == "ridge_line":
                     test = arr[kk] > h_th
-                elif feature_type == 'valley_line':
+                elif feature_type == "valley_line":
                     test = arr[kk] < h_th
-                elif feature_type == 'ridge_surface':
+                elif feature_type == "ridge_surface":
                     test = arr[kk] > h_th
-                elif feature_type == 'valley_surface':
+                elif feature_type == "valley_surface":
                     test = arr[kk] < h_th
             else:
                 test = False
@@ -173,12 +192,12 @@ class DisplayParticles:
         return poly
 
     def create_glyphs(self, poly):
-        if self.glyph_type == 'sphere':
+        if self.glyph_type == "sphere":
             glyph = vtk.vtkSphereSource()
             glyph.SetRadius(1)
             glyph.SetPhiResolution(8)
             glyph.SetThetaResolution(8)
-        elif self.glyph_type == 'cylinder':
+        elif self.glyph_type == "cylinder":
             glyph = vtk.vtkCylinderSource()
             glyph.SetHeight(self.height)
             glyph.SetRadius(self.radius)
@@ -226,12 +245,21 @@ class DisplayParticles:
 
         return lut
 
-    def create_actor(self, glyph, opacity=1, color=[0.1, 0.1, 0.1], color_by_array_name=None, lut=None):
+    def create_actor(
+        self,
+        glyph,
+        opacity=1,
+        color=[0.1, 0.1, 0.1],
+        color_by_array_name=None,
+        lut=None,
+    ):
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputConnection(glyph.GetOutputPort())
         mapper.SetColorModeToMapScalars()
         if color_by_array_name is not None:
-            glyph.GetOutput().GetPointData().SetScalars(glyph.GetOutput().GetPointData().GetArray(color_by_array_name))
+            glyph.GetOutput().GetPointData().SetScalars(
+                glyph.GetOutput().GetPointData().GetArray(color_by_array_name)
+            )
             aa = glyph.GetOutput().GetPointData().GetArray(color_by_array_name)
             range = aa.GetRange()
             mapper.SetScalarRange(range[0], range[1])
@@ -289,7 +317,7 @@ class DisplayParticles:
 
         # enable user interface interactor
         # Set observer
-        self.iren.AddObserver('KeyPressEvent', self.capture_window, -1.0)
+        self.iren.AddObserver("KeyPressEvent", self.capture_window, -1.0)
 
         self.iren.Initialize()
         self.renWin.Render()
@@ -317,16 +345,25 @@ class DisplayParticles:
             else:
                 radius_array_name = None
 
-            poly = self.compute_radius(reader.GetOutput(), self.spacing_list[kk], self.feature_type_list[kk],
-                                       radius_array_name, h_th)
+            poly = self.compute_radius(
+                reader.GetOutput(),
+                self.spacing_list[kk],
+                self.feature_type_list[kk],
+                radius_array_name,
+                h_th,
+            )
             if self.use_field_data == False:
-                poly.GetPointData(). \
-                    SetNormals(poly.GetPointData(). \
-                               GetArray(self.normal_map[self.feature_type_list[kk]]))
+                poly.GetPointData().SetNormals(
+                    poly.GetPointData().GetArray(
+                        self.normal_map[self.feature_type_list[kk]]
+                    )
+                )
             else:
-                poly.GetPointData(). \
-                    SetNormals(poly.GetFieldData(). \
-                               GetArray(self.normal_map[self.feature_type_list[kk]]))
+                poly.GetPointData().SetNormals(
+                    poly.GetFieldData().GetArray(
+                        self.normal_map[self.feature_type_list[kk]]
+                    )
+                )
 
             glypher = self.create_glyphs(poly)
             if len(self.color_list) <= kk:
@@ -343,8 +380,13 @@ class DisplayParticles:
             else:
                 lut = self.create_lut(lut_list[kk])
 
-            self.create_actor(glypher, color=color, opacity=opacity, lut=lut,
-                              color_by_array_name=self.color_by_array_name)
+            self.create_actor(
+                glypher,
+                color=color,
+                opacity=opacity,
+                lut=lut,
+                color_by_array_name=self.color_by_array_name,
+            )
 
             if self.glyph_output is not None:
                 tt = vtk.vtkTransform()
@@ -411,84 +453,124 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(description=desc)
 
-    parser.add_argument("-i", help='Input particle files to render', dest="file_name")
-    parser.add_argument("-s", help='Input spacing', dest="spacing")
-    parser.add_argument("--feature",
-                        help='Feature type for each particle point. Options are: valley_line (or vessel), ridge_line (or airway), ridge_surface (or fissure) and valley_surface', \
-                        dest="feature_type", default="vessel")
-    parser.add_argument("--irad", help='Interparticle distance', dest="irad", \
-                        default=1.2)
-    parser.add_argument("--hth", help='Threshold on particle strength', dest="hth", default=None)
-    parser.add_argument("--color", help='RGB color', dest="color_list", default=None)
-    parser.add_argument("--opacity", help='Opacity values', dest="opacity_list", \
-                        default=None)
-    parser.add_argument("--lut",
-                        help='Look up table file list for each particle file (comma separated values with R,G,B,Alpha values)', \
-                        dest="lut_list", default=None)
-    parser.add_argument("-l", help='Lung mesh', dest="lung_filename", default=None)
-    parser.add_argument("--useFieldData",
-                        help='Enable if particle features are stored in Field data instead of Point Data',
-                        dest="use_field_data", \
-                        action="store_true", default=False)
-    parser.add_argument("--glyphScale", help='Scaling factor for glyph', dest="glyph_scale_factor", \
-                        default=1)
-    parser.add_argument("--colorBy", help='Array name to color by', dest="color_by", \
-                        default=None)
-    parser.add_argument("--ras", help='Set output for RAS', dest="ras_coordinate_system", \
-                        default=False, action="store_true")
-    parser.add_argument("--glyphOutput", help='Output vtk with glpyh poly data', dest='glyph_output', \
-                        default=None)
-    parser.add_argument("--capturePrefix",
-                        help='Prefix filename to save screenshots. This options enables screen capture. Press the "s" key to capture a screenshot.', \
-                        dest="capture_prefix", default=None)
+    parser.add_argument("-i", help="Input particle files to render", dest="file_name")
+    parser.add_argument("-s", help="Input spacing", dest="spacing")
+    parser.add_argument(
+        "--feature",
+        help="Feature type for each particle point. Options are: valley_line (or vessel), ridge_line (or airway), ridge_surface (or fissure) and valley_surface",
+        dest="feature_type",
+        default="vessel",
+    )
+    parser.add_argument(
+        "--irad", help="Interparticle distance", dest="irad", default=1.2
+    )
+    parser.add_argument(
+        "--hth", help="Threshold on particle strength", dest="hth", default=None
+    )
+    parser.add_argument("--color", help="RGB color", dest="color_list", default=None)
+    parser.add_argument(
+        "--opacity", help="Opacity values", dest="opacity_list", default=None
+    )
+    parser.add_argument(
+        "--lut",
+        help="Look up table file list for each particle file (comma separated values with R,G,B,Alpha values)",
+        dest="lut_list",
+        default=None,
+    )
+    parser.add_argument("-l", help="Lung mesh", dest="lung_filename", default=None)
+    parser.add_argument(
+        "--useFieldData",
+        help="Enable if particle features are stored in Field data instead of Point Data",
+        dest="use_field_data",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--glyphScale",
+        help="Scaling factor for glyph",
+        dest="glyph_scale_factor",
+        default=1,
+    )
+    parser.add_argument(
+        "--colorBy", help="Array name to color by", dest="color_by", default=None
+    )
+    parser.add_argument(
+        "--ras",
+        help="Set output for RAS",
+        dest="ras_coordinate_system",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
+        "--glyphOutput",
+        help="Output vtk with glpyh poly data",
+        dest="glyph_output",
+        default=None,
+    )
+    parser.add_argument(
+        "--capturePrefix",
+        help='Prefix filename to save screenshots. This options enables screen capture. Press the "s" key to capture a screenshot.',
+        dest="capture_prefix",
+        default=None,
+    )
 
-    parser.add_argument("--radius_name", help='Array name with the radius information (optional).\
-                                        If this is not provided the radius will be computed from the scale information.',
-                        dest='radius_array_name', metavar='<float>', default=None)
-    parser.add_argument("--no-display",
-                        help='No display mode. Objects will be created but not render. It can be used for off-line saving of glyh vtk file',
-                        dest='nodisplay', action='store_true')
+    parser.add_argument(
+        "--radius_name",
+        help="Array name with the radius information (optional).\
+                                        If this is not provided the radius will be computed from the scale information.",
+        dest="radius_array_name",
+        metavar="<float>",
+        default=None,
+    )
+    parser.add_argument(
+        "--no-display",
+        help="No display mode. Objects will be created but not render. It can be used for off-line saving of glyh vtk file",
+        dest="nodisplay",
+        action="store_true",
+    )
 
     options = parser.parse_args()
 
     translate_color = dict()
-    translate_color['red'] = [1, 0.1, 0.1]
-    translate_color['green'] = [0.1, 0.8, 0.1]
-    translate_color['orange'] = [0.95, 0.5, 0.01]
-    translate_color['blue'] = [0.1, 0.1, 0.9]
+    translate_color["red"] = [1, 0.1, 0.1]
+    translate_color["green"] = [0.1, 0.8, 0.1]
+    translate_color["orange"] = [0.95, 0.5, 0.01]
+    translate_color["blue"] = [0.1, 0.1, 0.9]
 
-    file_list = [i for i in str.split(options.file_name, ',')]
+    file_list = [i for i in str.split(options.file_name, ",")]
     use_field_data = options.use_field_data
     if options.spacing is not None:
-        spacing_list = [float(i) for i in str.split(options.spacing, ',')]
+        spacing_list = [float(i) for i in str.split(options.spacing, ",")]
 
     if options.lung_filename == None:
         lung_filename = ""
     else:
         lung_filename = options.lung_filename
 
-    feature_type_list = [i for i in str.split(options.feature_type, ',')]
+    feature_type_list = [i for i in str.split(options.feature_type, ",")]
 
     if options.opacity_list == None:
         opacity_list = []
     else:
-        opacity_list = [float(i) for i in str.split(options.opacity_list, ',')]
+        opacity_list = [float(i) for i in str.split(options.opacity_list, ",")]
 
     if options.color_list == None:
         color_list = []
     else:
-        color_list = [translate_color[val] for val in str.split(options.color_list, ',')]
+        color_list = [
+            translate_color[val] for val in str.split(options.color_list, ",")
+        ]
 
     if options.hth == None:
         hth_list = []
     else:
-        hth_list = [float(i) for i in str.split(options.hth, ',')]
+        hth_list = [float(i) for i in str.split(options.hth, ",")]
 
     if options.lut_list == None:
         lut_list = []
     else:
         lut_list = []
-        for lut_file in str.split(options.lut_list, ','):
+        for lut_file in str.split(options.lut_list, ","):
             _df = pd.read_csv(lut_file)
             lut_list.append(_df.values())
 
@@ -496,11 +578,24 @@ if __name__ == "__main__":
         radius_array_name_list = None
     else:
         radius_array_name_list = []
-        radius_array_name_list = [str(i) for i in str.split(options.radius_array_name, ',')]
+        radius_array_name_list = [
+            str(i) for i in str.split(options.radius_array_name, ",")
+        ]
 
-    dv = DisplayParticles(file_list, spacing_list, feature_type_list, float(options.irad), hth_list, \
-                          'cylinder', float(options.glyph_scale_factor), use_field_data, opacity_list, color_list,
-                          lut_list, lung_filename)
+    dv = DisplayParticles(
+        file_list,
+        spacing_list,
+        feature_type_list,
+        float(options.irad),
+        hth_list,
+        "cylinder",
+        float(options.glyph_scale_factor),
+        use_field_data,
+        opacity_list,
+        color_list,
+        lut_list,
+        lung_filename,
+    )
     if options.color_by is not None:
         dv.color_by_array_name = options.color_by
     if options.glyph_output is not None:

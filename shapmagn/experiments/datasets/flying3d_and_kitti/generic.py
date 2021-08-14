@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 class Batch:
     def __init__(self, batch):
         """
-        Concatenate list of dataset.generic.SceneFlowDataset's item in batch 
+        Concatenate list of dataset.generic.SceneFlowDataset's item in batch
         dimension.
 
         Parameters
@@ -29,7 +29,7 @@ class Batch:
     def __getitem__(self, item):
         """
         Get 'sequence' or 'ground_thruth' from the batch.
-        
+
         Parameters
         ----------
         item : str
@@ -38,16 +38,16 @@ class Batch:
         Returns
         -------
         list(torch.Tensor, torch.Tensor)
-            item='sequence': returns a list [pc1, pc2] of point clouds between 
-            which to estimate scene flow. pc1 has size B x n x 3 and pc2 has 
+            item='sequence': returns a list [pc1, pc2] of point clouds between
+            which to estimate scene flow. pc1 has size B x n x 3 and pc2 has
             size B x m x 3.
-            
-            item='ground_truth': returns a list [mask, flow]. mask has size 
-            B x n x 1 and flow has size B x n x 3. flow is the ground truth 
-            scene flow between pc1 and pc2. flow is the ground truth scene 
-            flow. mask is binary with zeros indicating where the flow is not 
+
+            item='ground_truth': returns a list [mask, flow]. mask has size
+            B x n x 1 and flow has size B x n x 3. flow is the ground truth
+            scene flow between pc1 and pc2. flow is the ground truth scene
+            flow. mask is binary with zeros indicating where the flow is not
             valid or occluded.
-            
+
         """
         return self.data[item]
 
@@ -70,16 +70,16 @@ class SceneFlowDataset(Dataset):
     def __init__(self, nb_points=-1):
         """
         Abstract constructor for scene flow datasets.
-        
+
         Each item of the dataset is returned in a dictionary with two keys:
-            (key = 'sequence', value=list(torch.Tensor, torch.Tensor)): 
-            list [pc1, pc2] of point clouds between which to estimate scene 
+            (key = 'sequence', value=list(torch.Tensor, torch.Tensor)):
+            list [pc1, pc2] of point clouds between which to estimate scene
             flow. pc1 has size 1 x n x 3 and pc2 has size 1 x m x 3.
-            
-            (key = 'ground_truth', value = list(torch.Tensor, torch.Tensor)): 
-            list [mask, flow]. mask has size 1 x n x 1 and pc1 has size 
+
+            (key = 'ground_truth', value = list(torch.Tensor, torch.Tensor)):
+            list [mask, flow]. mask has size 1 x n x 1 and pc1 has size
             1 x n x 3. flow is the ground truth scene flow between pc1 and pc2.
-            mask is binary with zeros indicating where the flow is not 
+            mask is binary with zeros indicating where the flow is not
             valid/occluded.
 
         Parameters
@@ -108,24 +108,24 @@ class SceneFlowDataset(Dataset):
         Parameters
         ----------
         sequence : list(np.array, np.array)
-            List [pc1, pc2] of point clouds between which to estimate scene 
+            List [pc1, pc2] of point clouds between which to estimate scene
             flow. pc1 has size n x 3 and pc2 has size m x 3.
-            
+
         ground_truth : list(np.array, np.array)
-            List [mask, flow]. mask has size n x 1 and pc1 has size n x 3. 
-            flow is the ground truth scene flow between pc1 and pc2. mask is 
+            List [mask, flow]. mask has size n x 1 and pc1 has size n x 3.
+            flow is the ground truth scene flow between pc1 and pc2. mask is
             binary with zeros indicating where the flow is not valid/occluded.
-        
+
         Returns
         -------
         sequence : list(torch.Tensor, torch.Tensor)
-            List [pc1, pc2] of point clouds between which to estimate scene 
+            List [pc1, pc2] of point clouds between which to estimate scene
             flow. pc1 has size 1 x n x 3 and pc2 has size 1 x m x 3.
-            
+
         ground_truth : list(torch.Tensor, torch.Tensor)
-            List [mask, flow]. mask has size 1 x n x 1 and pc1 has size 
+            List [mask, flow]. mask has size 1 x n x 1 and pc1 has size
             1 x n x 3. flow is the ground truth scene flow between pc1 and pc2.
-            mask is binary with zeros indicating where the flow is not 
+            mask is binary with zeros indicating where the flow is not
             valid/occluded.
 
         """
@@ -144,29 +144,29 @@ class SceneFlowDataset(Dataset):
         Parameters
         ----------
         sequence : list(np.array, np.array)
-            List [pc1, pc2] of point clouds between which to estimate scene 
+            List [pc1, pc2] of point clouds between which to estimate scene
             flow. pc1 has size 1 x N x 3 and pc2 has size 1 x M x 3.
-            
+
         ground_truth : list(np.array, np.array)
-            List [mask, flow]. mask has size 1 x N x 1 and pc1 has size 
+            List [mask, flow]. mask has size 1 x N x 1 and pc1 has size
             1 x N x 3. flow is the ground truth scene flow between pc1 and pc2.
-            mask is binary with zeros indicating where the flow is not 
+            mask is binary with zeros indicating where the flow is not
             valid/occluded.
 
         Returns
         -------
         sequence : list(np.array, np.array)
-            List [pc1, pc2] of point clouds between which to estimate scene 
-            flow. pc1 has size 1 x n x 3 and pc2 has size 1 x m x 3. The n 
+            List [pc1, pc2] of point clouds between which to estimate scene
+            flow. pc1 has size 1 x n x 3 and pc2 has size 1 x m x 3. The n
             points are chosen randomly among the N available ones. The m points
-            are chosen randomly among the M available ones. If N, M >= 
-            self.nb_point then n, m = self.nb_points. If N, M < 
-            self.nb_point then n, m = N, M. 
-            
+            are chosen randomly among the M available ones. If N, M >=
+            self.nb_point then n, m = self.nb_points. If N, M <
+            self.nb_point then n, m = N, M.
+
         ground_truth : list(np.array, np.array)
-            List [mask, flow]. mask has size 1 x n x 1 and pc1 has size 
+            List [mask, flow]. mask has size 1 x n x 1 and pc1 has size
             1 x n x 3. flow is the ground truth scene flow between pc1 and pc2.
-            mask is binary with zeros indicating where the flow is not 
+            mask is binary with zeros indicating where the flow is not
             valid/occluded.
 
         """
@@ -194,12 +194,12 @@ class SceneFlowDataset(Dataset):
         Must return:
         -------
         sequence : list(np.array, np.array)
-            List [pc1, pc2] of point clouds between which to estimate scene 
+            List [pc1, pc2] of point clouds between which to estimate scene
             flow. pc1 has size N x 3 and pc2 has size M x 3.
-            
+
         ground_truth : list(np.array, np.array)
-            List [mask, flow]. mask has size N x 1 and pc1 has size N x 3. 
-            flow is the ground truth scene flow between pc1 and pc2. mask is 
+            List [mask, flow]. mask has size N x 1 and pc1 has size N x 3.
+            flow is the ground truth scene flow between pc1 and pc2. mask is
             binary with zeros indicating where the flow is not valid/occluded.
 
         """

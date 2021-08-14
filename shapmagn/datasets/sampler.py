@@ -7,13 +7,9 @@ from torch import Tensor
 from torch_sparse import SparseTensor
 
 
-
-
-
-
-def maybe_num_nodes(index: torch.Tensor,
-                    num_nodes: Optional[int] = None) -> int:
+def maybe_num_nodes(index: torch.Tensor, num_nodes: Optional[int] = None) -> int:
     return int(index.max()) + 1 if num_nodes is None else num_nodes
+
 
 class EdgeIndex(NamedTuple):
     edge_index: Tensor
@@ -37,7 +33,6 @@ class Adj(NamedTuple):
         return Adj(adj_t, e_id, self.size)
 
 
-
 class RandomIndexSampler(torch.utils.data.Sampler):
     def __init__(self, num_nodes: int, num_parts: int, shuffle: bool = False):
         self.N = num_nodes
@@ -46,9 +41,10 @@ class RandomIndexSampler(torch.utils.data.Sampler):
         self.n_ids = self.get_node_indices()
 
     def get_node_indices(self):
-        n_id = torch.randint(self.num_parts, (self.N, ), dtype=torch.long)
-        n_ids = [(n_id == i).nonzero(as_tuple=False).view(-1)
-                 for i in range(self.num_parts)]
+        n_id = torch.randint(self.num_parts, (self.N,), dtype=torch.long)
+        n_ids = [
+            (n_id == i).nonzero(as_tuple=False).view(-1) for i in range(self.num_parts)
+        ]
         return n_ids
 
     def __iter__(self):
@@ -79,6 +75,7 @@ class RandomNodeSampler(torch.utils.data.DataLoader):
         **kwargs (optional): Additional arguments of
             :class:`torch.utils.data.DataLoader`, such as :obj:`num_workers`.
     """
+
     def __init__(self, data, num_parts: int, shuffle: bool = False, **kwargs):
         assert data.edge_index is not None
 
@@ -86,17 +83,22 @@ class RandomNodeSampler(torch.utils.data.DataLoader):
         self.E = data.num_edges
 
         self.adj = SparseTensor(
-            row=data.edge_index[0], col=data.edge_index[1],
+            row=data.edge_index[0],
+            col=data.edge_index[1],
             value=torch.arange(self.E, device=data.edge_index.device),
-            sparse_sizes=(N, N))
+            sparse_sizes=(N, N),
+        )
 
         self.data = copy.copy(data)
         self.data.edge_index = None
 
         super(RandomNodeSampler, self).__init__(
-            self, batch_size=1,
+            self,
+            batch_size=1,
             sampler=RandomIndexSampler(self.N, num_parts, shuffle),
-            collate_fn=self.__collate__, **kwargs)
+            collate_fn=self.__collate__,
+            **kwargs
+        )
 
     def __getitem__(self, idx):
         return idx

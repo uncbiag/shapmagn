@@ -1,15 +1,19 @@
 import os, sys
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../..'))
+
+sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath("../.."))
 import numpy as np
 import torch
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
 from shapmagn.shape.shape_pair_utils import create_shape_pair
-from shapmagn.models_reg.multiscale_optimization import build_single_scale_model_embedded_solver, build_multi_scale_solver
-from shapmagn.global_variable import MODEL_POOL,Shape, shape_type
+from shapmagn.models_reg.multiscale_optimization import (
+    build_single_scale_model_embedded_solver,
+    build_multi_scale_solver,
+)
+from shapmagn.global_variable import MODEL_POOL, Shape, shape_type
 from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import *
 from shapmagn.demos.demo_utils import *
@@ -24,6 +28,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
 from pykeops.numpy import LazyTensor
 import pykeops.config
+
 # import pykeops
 # pykeops.clean_pykeops()
 dtype = "float32"  # No need for double precision here!
@@ -33,32 +38,38 @@ from scipy.sparse import diags
 from scipy.sparse.linalg.interface import IdentityOperator
 
 # set shape_type = "pointcloud"  in global_variable.py
-assert shape_type == "pointcloud", "set shape_type = 'pointcloud'  in global_variable.py"
+assert (
+    shape_type == "pointcloud"
+), "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-server_path = "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/" # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path =  server_path+"data/lung_vessel_demo_data/case2_exp.vtk"
+server_path = "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/"  # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
+source_path = server_path + "data/lung_vessel_demo_data/case2_exp.vtk"
 target_path = server_path + "data/lung_vessel_demo_data/case2_insp.vtk"
 compute_on_half_lung = True
 
 ####################  prepare data ###########################
-pair_name = generate_pair_name([source_path,target_path])
+pair_name = generate_pair_name([source_path, target_path])
 reader_obj = "lung_dataloader_utils.lung_reader()"
-scale = -1 # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
+scale = (
+    -1
+)  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(scale)
 sampler_obj = "lung_dataloader_utils.lung_sampler(method='voxelgrid',scale=0.01)"
-get_obj_func = get_obj(reader_obj,normalizer_obj,sampler_obj, device)
+get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device)
 source_obj, source_interval = get_obj_func(source_path)
 target_obj, target_interval = get_obj_func(target_path)
-min_interval = min(source_interval,target_interval)
-input_data = {"source":source_obj,"target":target_obj}
-create_shape_pair_from_data_dict = obj_factory("shape_pair_utils.create_source_and_target_shape()")
+min_interval = min(source_interval, target_interval)
+input_data = {"source": source_obj, "target": target_obj}
+create_shape_pair_from_data_dict = obj_factory(
+    "shape_pair_utils.create_source_and_target_shape()"
+)
 source, target = create_shape_pair_from_data_dict(input_data)
-source = get_half_lung(source,normalize_weight=True) if compute_on_half_lung else source
-target = get_half_lung(target,normalize_weight=True) if compute_on_half_lung else target
-
-
-
-
+source = (
+    get_half_lung(source, normalize_weight=True) if compute_on_half_lung else source
+)
+target = (
+    get_half_lung(target, normalize_weight=True) if compute_on_half_lung else target
+)
 
 
 t = source.weights.cpu().squeeze().numpy()

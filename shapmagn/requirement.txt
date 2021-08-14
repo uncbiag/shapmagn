@@ -17,3 +17,5 @@ future
 pandas
 tensorboard
 pyvista
+seaborn
+pygifsicle

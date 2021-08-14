@@ -1,18 +1,23 @@
 ## Shapmagn
 
-shapmagn is a research project for Shape Registration. The repository provides a general framework for the point cloud/mesh registration and general deep learning frameworks, supporting both optimization and learning
+This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
+
+The repository provides a general framework for the point cloud/mesh registration and general deep learning frameworks, supporting both optimization and learning
 based approaches. 
+
 
 ## Installation
 
 Please use python=3.6 to workaround a known buffer overflow bug in vtk-9.0,
-Besides, to workaround background plotting issues on remote servers, we need 
+To saving plots at remote servers, we suggest to install xvfb
 ```
 sudo apt-get install xorg 
 sudo apt-get install xvfb
 pip install vtk==8.1.2
 
 ``` 
+
+For shape registration tasks, the pytorch3d is not needed. But for general prediction tasks, e.g, landmark prediction. Make sure install [pytorch3d](https://github.com/facebookresearch/pytorch3d/blob/master/INSTALL.md) first.
 
 Finally, we can install shapmagn by
 ```
@@ -47,18 +52,24 @@ python lung_reg.py
 python flyingkitti_reg.py
 ```
 
-Here is an example on training deep feature learning network based on one synthesized pair:
+Here is an example on deep feature learning on lung vessel dataset:
 ```
-python run_task.py -ds SHAPEMAGN_PATH/demos/data/lung_synth_dataset_splits -o SHAPEMAGN_PATH/demos/output/training_one_synth_case -tn deepfeature_pointconv -ts SHAPEMAGN_PATH/demos/settings/lung/training_deep_feature_learning_on_one_case -g 0
-```
-Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair (the model needs to be updated):
-
-```
-python run_task.py --eval -ds SHAPEMAGN_PATH/demos/data/lung_dataset_splits -o SHAPEMAGN_PATH/demos/output/test_one_case -tn deepflow_pwc_lddmm -ts SHAPEMAGN_PATH/demos/settings/lung/test_deep_lddmm_pwcnet_on_one_case  -m   /SHAPEMAGN_PATH/demos/pretrained_models/pretrained_deep_lddmm -g 0
+python run_task.py -ds ./demos/data/lung_synth_dataset_splits -o ./demos/output/training_one_synth_case -tn deepfeature_pointconv_train -ts ./demos/settings/lung/deep_feature_training -g 0
 ```
 
-## TODO
-10. test flot net, prnet
-14. add transformer
-21. test gmm model, local laplacian, main vessel
-23. do distribution analysis for the landmarks
+Here is an example on robust optimal transport based deep feature projection (spline) on lung vessel dataset:
+```
+python run_task.py -ds ./demos/data/lung_synth_dataset_splits -o ./demos/output/training_one_synth_case -tn deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
+```
+
+Here is an example on training a pretrained deep LDDMM flow network on one real pair:
+
+```
+python run_task.py  -ds ./demos/data/lung_dataset_splits -o ./demos/output/test_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow   -g 0
+```
+
+Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair:
+
+```
+python run_task.py --eval -ds ./demos/data/lung_dataset_splits -o ./demos/output/test_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow  -m   ./demos/pretrained_models/pretrained_deep_lddmm -g 0
+```

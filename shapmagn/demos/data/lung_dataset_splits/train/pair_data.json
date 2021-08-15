@@ -1,1 +1,1 @@
-{"10005Q": {"source": {"name": "10005Q_EXP_STD_NJC_COPD", "data_path": "./demos/data/lung_vessel_demo_data/10005Q_EXP_STD_NJC_COPD_wholeLungVesselParticles.vtk"}, "target": {"name": "10005Q_INSP_STD_NJC_COPD", "data_path": "./demos/data/lung_vessel_demo_data/10005Q_INSP_STD_NJC_COPD_wholeLungVesselParticles.vtk"}}}
+{"copd1": {"source": {"name": "copd1_EXP", "data_path": "./demos/data/lung_vessel_demo_data/copd1_EXP.vtk"}, "target": {"name": "copd1_INSP", "data_path": "./demos/data/lung_vessel_demo_data/copd1_INSP.vtk"}}}

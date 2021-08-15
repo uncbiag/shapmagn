@@ -179,57 +179,57 @@ def lung_pair_postprocess(**kwargs):
     return postprocess
 
 
-try:
-    """global setup for the atlas """
-    reader_obj = "lung_dataloader_utils.lung_reader()"
-    normalizer_obj = (
-        "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
-    )
-    sampler_obj = "lung_dataloader_utils.lung_sampler( method='voxelgrid',scale=0.0003)"
-    get_obj_func = get_obj(
-        reader_obj,
-        normalizer_obj,
-        sampler_obj,
-        device="cpu",
-        expand_bch_dim=False,
-        return_tensor=False,
-    )
-    altas_path = "/playpen-raid1/Data/UNC_vesselParticles/10067M_INSP_STD_MSM_COPD_wholeLungVesselParticles.vtk"
-    atlas, _ = get_obj_func(altas_path)
-    print("take {} as atlas ")
-except:
-    print(
-        "the atlas weight matching doesn't work. Ignore this if the altas radius matching is not used"
-    )
-
-
-def get_atlas_distbribution(**kwargs):
-    sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
-    sampler = obj_factory(sampler_obj)
-    sampled_atlas, _ = sampler(atlas)
-    return sampled_atlas
-
-
-def lung_pair_atlas_postprocess(**kwargs):
-    sampled_atlas = get_atlas_distbribution(**kwargs)
-
-    def postprocess(source_dict, target_dict, sampler=None, phase=None):
-        if sampler is not None:
-            source_dict, ind = sampler(
-                source_dict, ind=None, fixed_random_seed=phase != "train"
-            )
-            target_dict, _ = sampler(
-                target_dict, ind=ind, fixed_random_seed=phase != "train"
-            )
-        source_dict["weights"] = matching_np_radius(
-            source_dict["weights"], sampled_atlas["weights"]
-        )
-        target_dict["weights"] = matching_np_radius(
-            target_dict["weights"], sampled_atlas["weights"]
-        )
-        return source_dict, target_dict
-
-    return postprocess
+# try:
+#     """global setup for the atlas """
+#     reader_obj = "lung_dataloader_utils.lung_reader()"
+#     normalizer_obj = (
+#         "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
+#     )
+#     sampler_obj = "lung_dataloader_utils.lung_sampler( method='voxelgrid',scale=0.0003)"
+#     get_obj_func = get_obj(
+#         reader_obj,
+#         normalizer_obj,
+#         sampler_obj,
+#         device="cpu",
+#         expand_bch_dim=False,
+#         return_tensor=False,
+#     )
+#     altas_path = "/playpen-raid1/Data/UNC_vesselParticles/10067M_INSP_STD_MSM_COPD_wholeLungVesselParticles.vtk"
+#     atlas, _ = get_obj_func(altas_path)
+#     print("take {} as atlas ")
+# except:
+#     print(
+#         "the atlas weight matching doesn't work. Ignore this if the altas radius matching is not used"
+#     )
+#
+#
+# def get_atlas_distbribution(**kwargs):
+#     sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
+#     sampler = obj_factory(sampler_obj)
+#     sampled_atlas, _ = sampler(atlas)
+#     return sampled_atlas
+#
+#
+# def lung_pair_atlas_postprocess(**kwargs):
+#     sampled_atlas = get_atlas_distbribution(**kwargs)
+#
+#     def postprocess(source_dict, target_dict, sampler=None, phase=None):
+#         if sampler is not None:
+#             source_dict, ind = sampler(
+#                 source_dict, ind=None, fixed_random_seed=phase != "train"
+#             )
+#             target_dict, _ = sampler(
+#                 target_dict, ind=ind, fixed_random_seed=phase != "train"
+#             )
+#         source_dict["weights"] = matching_np_radius(
+#             source_dict["weights"], sampled_atlas["weights"]
+#         )
+#         target_dict["weights"] = matching_np_radius(
+#             target_dict["weights"], sampled_atlas["weights"]
+#         )
+#         return source_dict, target_dict
+#
+#     return postprocess
 
 
 if __name__ == "__main__":

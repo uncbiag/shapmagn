@@ -7,7 +7,7 @@
             "normalizer": "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])",
             "pair_postprocess_obj": "lung_dataloader_utils.lung_pair_postprocess()",
             "max_num_for_loading": [800,20,20,-1],
-            "enlarge_dataset_size_by_factor": 100,
+            "enlarge_dataset_size_by_factor": 10,
             "load_training_data_into_memory": true,
             "aug_data_via_inverse_reg_direction": false
         }
@@ -87,8 +87,8 @@
         "is_train": true,
         "reset_train_epoch": false,
         "load_model_but_train_from_epoch": 0,
-        "continue_train": true,
+        "continue_train": false,
         "continue_train_lr": 2.5e-5,
-        "model_path":"/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000_rerun/checkpoints/epoch_230_"
+        "model_path":""
     }
 }

@@ -1,1 +1,0 @@
-{"syn_pair": {"source": {"name": "synth_source", "data_path": "./demos/data/lung_vessel_synth_data/synth_source.vtk"}, "target": {"name": "synth_target", "data_path": "./demos/data/lung_vessel_synth_data/synth_target.vtk"}}}

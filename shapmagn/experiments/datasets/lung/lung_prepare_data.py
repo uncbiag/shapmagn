@@ -35,23 +35,23 @@ dataset.prepare_data()
 
 if use_dirlab_as_val:
     dirlab_list = [
-        "12042G",
-        "12105E",
-        "12109M",
-        "12239Z",
-        "12829U",
-        "13216S",
-        "13528L",
-        "13671Q",  # missing radius
-        "13998W",
-        "17441T",
+        "copd6",
+        "copd7",
+        "copd8",
+        "copd9",
+        "copd10",
+        "copd1",
+        "copd2",
+        "copd3",  # missing radius
+        "copd4",
+        "copd5",
     ]
-    source_name_list = [name + "_EXP_STD_USD_COPD" for name in dirlab_list]
+    source_name_list = [name + "_EXP" for name in dirlab_list]
     source_path_list = [
         os.path.join(dirlab_folder_path, name + "_wholeLungVesselParticles.vtk")
         for name in source_name_list
     ]
-    target_name_list = [name + "_INSP_STD_USD_COPD" for name in dirlab_list]
+    target_name_list = [name + "_INSP" for name in dirlab_list]
     target_path_list = [
         os.path.join(dirlab_folder_path, name + "_wholeLungVesselParticles.vtk")
         for name in target_name_list

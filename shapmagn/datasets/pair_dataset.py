@@ -33,7 +33,7 @@ class RegistrationPairDataset(Dataset):
             (
                 "aug_data_via_inverse_reg_direction",
                 False,
-                " aug_data_via_inverse_reg_direction",
+                "aug_data_via_inverse_reg_direction",
             )
         ]
         """ inverse the registration order, i.e the original set is A->B, the new set would be A->B and B->A """

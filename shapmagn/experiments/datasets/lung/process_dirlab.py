@@ -14,32 +14,6 @@ from shapmagn.shape.shape_utils import get_scale_and_center
 3. transpose the last dimension of the high dimension
 """
 
-COPD_ID = {
-    "copd6": "12042G",
-    "copd7": "12105E",
-    "copd8": "12109M",
-    "copd9": "12239Z",
-    "copd10": "12829U",
-    "copd1": "13216S",
-    "copd2": "13528L",
-    "copd3": "13671Q",
-    "copd4": "13998W",
-    "copd5": "17441T",
-}
-
-ID_COPD = {
-    "12042G": "copd6",
-    "12105E": "copd7",
-    "12109M": "copd8",
-    "12239Z": "copd9",
-    "12829U": "copd10",
-    "13216S": "copd1",
-    "13528L": "copd2",
-    "13671Q": "copd3",
-    "13998W": "copd4",
-    "17441T": "copd5",
-}
-
 # in sitk coord
 COPD_spacing = {
     "copd1": [0.625, 0.625, 2.5],
@@ -99,11 +73,11 @@ def save_dirlab_into_niigz(file_path, output_path, fname, is_insp=False):
     img_sitk.SetSpacing(np.array(COPD_spacing[fname]))
     if is_insp:
         saving_path = os.path.join(
-            output_path, COPD_ID[fname] + "_INSP_STD_USD_COPD.nii.gz"
+            output_path, fname + "_INSP.nii.gz"
         )
     else:
         saving_path = os.path.join(
-            output_path, COPD_ID[fname] + "_EXP_STD_USD_COPD.nii.gz"
+            output_path, fname + "_EXP.nii.gz"
         )
     sitk.WriteImage(img_sitk, saving_path)
     if is_insp:
@@ -158,15 +132,14 @@ def read_axis_reversed_img(file_path, return_np=True):
 
 def compare_dirlab_and_high_nrrd(high_pair_path, case_id=None):
     high_insp_path, high_exp_path = high_pair_path
-    dir_insp_exp_shape = COPD_shape[ID_COPD[case_id]]
+    dir_insp_exp_shape = COPD_shape[case_id]
     high_insp_np, _, _ = read_img(high_insp_path)
     high_insp_shape = np.flipud(high_insp_np.shape)
     high_exp_np, _, _ = read_img(high_exp_path)
     high_exp_shape = np.flipud(high_exp_np.shape)
     print(
-        "{}, {} , exp_sz: {}, insp_sz: {}, copd_sz: {}, copd*4_sz: {}".format(
+        "{}, exp_sz: {}, insp_sz: {}, copd_sz: {}, copd*4_sz: {}".format(
             case_id,
-            ID_COPD[case_id],
             high_exp_shape[-1],
             high_insp_shape[-1],
             dir_insp_exp_shape[-1],
@@ -183,7 +156,7 @@ def process_high_to_dirlab(high_pair_path, case_id=None, saving_folder=None):
     processed_insp = DataProcessing.resample_image_itk_by_spacing_and_size(
         high_insp,
         output_spacing=output_spacing,
-        output_size=COPD_shape[ID_COPD[case_id]],
+        output_size=COPD_shape[case_id],
         output_type=None,
         interpolator=sitk.sitkBSpline,
         padding_value=0,
@@ -193,26 +166,26 @@ def process_high_to_dirlab(high_pair_path, case_id=None, saving_folder=None):
     processed_exp = DataProcessing.resample_image_itk_by_spacing_and_size(
         high_exp,
         output_spacing=output_spacing,
-        output_size=COPD_shape[ID_COPD[case_id]],
+        output_size=COPD_shape[case_id],
         output_type=None,
         interpolator=sitk.sitkBSpline,
         padding_value=0,
         center_padding=False,
     )
-    saving_path = saving_path = os.path.join(
-        saving_folder, case_id + "_INSP_STD_USD_COPD.nii.gz"
+    saving_path = os.path.join(
+        saving_folder, case_id + "_INSP.nii.gz"
     )
     sitk.WriteImage(processed_insp, saving_path)
-    saving_path = saving_path = os.path.join(
-        saving_folder, ID_COPD[case_id] + "_iBHCT.nii.gz"
+    saving_path = os.path.join(
+        saving_folder, case_id + "_iBHCT.nii.gz"
     )
     sitk.WriteImage(processed_insp, saving_path)
-    saving_path = saving_path = os.path.join(
-        saving_folder, case_id + "_EXP_STD_USD_COPD.nii.gz"
+    saving_path = os.path.join(
+        saving_folder, case_id + "_EXP.nii.gz"
     )
     sitk.WriteImage(processed_exp, saving_path)
-    saving_path = saving_path = os.path.join(
-        saving_folder, ID_COPD[case_id] + "_eBHCT.nii.gz"
+    saving_path = os.path.join(
+        saving_folder, case_id + "_eBHCT.nii.gz"
     )
     sitk.WriteImage(processed_exp, saving_path)
 
@@ -259,7 +232,7 @@ def transfer_landmarks_from_dirlab_to_high(dirlab_index, high_shape):
 def process_points(point_path, img_path, case_id, output_folder, is_insp):
     index = read_landmark_index(point_path)
     img_shape_itk, spacing_itk, origin_itk = get_img_info(img_path)
-    copd = ID_COPD[case_id]
+    copd = case_id
 
     print("origin {}_{}:{}".format(copd, "insp" if is_insp else "exp", origin_itk))
     print("size {}_{}:{}".format(copd, "insp" if is_insp else "exp", img_shape_itk))
@@ -273,11 +246,11 @@ def process_points(point_path, img_path, case_id, output_folder, is_insp):
     physical_points = transfered_index * spacing_itk + origin_itk
     data = pv.PolyData(physical_points)
     data.point_arrays["idx"] = np.arange(1, 301)
-    suffix = "_INSP_STD_USD_COPD.vtk" if is_insp else "_EXP_STD_USD_COPD.vtk"
+    suffix = "_INSP.vtk" if is_insp else "_EXP.vtk"
     fpath = os.path.join(output_folder, case_id + suffix)
     data.save(fpath)
     suffix = "_iBHCT.vtk" if is_insp else "_eBHCT.vtk"
-    fpath = os.path.join(output_folder, ID_COPD[case_id] + suffix)
+    fpath = os.path.join(output_folder, case_id + suffix)
     data.save(fpath)
     return physical_points
 
@@ -285,7 +258,7 @@ def process_points(point_path, img_path, case_id, output_folder, is_insp):
 def get_center(point_path, case_id, is_insp):
     points = read_vtk(point_path)["points"]
     scale, center = get_scale_and_center(points, percentile=95)
-    suffix = "_INSP_STD_USD_COPD" if is_insp else "_EXP_STD_USD_COPD"
+    suffix = "_INSP" if is_insp else "_EXP"
     print('"{}":{}'.format(case_id + suffix, center[0]))
 
 
@@ -311,27 +284,27 @@ id_list = [os.path.split(path)[-1].split("_")[0] for path in pc_insp_path_list]
 landmark_insp_path_list = [
     os.path.join(
         low_folder_path,
-        ID_COPD[_id],
-        ID_COPD[_id],
-        ID_COPD[_id] + "_300_iBH_xyz_r1.txt",
+        _id,
+        _id,
+        _id + "_300_iBH_xyz_r1.txt",
     )
     for _id in id_list
 ]
 landmark_exp_path_list = [
     os.path.join(
         low_folder_path,
-        ID_COPD[_id],
-        ID_COPD[_id],
-        ID_COPD[_id] + "_300_eBH_xyz_r1.txt",
+        _id,
+        _id,
+        _id + "_300_eBH_xyz_r1.txt",
     )
     for _id in id_list
 ]
 
 high_img_insp_path_list = [
-    os.path.join(high_folder_path, _id + "_INSP_STD_USD_COPD.nrrd") for _id in id_list
+    os.path.join(high_folder_path, _id + "_INSP.nrrd") for _id in id_list
 ]
 high_img_exp_path_list = [
-    os.path.join(high_folder_path, _id + "_EXP_STD_USD_COPD.nrrd") for _id in id_list
+    os.path.join(high_folder_path, _id + "_EXP.nrrd") for _id in id_list
 ]
 
 low_processed_folder = os.path.join(processed_output_path, "dirlab")
@@ -340,38 +313,38 @@ if save_dirlab_IMG_into_niigz:
     low_img_insp_path_list = [
         os.path.join(
             low_folder_path,
-            ID_COPD[fname],
-            ID_COPD[fname],
-            ID_COPD[fname] + "_iBHCT.img",
+            fname,
+            fname,
+            fname + "_iBHCT.img",
         )
         for fname in id_list
     ]
     low_img_exp_path_list = [
         os.path.join(
             low_folder_path,
-            ID_COPD[fname],
-            ID_COPD[fname],
-            ID_COPD[fname] + "_eBHCT.img",
+            fname,
+            fname,
+            fname + "_eBHCT.img",
         )
         for fname in id_list
     ]
     os.makedirs(low_processed_folder)
     for low_img_insp_path, _id in zip(low_img_insp_path_list, id_list):
         save_dirlab_into_niigz(
-            low_img_insp_path, low_processed_folder, ID_COPD[_id], is_insp=True
+            low_img_insp_path, low_processed_folder, _id, is_insp=True
         )
     for low_img_exp_path, _id in zip(low_img_exp_path_list, id_list):
         save_dirlab_into_niigz(
-            low_img_exp_path, low_processed_folder, ID_COPD[_id], is_insp=False
+            low_img_exp_path, low_processed_folder, _id, is_insp=False
         )
 
 
 low_img_insp_path_list = [
-    os.path.join(low_processed_folder, _id + "_INSP_STD_USD_COPD.nii.gz")
+    os.path.join(low_processed_folder, _id + "_INSP.nii.gz")
     for _id in id_list
 ]
 low_img_exp_path_list = [
-    os.path.join(low_processed_folder, _id + "_EXP_STD_USD_COPD.nii.gz")
+    os.path.join(low_processed_folder, _id + "_EXP.nii.gz")
     for _id in id_list
 ]
 
@@ -430,7 +403,7 @@ if project_landmarks_from_dirlab_to_high:
     init_diff_list = []
     for i in range(len(id_list)):
         copid = "copd{}".format(i + 1)
-        index = id_list.index(COPD_ID[copid])
+        index = id_list.index(copid)
         diff = np.linalg.norm(
             landmark_insp_physical_pos_list[index]
             - landmark_exp_physical_pos_list[index],

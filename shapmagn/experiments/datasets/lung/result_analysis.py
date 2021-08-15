@@ -7,16 +7,16 @@ import seaborn as sns
 
 plt.rcParams["font.family"] = "Liberation Serif"
 ID_COPD = {
-    "12042G": "copd6",
-    "12105E": "copd7",
-    "12109M": "copd8",
-    "12239Z": "copd9",
-    "12829U": "copd10",
-    "13216S": "copd1",
-    "13528L": "copd2",
-    "13671Q": "copd3",
-    "13998W": "copd4",
-    "17441T": "copd5",
+    "copd6": "copd6",
+    "copd7": "copd7",
+    "copd8": "copd8",
+    "copd9": "copd9",
+    "copd10": "copd10",
+    "copd1": "copd1",
+    "copd2": "copd2",
+    "copd3": "copd3",
+    "copd4": "copd4",
+    "copd5": "copd5",
 }
 
 pTVreg = {

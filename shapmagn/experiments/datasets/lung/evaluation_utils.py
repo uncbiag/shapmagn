@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import pyvista as pv
 from shapmagn.global_variable import Shape
+from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
 from shapmagn.datasets.vtk_utils import read_vtk
 from shapmagn.shape.point_interpolator import NadWatIsoSpline
 from shapmagn.utils.shape_visual_utils import save_shape_into_files
@@ -13,69 +14,56 @@ from shapmagn.utils.visualizer import (
 
 """
 
-copd10/12829U_EXP_STD_USD_COPD.nrrd
-copd10/12829U_INSP_STD_USD_COPD.nrrd
-copd1/13216S_EXP_STD_USD_COPD.nrrd
-copd1/13216S_INSP_STD_USD_COPD.nrrd
-copd2/13528L_EXP_STD_USD_COPD.nrrd
-copd2/13528L_INSP_STD_USD_COPD.nrrd
-copd3/13671Q_EXP_STD_USD_COPD.nrrd
-copd3/13671Q_INSP_STD_USD_COPD.nrrd
-copd4/13998W_EXP_STD_USD_COPD.nrrd
-copd4/13998W_INSP_STD_USD_COPD.nrrd
-copd5/17441T_EXP_STD_USD_COPD.nrrd
-copd5/17441T_INSP_STD_USD_COPD.nrrd
-copd6/12042G_EXP_STD_USD_COPD.nrrd
-copd6/12042G_INSP_STD_USD_COPD.nrrd
-copd7/12105E_EXP_STD_USD_COPD.nrrd
-copd7/12105E_INSP_STD_USD_COPD.nrrd
-copd8/12109M_EXP_STD_USD_COPD.nrrd
-copd8/12109M_INSP_STD_USD_COPD.nrrd
-copd9/12239Z_EXP_STD_USD_COPD.nrrd
-copd9/12239Z_INSP_STD_USD_COPD.nrrd
+copd10/copd10_EXP.nrrd
+copd10/copd10_INSP.nrrd
+copd1/copd1_EXP.nrrd
+copd1/copd1_INSP.nrrd
+copd2/copd2_EXP.nrrd
+copd2/copd2_INSP.nrrd
+copd3/copd3_EXP.nrrd
+copd3/copd3_INSP.nrrd
+copd4/copd4_EXP.nrrd
+copd4/copd4_INSP.nrrd
+copd5/copd5_EXP.nrrd
+copd5/copd5_INSP.nrrd
+copd6/copd6_EXP.nrrd
+copd6/copd6_INSP.nrrd
+copd7/copd7_EXP.nrrd
+copd7/copd7_INSP.nrrd
+copd8/copd8_EXP.nrrd
+copd8/copd8_INSP.nrrd
+copd9/copd9_EXP.nrrd
+copd9/copd9_INSP.nrrd
 """
 
 
-ID_COPD = {
-    "12042G": "copd6",
-    "12105E": "copd7",
-    "12109M": "copd8",
-    "12239Z": "copd9",
-    "12829U": "copd10",
-    "13216S": "copd1",
-    "13528L": "copd2",
-    "13671Q": "copd3",
-    "13998W": "copd4",
-    "17441T": "copd5",
-}
-
 CENTER = {
-    "13216S_INSP_STD_USD_COPD": [7.979657, 25.017563, -151.31465],
-    "13216S_EXP_STD_USD_COPD": [8.846239, 45.1596, -142.66893],
-    "17441T_INSP_STD_USD_COPD": [13.640025, -9.945671, -186.71013],
-    "17441T_EXP_STD_USD_COPD": [12.206295, 8.053513, -165.32997],
-    "12109M_INSP_STD_USD_COPD": [7.076656, 6.5697513, -167.6756],
-    "12109M_EXP_STD_USD_COPD": [7.3253126, 13.625545, -146.99274],
-    "13998W_INSP_STD_USD_COPD": [25.451248, 1.2760051, -136.3838],
-    "13998W_EXP_STD_USD_COPD": [22.506023, 17.911581, -109.80095],
-    "12042G_INSP_STD_USD_COPD": [-7.9421997e-03, -2.8869128e00, -1.4221332e02],
-    "12042G_EXP_STD_USD_COPD": [0.782543, 12.822629, -130.49344],
-    "12239Z_INSP_STD_USD_COPD": [9.527761, 4.727795, -148.14838],
-    "12239Z_EXP_STD_USD_COPD": [13.590356, 9.209801, -135.56178],
-    "13528L_INSP_STD_USD_COPD": [-11.987083, 13.766904, -119.20886],
-    "13528L_EXP_STD_USD_COPD": [-13.89523, 23.859629, -122.09784],
-    "12105E_INSP_STD_USD_COPD": [8.279412, 5.61014, -161.163],
-    "12105E_EXP_STD_USD_COPD": [10.5092535, 10.868305, -150.65265],
-    "13671Q_INSP_STD_USD_COPD": [13.88625, 7.0715256, -174.34314],
-    "13671Q_EXP_STD_USD_COPD": [15.094385, 10.8874855, -162.57578],
-    "12829U_INSP_STD_USD_COPD": [1.1542492, 11.651825, -163.67746],
-    "12829U_EXP_STD_USD_COPD": [5.068997, 15.700953, -145.50748],
+    "copd1_INSP": [7.979657, 25.017563, -151.31465],
+    "copd1_EXP": [8.846239, 45.1596, -142.66893],
+    "copd5_INSP": [13.640025, -9.945671, -186.71013],
+    "copd5_EXP": [12.206295, 8.053513, -165.32997],
+    "copd8_INSP": [7.076656, 6.5697513, -167.6756],
+    "copd8_EXP": [7.3253126, 13.625545, -146.99274],
+    "copd4_INSP": [25.451248, 1.2760051, -136.3838],
+    "copd4_EXP": [22.506023, 17.911581, -109.80095],
+    "copd6_INSP": [-7.9421997e-03, -2.8869128e00, -1.4221332e02],
+    "copd6_EXP": [0.782543, 12.822629, -130.49344],
+    "copd9_INSP": [9.527761, 4.727795, -148.14838],
+    "copd9_EXP": [13.590356, 9.209801, -135.56178],
+    "copd2_INSP": [-11.987083, 13.766904, -119.20886],
+    "copd2_EXP": [-13.89523, 23.859629, -122.09784],
+    "copd7_INSP": [8.279412, 5.61014, -161.163],
+    "copd7_EXP": [10.5092535, 10.868305, -150.65265],
+    "copd3_INSP": [13.88625, 7.0715256, -174.34314],
+    "copd3_EXP": [15.094385, 10.8874855, -162.57578],
+    "copd10_INSP": [1.1542492, 11.651825, -163.67746],
+    "copd10_EXP": [5.068997, 15.700953, -145.50748],
 }
 
 SCALE = 100
 
 
-dirlab_landmarks_folder_path = "/playpen-raid1/Data/copd/processed/landmark_processed2"
+dirlab_landmarks_folder_path = os.path.join(lung_expri_path,"dirlab_landmarks")
 
 
 def get_flowed(shape_pair, interp_kernel):

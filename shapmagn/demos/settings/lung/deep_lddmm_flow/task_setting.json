@@ -48,7 +48,7 @@
                     "search_init_transform": false,
                     "geomloss": {
                         "attr": "points",
-                        "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, reach=None,scaling=0.8,debias=False, backend='online')"
+                        "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.01, reach=None,scaling=0.8,debias=False)"
                     }
                 }
             },
@@ -85,7 +85,7 @@
                     "geomloss": {
                         "attr": "points",
                         "use_bary_map": true,
-                        "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, reach=0.5,scaling=0.8,debias=False, backend='online')"
+                        "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, reach=0.5,scaling=0.8,debias=False)"
                     }
                 }
             },
@@ -93,7 +93,7 @@
                 "multi_scale_weight": [0.2, 0.4, 0.8, 1.6],
                 "loss_type": "disp_l2",
                 "geomloss": {
-                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=None,debias=False, backend='online')"
+                    "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=None,debias=False)"
                 }
             },
 
@@ -106,7 +106,7 @@
             "saving_running_result_visualize": true,
             "geom_loss_opt_for_eval": {
                 "attr": "points",
-                "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=0.5, debias=False, backend='online')"
+                "geom_obj": "geomloss.SamplesLoss(loss='sinkhorn',blur=0.001, scaling=0.8,reach=0.1, debias=False)"
             },
             "aniso_post_kernel_obj": "point_interpolator.NadWatAnisoSpline(exp_order=2, cov_sigma_scale=0.02,aniso_kernel_scale=0.08,eigenvalue_min=0.3,iter_twice=True, fixed=False, leaf_decay=True, is_interp=True, self_center=False)"
         },
@@ -131,7 +131,7 @@
         "is_train": true,
         "reset_train_epoch": true,
         "load_model_but_train_from_epoch": 20,
-        "continue_train": false,
+        "continue_train": true,
         "continue_train_lr": 5e-5,
         "model_path":""
     }

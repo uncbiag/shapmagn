@@ -10,7 +10,7 @@ based approaches.
 
 We provide two ways to install the shapmagn: 1) custom installation  2) docker
 ### Custom installation
-* Important. Before the installation, make sure the cuda-toolkit is installed. you can check that via "nvcc --version" in terminal. The cuda compiler
+* Important. Before the installation, make sure the cuda-toolkit is installed. you can check that via "nvcc --version" in terminal (see step 0 if nvcc not yet installed). The cuda compiler
 version it shows may be different from your cuda driver version shown at "nvidia-smi". Please make sure that the torch, pytorch3d and keops,torch_scatter are installed under the same cuda version as the one of nvcc.
   (Note that if your nvcc version is 11.2  while pytorch, torch_scatter of 11.2 version are not released, you can install any available version compiled with cuda 11.*)
   
@@ -39,6 +39,7 @@ pip install vtk==8.1.2
 For system support yum:
 ```
 yum install xorg-x11-server-Xvfb
+pip install vtk==8.1.2
 ```
 
 2. For general prediction tasks, the pytorch3d needs to be installed first [link](https://github.com/facebookresearch/pytorch3d/blob/master/INSTALL.md). 
@@ -128,7 +129,7 @@ python run_task.py -ds ./demos/data/lung_dataset_splits -o ./demos/output/traini
 
 Here is an example on robust optimal transport based deep feature projection (spline) on lung vessel dataset:
 ```
-python run_task.py -ds ./demos/data/lung_dataset_splits -o ./demos/output/test_feature_projection_one_case -tn deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
+python run_task.py --eval -ds ./demos/data/lung_dataset_splits -o ./demos/output/test_feature_projection_one_case -tn deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
 ```
 
 Here is an example on training a pretrained deep LDDMM flow network on one real pair:

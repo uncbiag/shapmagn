@@ -113,8 +113,8 @@ assert (
     shape_type == "pointcloud"
 ), "set shape_type = 'pointcloud'  in global_variable.py"
 server_path = "./"  # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path = server_path + "data/lung_vessel_demo_data/case2_exp.vtk"  # 10031R 10005Q
-target_path = server_path + "data/lung_vessel_demo_data/case2_insp.vtk"
+source_path = server_path + "data/lung_data/lung_vessel_demo_data/case2_exp.vtk"  # 10031R 10005Q
+target_path = server_path + "data/lung_data/lung_vessel_demo_data/case2_insp.vtk"
 compute_on_half_lung = True
 
 ####################  prepare data ###########################

@@ -31,7 +31,7 @@
         "loss_name": "geomloss",
         "prepare_input_object": "",
         "prepare_shape_pair": "shape_pair_utils.prepare_shape_pair(n_control_points=-1)",
-        "capture_plot_obj": "visualizer.capture_plotter(render_by_weight=True,add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])",
+        "capture_plot_obj": "lung_visualizer.lung_capture_plotter(add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])",
         "discrete_flow_opt": {
             "print_step":1,
             "gradient_flow_mode": true,

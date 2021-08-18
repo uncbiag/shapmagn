@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import pyvista as pv
 from shapmagn.global_variable import Shape
-from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
+from shapmagn.experiments.datasets.lung.global_variable import NORMALIZE_SCALE, lung_expri_path
 from shapmagn.datasets.vtk_utils import read_vtk
 from shapmagn.shape.point_interpolator import NadWatIsoSpline
 from shapmagn.utils.shape_visual_utils import save_shape_into_files
@@ -12,55 +12,6 @@ from shapmagn.utils.visualizer import (
     visualize_source_flowed_target_overlap,
 )
 
-"""
-
-copd10/copd10_EXP.nrrd
-copd10/copd10_INSP.nrrd
-copd1/copd1_EXP.nrrd
-copd1/copd1_INSP.nrrd
-copd2/copd2_EXP.nrrd
-copd2/copd2_INSP.nrrd
-copd3/copd3_EXP.nrrd
-copd3/copd3_INSP.nrrd
-copd4/copd4_EXP.nrrd
-copd4/copd4_INSP.nrrd
-copd5/copd5_EXP.nrrd
-copd5/copd5_INSP.nrrd
-copd6/copd6_EXP.nrrd
-copd6/copd6_INSP.nrrd
-copd7/copd7_EXP.nrrd
-copd7/copd7_INSP.nrrd
-copd8/copd8_EXP.nrrd
-copd8/copd8_INSP.nrrd
-copd9/copd9_EXP.nrrd
-copd9/copd9_INSP.nrrd
-"""
-
-
-CENTER = {
-    "copd1_INSP": [7.979657, 25.017563, -151.31465],
-    "copd1_EXP": [8.846239, 45.1596, -142.66893],
-    "copd5_INSP": [13.640025, -9.945671, -186.71013],
-    "copd5_EXP": [12.206295, 8.053513, -165.32997],
-    "copd8_INSP": [7.076656, 6.5697513, -167.6756],
-    "copd8_EXP": [7.3253126, 13.625545, -146.99274],
-    "copd4_INSP": [25.451248, 1.2760051, -136.3838],
-    "copd4_EXP": [22.506023, 17.911581, -109.80095],
-    "copd6_INSP": [-7.9421997e-03, -2.8869128e00, -1.4221332e02],
-    "copd6_EXP": [0.782543, 12.822629, -130.49344],
-    "copd9_INSP": [9.527761, 4.727795, -148.14838],
-    "copd9_EXP": [13.590356, 9.209801, -135.56178],
-    "copd2_INSP": [-11.987083, 13.766904, -119.20886],
-    "copd2_EXP": [-13.89523, 23.859629, -122.09784],
-    "copd7_INSP": [8.279412, 5.61014, -161.163],
-    "copd7_EXP": [10.5092535, 10.868305, -150.65265],
-    "copd3_INSP": [13.88625, 7.0715256, -174.34314],
-    "copd3_EXP": [15.094385, 10.8874855, -162.57578],
-    "copd10_INSP": [1.1542492, 11.651825, -163.67746],
-    "copd10_EXP": [5.068997, 15.700953, -145.50748],
-}
-
-SCALE = 100
 
 
 dirlab_landmarks_folder_path = os.path.join(lung_expri_path,"dirlab_landmarks")
@@ -89,7 +40,7 @@ def eval_landmark(model, shape_pair, batch_info, alias, eval_ot_map=False):
     s_name_list = batch_info["source_info"]["name"]
     t_name_list = batch_info["target_info"]["name"]
     landmarks_toflow_list, target_landmarks_list = [], []
-    for s_name, t_name in zip(s_name_list, t_name_list):
+    for i, (s_name, t_name) in enumerate(zip(s_name_list, t_name_list)):
         source_landmarks_path = os.path.join(
             dirlab_landmarks_folder_path, s_name + ".vtk"
         )
@@ -99,8 +50,13 @@ def eval_landmark(model, shape_pair, batch_info, alias, eval_ot_map=False):
         landmarks_toflow, target_landmarks = get_landmarks(
             source_landmarks_path, target_landmarks_path
         )
-        landmarks_toflow = (landmarks_toflow - np.array(CENTER[s_name])) / SCALE
-        target_landmarks = (target_landmarks - np.array(CENTER[t_name])) / SCALE
+        to_np = lambda x: x.detach().cpu().numpy()
+        s_shift = shape_pair.source.extra_info["transform"]["shift"][i]
+        s_scale = shape_pair.source.extra_info["transform"]["scale"][i]
+        t_shift = shape_pair.target.extra_info["transform"]["shift"][i]
+        t_scale = shape_pair.target.extra_info["transform"]["scale"][i]
+        landmarks_toflow = (landmarks_toflow - to_np(s_shift)) / to_np(s_scale)
+        target_landmarks = (target_landmarks - to_np(t_shift)) / to_np(t_scale)
         landmarks_toflow_list.append(landmarks_toflow)
         target_landmarks_list.append(target_landmarks)
     device = shape_pair.source.points.device
@@ -122,7 +78,7 @@ def eval_landmark(model, shape_pair, batch_info, alias, eval_ot_map=False):
         interp_kernel = NadWatIsoSpline(exp_order=2, kernel_scale=0.005)
         shape_pair = get_flowed(shape_pair, interp_kernel)
     flowed_landmarks_points = shape_pair.flowed.points
-    diff = (target_landmarks_points - flowed_landmarks_points) * SCALE
+    diff = (target_landmarks_points - flowed_landmarks_points) * NORMALIZE_SCALE
     shape_pair.flowed.weights, gt_landmark.weights = diff, diff
     record_path = os.path.join(
         batch_info["record_path"],

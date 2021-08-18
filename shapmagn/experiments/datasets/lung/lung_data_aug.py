@@ -3,6 +3,7 @@ import os, sys
 import pykeops
 import subprocess
 
+from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
 from shapmagn.utils.visualizer import visualize_point_pair_overlap
 
 sys.path.insert(0, os.path.abspath("../../../.."))
@@ -203,19 +204,9 @@ if __name__ == "__main__":
     )
     sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
     use_local_mount = True
-    remote_mount_transfer = lambda x: x.replace(
-        "/playpen-raid1", "/home/zyshen/remote/llr11_mount"
-    )
-    path_transfer = (
-        (lambda x: remote_mount_transfer(x)) if use_local_mount else (lambda x: x)
-    )
-    phase = "train"
-    dataset_json_path = (
-        "/playpen-raid1/zyshen/data/point_cloud_expri/{}/pair_data.json".format(phase)
-    )  # home/zyshen/remote/llr11_mount
-    saving_output_path = "/playpen-raid1/zyshen/data/lung_data_analysis/{}/aug".format(
-        phase
-    )
+    dataset_json_path = os.path.join(SHAPMAGN_PATH, "demos/data/lung_data/lung_dataset_splits/train/pair_data.json")
+    saving_output_path = os.path.join(lung_expri_path, "output/data_aug_visual")
+    path_transfer = lambda x: x.replace('./', SHAPMAGN_PATH + "/")
     dataset_json_path = path_transfer(dataset_json_path)
     saving_output_path = path_transfer(saving_output_path)
     os.makedirs(saving_output_path, exist_ok=True)
@@ -249,7 +240,7 @@ if __name__ == "__main__":
         aug_settings["do_grid_aug"] = True
         aug_settings["do_point_aug"] = True
         aug_settings["do_rigid_aug"] = False
-        aug_settings["plot"] = False
+        aug_settings["plot"] = True
         local_deform_aug = aug_settings[
             (
                 "local_deform_aug",
@@ -304,7 +295,7 @@ if __name__ == "__main__":
         points_aug["random_weight_noise_scale"] = 0.1
         points_aug["random_noise_raidus"] = 0.1
         points_aug["normalize_weights"] = False
-        points_aug["plot"] = False
+        points_aug["plot"] = True
         point_aug = PointAug(points_aug)
         aug_points, aug_points_weights, _ = point_aug(aug_points, aug_points_weights)
         aug_shape = Shape().set_data(points=aug_points, weights=aug_points_weights)

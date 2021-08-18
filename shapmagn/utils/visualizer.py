@@ -5,7 +5,7 @@ import torch
 import pyvista as pv
 import subprocess
 from shapmagn.utils.utils import add_zero_last_dim
-
+from shapmagn.utils.obj_factory import obj_factory
 pv.set_plot_theme("document")
 
 PPI = 2
@@ -42,36 +42,23 @@ def color_adaptive(color, turn_on=True):
     return color
 
 
-def plot_lungs(plotter, cloud, radii, nradii=10, color="source", **kwargs):
-
-    if color == "source":
-        cmap = "Reds"
-        clim = [-0.6, 1.1]
-    elif color == "target":
-        cmap = "Blues"
-        clim = [-0.6, 1.1]
-    else:
-        raise ValueError(f"Unknown color: {color}.")
-
-    # Normalize to [0, 1]:
-    radii = color_adaptive(radii)
-
-    for k in range(nradii):
-        mask = (radii > (k / nradii)) * (radii <= ((k + 1) / nradii))
-
+def default_plot(color="magma",rgb=False):
+    def plot(plotter, cloud, visualfea, **kwargs):
         plotter.add_mesh(
-            pv.PolyData(cloud[mask, :]),
-            scalars=radii[mask],
-            point_size=15 * PPI * (((k + 1) + 0.5) / nradii),
+            pv.PolyData(cloud),
+            scalars=visualfea,
+            point_size=15 ,
             render_points_as_spheres=True,
             lighting=True,
-            cmap=cmap,
-            clim=clim,
+            rgb=rgb,
+            cmap=color,
             style="points",
             show_scalar_bar=False,
-            ambient=0.5,
-            **kwargs,
+            **kwargs
         )
+    return plot
+
+
 
 
 def plot_ghost(plotter, obj):
@@ -270,6 +257,7 @@ def visualize_point_overlap(
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
+    plot_func=default_plot(),
     show=True,
 ):
     # Format the source and target shapes:
@@ -280,6 +268,9 @@ def visualize_point_overlap(
 
     if isinstance(rgb_on, bool):
         rgb_on = [rgb_on] * 2
+
+    if isinstance(point_size, int):
+        point_size = [point_size] * 2
 
     # Create the window:
     p = pv.Plotter(
@@ -295,11 +286,15 @@ def visualize_point_overlap(
 
     p.add_text(title, font_size=18)
 
-    plot_lungs(
-        p,
-        points1,
-        color_adaptive(feas1),
-        color=color,
+    p.add_mesh(
+        pv.PolyData(points1),
+        scalars=color_adaptive(feas1),
+        point_size=point_size[0] * PPI,
+        render_points_as_spheres=True,
+        lighting=True,
+        style="points",
+        show_scalar_bar=False,
+        ambient=0.5,
         rgb=rgb_on[0],
         opacity=opacity[0],
     )
@@ -307,10 +302,9 @@ def visualize_point_overlap(
     p.add_mesh(
         pv.PolyData(points2),
         scalars=color_adaptive(feas2),
-        point_size=point_size * PPI,
+        point_size=point_size[1] * PPI,
         render_points_as_spheres=True,
         lighting=True,
-        cmap="Oranges",
         style="points",
         show_scalar_bar=False,
         ambient=0.5,
@@ -334,6 +328,10 @@ def visualize_full(
     saving_capture_path=None,
     camera_pos=None,
     add_bg_contrast=True,
+    opacity= ("linear","linear","linear"),
+    source_plot_func=default_plot(),
+    flowed_plot_func=default_plot(),
+    target_plot_func=default_plot(),
     show=True,
     light_params={},
 ):
@@ -342,7 +340,7 @@ def visualize_full(
     for dic in [source, flowed, target]:
         if dic is not None:
             dic["points"] = format_input(dic["points"])
-            dic["radii"] = format_input(dic["radii"])
+            dic["visualfea"] = format_input(dic["visualfea"])
 
     if flow is not None:
         flow = format_input(flow)
@@ -378,7 +376,7 @@ def visualize_full(
         plot_id += 1
         p.add_text(source["name"], font_size=18)
 
-        plot_lungs(p, source["points"], source["radii"], color="source", rgb=rgb_on[0])
+        source_plot_func(p, source["points"], source["visualfea"],opacity=opacity[0])
 
     # Plot 2 ---------------------------------
     p.subplot(0, plot_id)
@@ -386,7 +384,7 @@ def visualize_full(
 
     p.add_text(flowed["name"], font_size=18)
 
-    plot_lungs(p, flowed["points"], flowed["radii"], color="source", rgb=rgb_on[1])
+    flowed_plot_func(p, flowed["points"], flowed["visualfea"],opacity=opacity[1])
 
     if source is not None:
         obj1 = pv.PolyData(source["points"])
@@ -412,28 +410,24 @@ def visualize_full(
     if source is not None and add_bg_contrast:
         plot_ghost(p, obj1)
 
-    plot_lungs(p, target["points"], target["radii"], color="target", rgb=rgb_on[2])
+    target_plot_func(p, target["points"], target["visualfea"],opacity=opacity[1])
 
     # Plot 4: ----------------------------------
     p.subplot(0, plot_id)
     plot_id += 1
 
-    plot_lungs(
+    flowed_plot_func(
         p,
         flowed["points"],
-        flowed["radii"],
-        color="source",
-        rgb=rgb_on[1],
-        opacity=0.75,
+        flowed["visualfea"],
+        opacity=0.75 if LIGHTING=="none" else "linear",
     )
 
-    plot_lungs(
+    target_plot_func(
         p,
         target["points"],
-        target["radii"],
-        color="target",
-        rgb=rgb_on[2],
-        opacity=0.75,
+        target["visualfea"],
+        opacity=0.75 if LIGHTING=="none" else "linear",
     )
 
     p.add_text(flowed["name"] + "_overlap_" + target["name"], font_size=22)
@@ -446,26 +440,32 @@ def visualize_full(
 
 
 def visualize_point_pair_overlap(
-    flowed_points,
-    target_points,
-    flowed_radii,
-    target_radii,
-    flowed_name,
-    target_name,
+    pc1_points,
+    pc2_points,
+    pc1_visualfea,
+    pc2_visualfea,
+    pc1_name,
+    pc2_name,
+    pc1_plot_func=default_plot(color="magma"),
+    pc2_plot_func=default_plot(color="viridis"),
+    opacity=("linear","linear"),
     **kwargs,
 ):
     return visualize_full(
         source=None,
         flowed={
-            "points": flowed_points,
-            "radii": flowed_radii,
-            "name": flowed_name,
+            "points": pc1_points,
+            "visualfea": pc1_visualfea,
+            "name": pc1_name,
         },
         target={
-            "points": target_points,
-            "radii": target_radii,
-            "name": target_name,
+            "points": pc2_points,
+            "visualfea": pc2_visualfea,
+            "name": pc2_name,
         },
+        flowed_plot_func= pc1_plot_func,
+        target_plot_func= pc2_plot_func,
+        opacity =("linear",opacity[0],opacity[1]),
         **kwargs,
     )
 
@@ -474,30 +474,38 @@ def visualize_source_flowed_target_overlap(
     source_points,
     flowed_points,
     target_points,
-    source_radii,
-    flowed_radii,
-    target_radii,
+    source_visualfea,
+    flowed_visualfea,
+    target_visualfea,
     source_name,
     flowed_name,
     target_name,
+    source_plot_func=default_plot(color="magma"),
+    flowed_plot_func=default_plot(color="magma"),
+    target_plot_func=default_plot(color="viridis"),
+    opacity=("linear", "linear", "linear"),
     **kwargs,
 ):
     return visualize_full(
         source={
             "points": source_points,
-            "radii": source_radii,
+            "visualfea": source_visualfea,
             "name": source_name,
         },
         flowed={
             "points": flowed_points,
-            "radii": flowed_radii,
+            "visualfea": flowed_visualfea,
             "name": flowed_name,
         },
         target={
             "points": target_points,
-            "radii": target_radii,
+            "visualfea": target_visualfea,
             "name": target_name,
         },
+        source_plot_func=source_plot_func,
+        flowed_plot_func=flowed_plot_func,
+        target_plot_func=target_plot_func,
+        opacity = opacity,
         **kwargs,
     )
 
@@ -662,6 +670,9 @@ def capture_plotter(render_by_weight=False, camera_pos=None, add_bg_contrast=Tru
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     add_bg_contrast=add_bg_contrast,
+                    source_plot_func=default_plot(),
+                    flowed_plot_func=default_plot(),
+                    target_plot_func=default_plot(),
                     show=False,
                 )
             else:
@@ -679,6 +690,9 @@ def capture_plotter(render_by_weight=False, camera_pos=None, add_bg_contrast=Tru
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     add_bg_contrast=add_bg_contrast,
+                    source_plot_func=default_plot(rgb=True),
+                    flowed_plot_func=default_plot(rgb=True),
+                    target_plot_func=default_plot(rgb=True),
                     show=False,
                 )
             cp_command = "cp {} {}".format(

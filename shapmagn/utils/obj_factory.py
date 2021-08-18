@@ -16,6 +16,7 @@ KNOWN_MODULES = {
     "dhface_feature_extractor": "shapmagn.experiments.datasets.dhface.feature_extractor",
     "lung_data_analysis": "shapmagn.experiments.datasets.lung.lung_data_analysis",
     "lung_data_aug": "shapmagn.experiments.datasets.lung.lung_data_aug",
+    "lung_visualizer": "shapmagn.experiments.datasets.lung.visualizer",
     "dhface_data_aug": "shapmagn.experiments.datasets.dhface.data_aug",
     "lung_data_eval": "shapmagn.experiments.datasets.lung.evaluation_utils",
     "dhface_eval": "shapmagn.experiments.datasets.dhface.evaluation_utils",

@@ -1,7 +1,6 @@
 import os, sys
 import pykeops
 import subprocess
-
 # sys.path.insert(0, os.path.abspath('../../../..'))
 # cache_path ="/playpen/zyshen/keops_cachev2"
 # os.makedirs(cache_path,exist_ok=True)
@@ -14,13 +13,11 @@ import subprocess
 # process.wait()
 import torch
 from shapmagn.datasets.data_utils import read_json_into_list, get_pair_obj
-from shapmagn.global_variable import shape_type, obj_factory
+from shapmagn.global_variable import shape_type, obj_factory, SHAPMAGN_PATH
+from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
 import pointnet2.lib.pointnet2_utils as pointutils
-from shapmagn.modules_reg.networks.pointconv_util import index_points_group
-from shapmagn.utils.visualizer import visualize_point_pair_overlap
+from shapmagn.utils.visualizer import visualize_point_pair_overlap, visualize_point_overlap
 from shapmagn.shape.point_sampler import (
-    point_uniform_sampler,
-    point_grid_sampler,
     uniform_sampler,
     grid_sampler,
 )
@@ -34,7 +31,6 @@ def farthest_point_sample(xyz, npoint):
     Return:
         centroids: sampled pointcloud index, [B, npoint]
     """
-    # import ipdb; ipdb.set_trace()
     device = xyz.device
     B, N, C = xyz.shape
     centroids = torch.zeros(B, npoint, dtype=torch.long).to(device)
@@ -52,6 +48,8 @@ def farthest_point_sample(xyz, npoint):
     return centroids
 
 
+
+
 if __name__ == "__main__":
     assert (
         shape_type == "pointcloud"
@@ -64,32 +62,22 @@ if __name__ == "__main__":
     sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
     pair_postprocess_obj = "lung_dataloader_utils.lung_pair_postprocess()"
     use_local_mount = True
-    task_name = "voxel_grid"  # farthest_sampling
+    task_name = "voxel_grid"  # farthest_sampling voxel_grid
     grid_spacing = 0.9
-    remote_mount_transfer = lambda x: x.replace(
-        "/playpen-raid1", "/home/zyshen/remote/llr11_mount"
-    )
-    path_transfer = (
-        (lambda x: remote_mount_transfer(x)) if use_local_mount else (lambda x: x)
-    )
-    phase = "val"
-    dataset_json_path = (
-        "/playpen-raid1/zyshen/data/point_cloud_expri/{}/pair_data.json".format(phase)
-    )  # home/zyshen/remote/llr11_mount
-    dataset_json_path = path_transfer(dataset_json_path)
+    dataset_json_path = os.path.join(SHAPMAGN_PATH,"demos/data/lung_data/lung_dataset_splits/train/pair_data.json")
+    saving_output_path = os.path.join(lung_expri_path, "output/{}".format(task_name))
+    path_transfer = lambda x: x.replace('./',SHAPMAGN_PATH+"/")
+
     pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
+
     pair_path_list = [
-        [pair_info["source"]["data_path"], pair_info["target"]["data_path"]]
+        [path_transfer(pair_info["source"]["data_path"]), path_transfer(pair_info["target"]["data_path"]) ]
         for pair_info in pair_info_list
     ]
     save_res = False
-    saving_output_path = "/playpen-raid1/zyshen/data/lung_data_analysis/{}/{}".format(
-        phase, task_name
-    )
-    nsample = 100
+    n_sampled_points = 100
     for pair_id in range(len(pair_name_list)):
         pair_path = pair_path_list[pair_id]
-        pair_path = [path_transfer(path) for path in pair_path]
         get_pair = get_pair_obj(
             reader_obj=reader_obj,
             normalizer_obj=normalizer_obj,
@@ -107,9 +95,9 @@ if __name__ == "__main__":
         source_weights = source.weights.cuda()
         if task_name == "farthest_sampling":
             try:
-                fps_idx = pointutils.furthest_point_sample(source_points, nsample)
+                fps_idx = pointutils.furthest_point_sample(source_points, n_sampled_points)
             except:
-                fps_idx = farthest_point_sample(source_points, nsample)
+                fps_idx = farthest_point_sample(source_points, n_sampled_points)
             sample_index = fps_idx.squeeze().long()
             sampled_points = source_points[:, sample_index]
             sampled_weights = source_weights[:, sample_index]
@@ -132,14 +120,14 @@ if __name__ == "__main__":
             )
         else:
             saving_capture_path = None
-        visualize_point_pair_overlap(
+        visualize_point_overlap(
             source_points,
             sampled_points,
             source_weights,
             torch.ones_like(sampled_weights),
-            "source",
-            "sampled",
+            "control point",
             rgb_on=False,
+            opacity=(0.05, 0.9),
             saving_capture_path=saving_capture_path,
             camera_pos=camera_pos,
             show=True,

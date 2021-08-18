@@ -1,0 +1,1 @@
+{"copd1": {"source": {"name": "copd1_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd1_EXP.vtk"}, "target": {"name": "copd1_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd1_INSP.vtk"}}}

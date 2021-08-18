@@ -29,7 +29,7 @@
         "model": "deep_learning",
         "method_name": "flow_deep",
         "prepare_input_object": "hybird_data.HybirdData(synthsizer_obj='lung_data_aug.lung_synth_data(do_rigid_aug=False)', data_aug_obj='lung_data_aug.lung_aug_data()', raw_source_target_has_corr=False,corr_sampled_source_target=False, synth_ratio=1.0, ratio_decay_rate=200, min_synth_ratio=0.3,npoints=-1)",
-        "capture_plot_obj": "visualizer.capture_plotter(render_by_weight=True,add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])",
+        "capture_plot_obj": "lung_visualizer.lung_capture_plotter(add_bg_contrast=False,camera_pos=[(-4.924379645467042, 2.17374925796456, 1.5003730890759344),(0.0, 0.0, 0.0),(0.40133888001174545, 0.31574165540339943, 0.8597873634998591)])",
         "val_period": 5,
         "flow_deep": {
             "running_result_visualize": false,

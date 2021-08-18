@@ -45,7 +45,6 @@ def init_shape(points_path):
 
 # Which folder are we going to read?
 folder_root = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/"
-folder_root = "~/Documents/Travail/Codes/Pytorch/lungs/paper_results/"
 
 folder_suffix = "/records/3d/test_epoch_-1"
 

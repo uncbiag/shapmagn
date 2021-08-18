@@ -87,7 +87,7 @@ docker push hbgtjxzbbx/shapmagn:v0.5
 ```
 2. run docker locally
 ```
-docker run --privileged --gpus all -it --rm  -v /home/zyshen/proj/shapmagn:/proj/shapmagn -v /home/zyshen/data:/data hbgtjxzbbx/shapmagn:v0.5
+docker run --privileged --gpus all -it --rm  -v /home/zyshen/proj/shapmagn:/proj/shapmagn -v /home/zyshen/data/lung_data:/data/lung_data hbgtjxzbbx/shapmagn:v0.5
 ```
 * here -v refers to the map between the local path and the docker path,
   here we map a code path and a data path based on my local env, modify local path based on your own env.
@@ -111,7 +111,7 @@ We provide a series of demos, which can be found at shapmagn/demos
 Here are two examples on how to run the optimization-based demos :
 
 ```
-cd shapmagn/shapmagn/demos/data
+cd shapmagn/shapmagn/demos/data/lung_data
 gdown https://drive.google.com/uc?id=19YG-je_7QfKd-Z8Rhg4R0nL6hVIpEco6
 unzip lung_vessel_demo_data.zip
 cd ..
@@ -124,22 +124,22 @@ python flyingkitti_reg.py
 
 Here is an example on deep feature learning on lung vessel dataset:
 ```
-python run_task.py -ds ./demos/data/lung_dataset_splits -o ./demos/output/training_feature_learning_on_one_case -tn deepfeature_pointconv_train -ts ./demos/settings/lung/deep_feature_training -g 0
+python run_task.py -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/training_feature_learning_on_one_case -tn deepfeature_pointconv_train -ts ./demos/settings/lung/deep_feature_training -g 0
 ```
 
 Here is an example on robust optimal transport based deep feature projection (spline) on lung vessel dataset:
 ```
-python run_task.py --eval -ds ./demos/data/lung_dataset_splits -o ./demos/output/test_feature_projection_one_case -tn deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
+python run_task.py --eval -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/test_feature_projection_one_case -tn deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
 ```
 
 Here is an example on training a pretrained deep LDDMM flow network on one real pair:
 
 ```
-python run_task.py  -ds ./demos/data/lung_dataset_splits -o ./demos/output/train_deepflow_on_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow   -g 0
+python run_task.py  -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/train_deepflow_on_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow   -g 0
 ```
 
 Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair:
 
 ```
-python run_task.py --eval -ds ./demos/data/lung_dataset_splits -o ./demos/output/test_deepflow_on_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow  -m   ./demos/pretrained_models/pretrained_deep_lddmm -g 0
+python run_task.py --eval -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/test_deepflow_on_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow  -m   ./demos/pretrained_models/pretrained_deep_lddmm -g 0
 ```

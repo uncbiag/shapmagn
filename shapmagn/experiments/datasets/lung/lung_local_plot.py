@@ -1,10 +1,11 @@
 import os, sys
 import numpy as np
 
+from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
 from shapmagn.experiments.datasets.lung.lung_data_analysis import get_half_lung
 
 sys.path.insert(0, os.path.abspath("../../../.."))
-from shapmagn.datasets.data_utils import get_obj
+from shapmagn.datasets.data_utils import get_obj, read_json_into_list
 from shapmagn.global_variable import *
 from shapmagn.utils.shape_visual_utils import make_ellipsoid
 from shapmagn.experiments.datasets.lung.lung_feature_extractor import (
@@ -18,11 +19,19 @@ from shapmagn.utils.visualizer import (
 # import pykeops
 # pykeops.clean_pykeops()
 
+task_name = "local_aniso_kernel_visualize"
+dataset_json_path = os.path.join(SHAPMAGN_PATH,"demos/data/lung_data/lung_dataset_splits/train/pair_data.json")
+saving_output_path = os.path.join(lung_expri_path, "output/{}".format(task_name))
+path_transfer = lambda x: x.replace('./',SHAPMAGN_PATH+"/")
+pair_name_list, pair_info_list = read_json_into_list(dataset_json_path)
 
-server_path = "/home/zyshen/remote/llr11_mount/zyshen/proj/shapmagn/shapmagn/demos/"  # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-path_1 = server_path + "data/lung_vessel_demo_data/case1_exp.vtk"
-path_2 = server_path + "data/lung_vessel_demo_data/case1_insp.vtk"
+pair_path_list = [
+    [path_transfer(pair_info["source"]["data_path"]), path_transfer(pair_info["target"]["data_path"]) ]
+    for pair_info in pair_info_list
+]
+pair_id = 0
 
+path_1, path_2 = pair_path_list[pair_id]
 saving_path = "/playpen-raid1/zyshen/debug/debugg_point_visual2.vtk"
 reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = (

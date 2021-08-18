@@ -7,6 +7,7 @@ try:
     import pointnet2_cuda as pointnet2
 except:
     print("pointnet2 load failed, please compile it first: python pointnet2/lib/setup.py install")
+    raise ImportError
 
 from shapmagn.modules_reg.keops_utils import AnisoKNN
 class FurthestPointSampling(Function):

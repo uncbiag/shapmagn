@@ -6,6 +6,8 @@ from shapmagn.shape.point_interpolator import KNNInterpolater
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.global_variable import Shape
 from shapmagn.utils.utils import get_grid_wrap_points
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot
+from shapmagn.utils.visualizer import visualize_point_pair_overlap, default_plot
 from shapmagn.shape.point_sampler import (
     point_uniform_sampler,
     point_grid_sampler,
@@ -21,41 +23,35 @@ def visualize(
     deformed_point_weights=None,
     deformed_coupled_points=None,
 ):
-    from shapmagn.utils.visualizer import visualize_point_pair_overlap
-    from shapmagn.experiments.datasets.lung.lung_data_analysis import (
-        flowed_weight_transform,
-        target_weight_transform,
-    )
-
-    # visualize_point_pair_overlap(points, deformed_points,
-    #                              flowed_weight_transform(point_weights, True),
-    #                              target_weight_transform(deformed_point_weights, True),
-    #                              title1="original", title2="deformed", rgb_on=False)
-
+    ### visualization for general task
     # visualize_point_pair_overlap(points, deformed_points,
     #                              point_weights,
     #                              deformed_point_weights,
-    #                              title1="original", title2="deformed", rgb_on=False)
-    visualize_point_pair_overlap(
-        points,
-        deformed_points,
-        points,
-        deformed_points,
-        title1="original",
-        title2="deformed",
-        rgb_on=True,
-    )
+    #                              "original", "deformed",
+    #                              rgb_on=False)
+    #
 
-    visualize_point_pair_overlap(
-        deformed_points,
-        deformed_coupled_points,
-        deformed_points,
-        deformed_coupled_points,
-        "deformed",
-        "deformed with coupled",
-        rgb_on=False,
-        show=True,
-    )
+
+    ### visualization for lung task
+    visualize_point_pair_overlap(points, deformed_points,
+                                 point_weights,
+                                 deformed_point_weights,
+                                 "original", "deformed",
+                                 pc1_plot_func=lung_plot(color="source"),
+                                 pc2_plot_func=lung_plot(color="target"),
+                                 opacity=(1,1),
+                                 rgb_on=False)
+    if deformed_coupled_points:
+        visualize_point_pair_overlap(
+            deformed_points,
+            deformed_coupled_points,
+            deformed_points,
+            deformed_coupled_points,
+            "deformed",
+            "deformed with coupled",
+            rgb_on=False,
+            show=True,
+        )
 
 
 class PointAug(object):

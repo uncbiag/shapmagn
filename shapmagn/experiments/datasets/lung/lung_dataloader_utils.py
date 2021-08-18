@@ -151,6 +151,10 @@ def lung_normalizer(**args):
         points = data_dict["points"]
         weights = data_dict["weights"]
         data_dict["points"] = ((points - shift) / scale).astype(np.float32)
+        data_dict["extra_info"] = {}
+        data_dict["extra_info"]["transform"] = {}
+        data_dict["extra_info"]["transform"]["shift"] = shift
+        data_dict["extra_info"]["transform"]["scale"] = scale
         weight_scale = (
             args["weight_scale"]
             if "weight_scale" in args and args["weight_scale"] != -1

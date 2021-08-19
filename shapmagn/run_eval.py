@@ -14,6 +14,15 @@ process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
 process.wait()
 sys.path.insert(0, os.path.abspath(".."))
 import torch
+import pykeops
+try:
+    # hard coding for keops cache path
+    cache_path = "/playpen/zyshen/keops_cachev2"
+    os.makedirs(cache_path, exist_ok=True)
+    pykeops.set_bin_folder(cache_path)  # change the build folder
+    print("change keops cache path into  {}".format(pykeops.config.bin_folder))
+except:
+    print("using keops default cache path {}".format(pykeops.config.bin_folder))
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True

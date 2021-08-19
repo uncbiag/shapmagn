@@ -411,13 +411,16 @@ class PointConvFeaExtractor(nn.Module):
             sf = torch.cat([cur_source.points, sf], 2)
             tf = torch.cat([target.points, tf], 2)
 
-        new_cur_source = Shape().set_data(
-            points=cur_source.points, weights=cur_source.weights, pointfea=sf
-        )
-        new_target = Shape().set_data(
-            points=target.points, weights=target.weights, pointfea=tf
-        )
-        return new_cur_source, new_target
+        # new_cur_source = Shape().set_data(
+        #     points=cur_source.points, weights=cur_source.weights, pointfea=sf
+        # )
+        # new_target = Shape().set_data(
+        #     points=target.points, weights=target.weights, pointfea=tf
+        # )
+        # return new_cur_source, new_target
+        cur_source.pointfea= sf
+        target.pointfea = tf
+        return cur_source, target
 
     def __call__(self, cur_source, target, iter=-1):
         cur_source, target = self.local_pair_feature_extractor(cur_source, target)

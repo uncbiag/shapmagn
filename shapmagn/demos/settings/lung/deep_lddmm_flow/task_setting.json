@@ -56,6 +56,7 @@
                 "local_pair_feature_extractor_obj": "lung_feature_extractor.get_naive_lung_feature()",
                 "input_channel": 4,
                 "neigh_num": 9,
+                "weight_net_neigh_num": 9,
                 "pwc_mode": "reg_param",
                 "delploy_original_model": false,
                 "predict_at_low_resl": true,

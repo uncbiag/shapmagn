@@ -137,46 +137,6 @@ def get_df_from_double_list(name_list, data_list1, data_list2):
     return df
 
 
-def get_res_dic():
-    data_dic = {}
-    data_dic["ICP(affine)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/opt_icp_60000/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["WBM(affine)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/opt_prealign_60000/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["CPD(non-rigid)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/opt_cpd_20000/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["RobOT(non-rigid)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/opt_gf_60000/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["RobOTP(spline)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/model_eval/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["RobOTP(LDDMM)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/discrete_flow_on_dirlab_deep_lddmm/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["DRobOT(disp)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/model_eval/deep_flow_prealign_pwc2_2_continue_60000/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["DRobOT(spline)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/model_eval/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso/records/lmk_diff_mean_records_detail.npy",
-    )
-    data_dic["DRobOT(LDDMM)"] = get_experiment_data_from_record(
-        inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/model_eval/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_adaptivecontrol/records/lmk_diff_mean_records_detail.npy",
-    )
-    return data_dic
-
 
 def get_performance():
     data_dic = {}
@@ -532,7 +492,7 @@ def draw_single_boxplot(
 
 
 def draw_group_boxplot(
-    name_list, data_list1, data_list2, label="Dice Score", titile=None, fpth=None
+    name_list, data_list1, data_list2, label="Dice Score", title=None, fpth=None
 ):
     df = get_df_from_double_list(name_list, data_list1, data_list2)
     df = df[["Group", "Longitudinal", "Cross-subject"]]
@@ -678,49 +638,5 @@ scatter_plot(
     res["time"],
     res["memory"],
     "Performance on KITTI",
-    fpth=fpth,
+    fpth=None,
 )
-
-draw_trendency = False
-draw_boxplot = False
-title = None
-label = "Landmark Mean Squared Error"
-
-order = -1
-data_list1, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
-order = -1
-
-fpth = None  #'/playpen-raid1/peirong/boxplot.png'
-draw_single_boxplot(
-    name_list,
-    data_list1,
-    label=label,
-    fpth=fpth,
-    data_name="synth",
-    title="Performance on DirLab",
-)
-
-compute_std(data_list1, name_list)
-data_list1, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
-compute_std(data_list1, name_list)
-
-order = -1
-
-######################################################compute mean and std ##################################3
-
-# data_list1, name_list = get_list_from_dic(get_res_dic(draw_intra=True, draw_trendency=False),use_perc=True)
-# order = -1
-# data_list2, _ = get_list_from_dic(get_res_dic(draw_intra=False, draw_trendency=False),use_perc=True)
-# order = -1
-# compute_std(data_list1, name_list)
-# print( "now compute the cross subject ")
-# compute_std(data_list2, name_list)
-
-#
-# # #################################################### plot boxplot
-# if draw_boxplot:
-#     draw_group_boxplot(name_list,data_list1,data_list2,label=label)
-# #
-# ####################################################3 plot trend
-# if draw_trendency:
-#     plot_group_trendency(name_list, data_list1, data_list2,label, title)

@@ -13,7 +13,7 @@ shapmagn/experiments/datasets/unpub_face
 shapmagn/experiments/datasets/bellus_face
 shapmagn/experiments/datasets/dhface
 shapmagn/experiments/datasets/scanner
-shapmagn/experiments/datasets/flying3d_and_kitti/calib_cam_to_cam
+#shapmagn/experiments/datasets/flying3d_and_kitti/calib_cam_to_cam
 shapmagn/demos/data/lung_data/lung_vessel_demo_data
 shapmagn/demos/output
 TEASER-plusplus

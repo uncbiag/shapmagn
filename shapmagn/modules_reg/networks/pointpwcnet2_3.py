@@ -1,8 +1,4 @@
-"""
-PointPWC-Net model and losses
-Author: Wenxuan Wu
-Date: May 2020
-"""
+
 from functools import partial
 import torch.nn as nn
 import torch

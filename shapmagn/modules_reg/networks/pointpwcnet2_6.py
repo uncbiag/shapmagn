@@ -1,8 +1,4 @@
-"""
-PointPWC-Net model and losses
-Author: Wenxuan Wu
-Date: May 2020
-"""
+
 from functools import partial
 import torch.nn as nn
 import torch
@@ -39,7 +35,8 @@ class PointConvSceneFlowPWC2_6(nn.Module):
         initial_input_radius=1.0,
         initial_input_npoints=40000,
         first_sampling_npoints=2048,
-        neigh_num=16,
+        neigh_num=9,
+        weight_neigh_num=16,
         predict_at_low_resl=False,
         param_shrink_factor=1,
         use_aniso_kernel=False,
@@ -62,7 +59,7 @@ class PointConvSceneFlowPWC2_6(nn.Module):
             channels=sbf([128, 128]),
             mlp=sbf([128, 64]),
             neighbors=neigh_num,
-            weightnet=neigh_num,
+            weightnet=weight_net_neigh_num,
         )
         self.level0_2 = Conv1d(sbf(32), sbf(64))
 
@@ -83,7 +80,7 @@ class PointConvSceneFlowPWC2_6(nn.Module):
             channels=sbf([128, 128]),
             mlp=sbf([128, 64]),
             neighbors=neigh_num,
-            weightnet=neigh_num,
+            weightnet=weight_neigh_num,
         )
         self.level1_0 = Conv1d(sbf(64), sbf(64))
         self.level1_1 = Conv1d(sbf(64), sbf(128))
@@ -101,7 +98,7 @@ class PointConvSceneFlowPWC2_6(nn.Module):
             channels=sbf([128, 128]),
             mlp=sbf([128, 64]),
             neighbors=neigh_num,
-            weightnet=neigh_num,
+            weightnet=weight_neigh_num,
         )
         self.level2_0 = Conv1d(sbf(128), sbf(128))
         self.level2_1 = Conv1d(sbf(128), sbf(256))
@@ -120,7 +117,7 @@ class PointConvSceneFlowPWC2_6(nn.Module):
             channels=sbf([128, 128]),
             mlp=sbf([128, 64]),
             neighbors=neigh_num,
-            weightnet=neigh_num,
+            weightnet=weight_neigh_num,
         )
         self.level3_0 = Conv1d(sbf(256), sbf(256))
         self.level3_1 = Conv1d(sbf(256), sbf(512))

@@ -19,3 +19,4 @@ tensorboard
 pyvista
 seaborn
 pygifsicle
+pypng

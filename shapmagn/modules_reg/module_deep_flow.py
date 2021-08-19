@@ -169,7 +169,10 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
             )
         ]
         self.neigh_num = self.opt[
-            ("neigh_num", 16, "num of neighbor considered by pointconv")
+            ("neigh_num", 9, "num of neighbor considered by pointconv")
+        ]
+        self.weight_net_neigh_num = self.opt[
+            ("weight_net_neigh_num", 16, "num of weightnet_neighbor considered by pointconv")
         ]
         self.pwc_mode = self.opt[
             (
@@ -235,6 +238,7 @@ class PointConvSceneFlowPWCRegParam(nn.Module):
                 initial_input_radius=self.initial_radius,
                 first_sampling_npoints=self.initial_npoints,
                 neigh_num=self.neigh_num,
+                weight_neigh_num=self.weight_net_neigh_num,
                 predict_at_low_resl=self.predict_at_low_resl,
                 param_shrink_factor=self.param_shrink_factor,
                 use_aniso_kernel=self.use_aniso_kernel,

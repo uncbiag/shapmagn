@@ -1,6 +1,7 @@
 from shapmagn.utils.local_feature_extractor import *
 from shapmagn.utils.obj_factory import *
 from shapmagn.utils.module_parameters import ParameterDict
+from shapmagn.global_variable import SHAPMAGN_PATH
 import shapmagn.modules_reg.module_deep_feature as deep_feature_module
 import torch.nn as nn
 
@@ -177,9 +178,7 @@ class LungDeepFeatureExtractor(nn.Module):
         deep_opt["use_aniso_kernel"] = False
         deep_opt[
             "pretrained_model_path"
-        ] = "/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_iso_15dim_normalized_60000_rerun/checkpoints/epoch_300_"
-        # "/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/checkpoints/epoch_230_"
-        # "/playpen-raid1/zyshen/data/lung_expri/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized/checkpoints/epoch_245_"
+        ] = os.path.join(SHAPMAGN_PATH,"demos/pretrained_models/lung_model/pretrained_deep_feature")
         self.feature_extractor = deep_feature_module.PointConvFeaExtractor(deep_opt)
         self.buffer = {}
 

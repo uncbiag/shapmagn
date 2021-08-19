@@ -6,6 +6,7 @@ PPI=2
 
 def lung_plot(color="source"):
     def plot(plotter, cloud, visualfea, levels=10, **kwargs):
+
         if color == "source":
             cmap = "Reds"
             clim = [-0.6, 1.1]
@@ -30,11 +31,22 @@ def lung_plot(color="source"):
                 cmap=cmap,
                 clim=clim,
                 style="points",
-                show_scalar_bar=False,
+                #show_scalar_bar=False,
                 ambient=0.5,
                 **kwargs,
             )
     return plot
+
+
+
+
+
+
+
+
+
+
+
 
 def lung_capture_plotter(camera_pos=None, add_bg_contrast=True):
     def save(record_path, stage_suffix, pair_name_list, shape_pair):
@@ -74,7 +86,8 @@ def lung_capture_plotter(camera_pos=None, add_bg_contrast=True):
                 source_plot_func=lung_plot(color="source"),
                 flowed_plot_func=lung_plot(color="source"),
                 target_plot_func=lung_plot(color="target"),
-                show=False
+                show=False,
+                light_mode="none"
             )
 
             cp_command = "cp {} {}".format(

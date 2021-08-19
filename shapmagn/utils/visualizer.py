@@ -13,9 +13,9 @@ PPI = 2
 LIGHTING = "none"  # "none"  # "three lights", "light_kit"
 
 
-def setup_lights(plotter, elev=75, azim=100):
+def setup_lights(plotter, light_mode="light_kit", elev=75, azim=100):
 
-    if LIGHTING == "none":
+    if light_mode == "none":
         # elev = 0, azim = 0 is the +x direction
         # elev = 0, azim = 90 is the +y direction
         # elev = 90, azim = 0 is the +z direction
@@ -243,6 +243,69 @@ def visualize_point_pair(
     return p
 
 
+
+def visualize_landmark_overlap(
+    points1,
+    points2,
+    feas1,
+    feas2,
+    title,
+    point_size=10,
+    rgb_on=True,
+    opacity=(1, 1),
+    plot_func=default_plot(),
+    saving_gif_path=None,
+    saving_capture_path=None,
+    camera_pos=None,
+    show=True,
+    light_mode="light_kit",
+    light_params={}
+):
+    # Format the source and target shapes:
+    points1 = format_input(points1)
+    points2 = format_input(points2)
+    feas1 = format_input(feas1)
+    feas2 = format_input(feas2)
+
+    if isinstance(rgb_on, bool):
+        rgb_on = [rgb_on] * 2
+
+    # Create the window:
+    p = pv.Plotter(
+        window_size=[1920, 1920],
+        off_screen=not show,
+        lighting=light_mode,
+    )
+
+    setup_lights(p,light_mode, **light_params)
+
+    # install pyvistaqt for background plotting that plots without pause the program
+    # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
+
+    p.add_text(title, font_size=18)
+    plot_func(p, points1,feas1, opacity=opacity[0],show_scalar_bar=True)
+
+    p.add_mesh(
+        pv.PolyData(points2),
+        scalars=feas2,
+        point_size=point_size * PPI,
+        render_points_as_spheres=False,
+        lighting=True,
+        cmap="viridis",
+        style="points",
+        show_scalar_bar=True,
+        ambient=0.5,
+        rgb=rgb_on[1],
+        opacity=opacity[1],
+        stitle=""
+    )
+
+    # p.show_grid()
+    finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
+
+    return p
+
+
 def visualize_point_overlap(
     points1,
     points2,
@@ -251,14 +314,13 @@ def visualize_point_overlap(
     title,
     point_size=10,
     rgb_on=True,
-    color="source",
-    light_params={},
     opacity=("linear", "linear"),
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
-    plot_func=default_plot(),
     show=True,
+    light_mode="light_kit",
+    light_params={}
 ):
     # Format the source and target shapes:
     points1 = format_input(points1)
@@ -276,10 +338,10 @@ def visualize_point_overlap(
     p = pv.Plotter(
         window_size=[1920, 1920],
         off_screen=not show,
-        lighting=LIGHTING,
+        lighting=light_mode,
     )
 
-    setup_lights(p, **light_params)
+    setup_lights(p,light_mode, **light_params)
 
     # install pyvistaqt for background plotting that plots without pause the program
     # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
@@ -333,7 +395,8 @@ def visualize_full(
     flowed_plot_func=default_plot(),
     target_plot_func=default_plot(),
     show=True,
-    light_params={},
+    light_mode="light_kit",
+    light_params={}
 ):
 
     # Format the input data:
@@ -355,7 +418,7 @@ def visualize_full(
             shape=(1, 3),
             border=False,
             off_screen=not show,
-            lighting=LIGHTING,
+            lighting=light_mode,
         )
     else:
         p = pv.Plotter(
@@ -363,10 +426,10 @@ def visualize_full(
             shape=(1, 4),
             border=False,
             off_screen=not show,
-            lighting=LIGHTING,
+            lighting=light_mode,
         )
 
-    setup_lights(p, **light_params)
+    setup_lights(p,light_mode, **light_params)
 
     plot_id = 0
 
@@ -420,14 +483,14 @@ def visualize_full(
         p,
         flowed["points"],
         flowed["visualfea"],
-        opacity=0.75 if LIGHTING=="none" else "linear",
+        opacity=0.75 if light_mode=="none" else "linear",
     )
 
     target_plot_func(
         p,
         target["points"],
         target["visualfea"],
-        opacity=0.75 if LIGHTING=="none" else "linear",
+        opacity=0.75 if light_mode=="none" else "linear",
     )
 
     p.add_text(flowed["name"] + "_overlap_" + target["name"], font_size=22)

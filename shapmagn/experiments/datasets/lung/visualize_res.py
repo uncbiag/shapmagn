@@ -2,11 +2,12 @@ from os.path import join
 import torch
 
 # The main "visual" routines:
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot
 from shapmagn.utils.visualizer import (
     visualize_point_pair,
     visualize_point_pair_overlap,
     visualize_source_flowed_target_overlap,
-    visualize_point_overlap,
+    visualize_point_overlap, visualize_landmark_overlap,
 )
 from shapmagn.global_variable import Shape
 from shapmagn.datasets.vtk_utils import read_vtk
@@ -15,16 +16,16 @@ from shapmagn.datasets.vtk_utils import read_vtk
 # Conversion table between our IDs and the
 # standard IDs from the DirLab-COPD dataset:
 ID_COPD = {
-    "copd6": "copd6",
-    "copd7": "copd7",
-    "copd8": "copd8",
-    "copd9": "copd9",
-    "copd10": "copd10",
-    "copd1": "copd1",
-    "copd2": "copd2",
-    "copd3": "copd3",
-    "copd4": "copd4",
-    "copd5": "copd5",
+    "12042G": "copd6",
+    "12105E": "copd7",
+    "12109M": "copd8",
+    "12239Z": "copd9",
+    "12829U": "copd10",
+    "13216S": "copd1",
+    "13528L": "copd2",
+    "13671Q": "copd3",
+    "13998W": "copd4",
+    "17441T": "copd5"
 }
 ID_DATA = {v: k for k, v in ID_COPD.items()}
 
@@ -44,20 +45,20 @@ def init_shape(points_path):
 
 
 # Which folder are we going to read?
-folder_root = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/"
+folder_root = "/home/zyshen/data/"
 
 folder_suffix = "/records/3d/test_epoch_-1"
 
 # Some experiments:
-experiment_name = "draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun"
-experiment_name = "deep_flow_prealign_pwc2_2_continue_60000"
-experiment_name = (
-    "draw/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso_rerun_debug"
-)
-experiment_name = "deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000"
-experiment_name = (
-    "deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000_nonsmooth"
-)
+# experiment_name = "draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun"
+# experiment_name = "deep_flow_prealign_pwc2_2_continue_60000"
+# experiment_name = (
+#     "draw/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso_rerun_debug"
+# )
+# experiment_name = "deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000"
+# experiment_name = (
+#     "deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000_nonsmooth"
+# )
 
 # experiment_name = "deepflow/disp"
 experiment_name = "deepflow/lddmm"
@@ -67,7 +68,7 @@ experiment_name = "deepflow/lddmm"
 folder_path = folder_root + experiment_name + folder_suffix
 
 # Our subject:
-copd_id = 2  # Any number in [1, 10] is fine
+copd_id = 1  # Any number in [1, 10] is fine
 case_id = ID_DATA[f"copd{copd_id}"]
 
 
@@ -102,7 +103,8 @@ camera_pos = [
 ]
 
 constant_kwargs = {
-    "show": False,
+    "light_mode":"none",
+    "show": True,
     "rgb_on": False,
     "camera_pos": camera_pos,
 }
@@ -117,6 +119,9 @@ visualize_source_flowed_target_overlap(
     "source",
     "finetuned",
     "target",
+    source_plot_func=lung_plot(color="source"),
+    flowed_plot_func=lung_plot(color="source"),
+    target_plot_func=lung_plot(color="target"),
     saving_capture_path=filename(f"_1_overview.jpg"),
     add_bg_contrast=False,
     **constant_kwargs,
@@ -138,6 +143,8 @@ for shape, name, suffix in snapshots:
         target.weights,
         name,
         "target",
+        lung_plot(color="source"),
+        lung_plot(color="target"),
         saving_capture_path=filename(suffix),
         **constant_kwargs,
     )
@@ -152,14 +159,14 @@ snapshots = [
 
 for shape, landmarks, name, color, suffix in snapshots:
 
-    visualize_point_overlap(
+    visualize_landmark_overlap(
         shape.points,
         landmarks.points,
         shape.weights,
-        landmarks.weights,
+        torch.norm(landmarks.weights,2,2),
         name,
-        color=color,
         opacity=(0.15, 1),
         saving_capture_path=filename(suffix),
+        plot_func =lung_plot(color),
         **constant_kwargs,
     )

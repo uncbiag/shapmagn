@@ -144,7 +144,7 @@ python run_task.py  -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/ou
 Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair:
 
 ```
-python run_eval.py -dj ./demos/data/lung_data/lung_dataset_splits/test/pair_data.json -o ./demos/output/test_deepflow_on_one_case/deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow  -m   ./demos/pretrained_models/lung_model/pretrained_deep_lddmm -g 0```
+python run_eval.py -dj ./demos/data/lung_data/lung_dataset_splits/test/pair_data.json -o ./demos/output/test_deepflow_on_one_case/deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow  -m   ./demos/pretrained_models/lung_model/pretrained_deep_lddmm -g 0
 ```
 
 ### Deep demo on Kitti

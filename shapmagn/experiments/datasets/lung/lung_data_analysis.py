@@ -273,7 +273,6 @@ def matching_shape_radius(source, target, sampled_by_radius=False, show=True):
             target.weights,
             title1="source(before)",
             title2="target(before)",
-            rgb_on=False,
         )
 
         visualize_point_pair(
@@ -283,7 +282,6 @@ def matching_shape_radius(source, target, sampled_by_radius=False, show=True):
             tw_digitize,
             title1="source(after)",
             title2="target(after)",
-            rgb_on=False,
         )
     source.weights = (
         torch.tensor(sw_transformed.astype(np.float32)).to(device).view(1, sn, 1)
@@ -556,7 +554,6 @@ def analysis_large_vessel(
         target_weight_transform(target_weights),
         title1=title1,
         title2=title2,
-        rgb_on=False,
     )
 
 
@@ -666,7 +663,6 @@ if __name__ == "__main__":
             target["weights"],
             title1="source",
             title2="target",
-            rgb_on=False,
             saving_capture_path=saving_path,
             camera_pos=camera_pos,
             show=False,

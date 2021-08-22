@@ -1,16 +1,11 @@
 import os
-import random
 import numpy as np
 import torch
 import pyvista as pv
 import subprocess
 from shapmagn.utils.utils import add_zero_last_dim
-from shapmagn.utils.obj_factory import obj_factory
 pv.set_plot_theme("document")
-
 PPI = 2
-
-LIGHTING = "none"  # "none"  # "three lights", "light_kit"
 
 
 def setup_lights(plotter, light_mode="light_kit", elev=75, azim=100):
@@ -19,7 +14,6 @@ def setup_lights(plotter, light_mode="light_kit", elev=75, azim=100):
         # elev = 0, azim = 0 is the +x direction
         # elev = 0, azim = 90 is the +y direction
         # elev = 90, azim = 0 is the +z direction
-
         light = pv.Light()
         light.set_direction_angle(elev, azim)
         # light.set_headlight()
@@ -42,18 +36,18 @@ def color_adaptive(color, turn_on=True):
     return color
 
 
-def default_plot(color="magma",rgb=False):
+def default_plot(cmap="magma", rgb=True, point_size=15, render_points_as_spheres=True):
     def plot(plotter, cloud, visualfea, **kwargs):
+        use_rgb = visualfea.shape[-1]==3 and rgb
         plotter.add_mesh(
             pv.PolyData(cloud),
             scalars=visualfea,
-            point_size=15 ,
-            render_points_as_spheres=True,
             lighting=True,
-            rgb=rgb,
-            cmap=color,
+            render_points_as_spheres=render_points_as_spheres,
+            rgb=use_rgb,
+            point_size=point_size,
+            cmap=cmap,
             style="points",
-            show_scalar_bar=False,
             **kwargs
         )
     return plot
@@ -77,7 +71,8 @@ def finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path):
     if camera_pos is not None:
         p.camera_position = camera_pos
     if show:
-        p.show(auto_close=False)
+        cur_camera_pos = p.show(auto_close=False)
+        print(cur_camera_pos)
         if saving_capture_path:
             p.screenshot(saving_capture_path)
 
@@ -132,9 +127,7 @@ def visualize_point_fea(
         show_scalar_bar=True,
     )
     # p.show_grid()
-
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
-
     return p
 
 
@@ -152,8 +145,7 @@ def visualize_point_fea_with_arrow(
     fea = format_input(fea)
     vectors = format_input(vectors)
     p = pv.Plotter(window_size=[1920, 1280], off_screen=not show)
-    # install pyvistaqt for background plotting that plots without pause the program
-    # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
+
     point_obj = pv.PolyData(points)
     point_obj.vectors = vectors
     p.add_mesh(
@@ -185,57 +177,37 @@ def visualize_point_pair(
     feas2,
     title1,
     title2,
-    rgb_on=True,
-    point_size=[10, 10],
+    opacity=('linear', 'linear'),
+    source_plot_func=default_plot(cmap="magma"),
+    target_plot_func=default_plot(cmap="viridis"),
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
     show=True,
     col_adaptive=True,
+    light_mode="light_kit",
+    light_params={}
 ):
     points1 = format_input(points1)
     points2 = format_input(points2)
     feas1 = format_input(feas1)
     feas2 = format_input(feas2)
-
-    if isinstance(rgb_on, bool):
-        rgb_on = [rgb_on] * 2
-
     p = pv.Plotter(
         window_size=[1920, 1280],
         notebook=0,
         shape=(1, 2),
         border=False,
         off_screen=not show,
+        lighting=light_mode,
     )
+
+    setup_lights(p, light_mode, **light_params)
     p.subplot(0, 0)
     p.add_text(title1, font_size=18)
-    p.add_mesh(
-        pv.PolyData(points1),
-        scalars=color_adaptive(feas1, col_adaptive),
-        cmap="viridis",
-        point_size=point_size[0],
-        render_points_as_spheres=True,
-        rgb=rgb_on[0],
-        opacity="linear",
-        lighting=True,
-        style="points",
-        show_scalar_bar=True,
-    )
+    source_plot_func(p, points1, color_adaptive(feas1, col_adaptive), opacity=opacity[0], show_scalar_bar=True)
     p.subplot(0, 1)
     p.add_text(title2, font_size=18)
-    p.add_mesh(
-        pv.PolyData(points2),
-        scalars=color_adaptive(feas2, col_adaptive),
-        cmap="magma",
-        point_size=point_size[1],
-        render_points_as_spheres=True,
-        rgb=rgb_on[1],
-        opacity="linear",
-        lighting=True,
-        style="points",
-        show_scalar_bar=True,
-    )
+    target_plot_func(p, points2, color_adaptive(feas2, col_adaptive), opacity=opacity[1], show_scalar_bar=True)
     p.link_views()  # link all the views
 
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
@@ -250,14 +222,14 @@ def visualize_landmark_overlap(
     feas1,
     feas2,
     title,
-    point_size=10,
-    rgb_on=True,
     opacity=(1, 1),
-    plot_func=default_plot(),
+    source_plot_func=default_plot(cmap="magma"),
+    target_plot_func=default_plot(cmap="viridis"),
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
     show=True,
+    col_adaptive=True,
     light_mode="light_kit",
     light_params={}
 ):
@@ -267,9 +239,6 @@ def visualize_landmark_overlap(
     feas1 = format_input(feas1)
     feas2 = format_input(feas2)
 
-    if isinstance(rgb_on, bool):
-        rgb_on = [rgb_on] * 2
-
     # Create the window:
     p = pv.Plotter(
         window_size=[1920, 1920],
@@ -278,31 +247,11 @@ def visualize_landmark_overlap(
     )
 
     setup_lights(p,light_mode, **light_params)
-
-    # install pyvistaqt for background plotting that plots without pause the program
-    # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
-
     p.add_text(title, font_size=18)
-    plot_func(p, points1,feas1, opacity=opacity[0],show_scalar_bar=True)
-
-    p.add_mesh(
-        pv.PolyData(points2),
-        scalars=feas2,
-        point_size=point_size * PPI,
-        render_points_as_spheres=False,
-        lighting=True,
-        cmap="viridis",
-        style="points",
-        show_scalar_bar=True,
-        ambient=0.5,
-        rgb=rgb_on[1],
-        opacity=opacity[1],
-        stitle=""
-    )
-
+    source_plot_func(p, points1,color_adaptive(feas1,col_adaptive), opacity=opacity[0],show_scalar_bar=True)
+    target_plot_func(p, points2,feas2, opacity=opacity[1],show_scalar_bar=True, stitle="")
     # p.show_grid()
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
-
     return p
 
 
@@ -312,13 +261,14 @@ def visualize_point_overlap(
     feas1,
     feas2,
     title,
-    point_size=10,
-    rgb_on=True,
     opacity=("linear", "linear"),
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
     show=True,
+    source_plot_func=default_plot(cmap="magma"),
+    target_plot_func=default_plot(cmap="viridis"),
+    col_adaptive = True,
     light_mode="light_kit",
     light_params={}
 ):
@@ -328,12 +278,6 @@ def visualize_point_overlap(
     feas1 = format_input(feas1)
     feas2 = format_input(feas2)
 
-    if isinstance(rgb_on, bool):
-        rgb_on = [rgb_on] * 2
-
-    if isinstance(point_size, int):
-        point_size = [point_size] * 2
-
     # Create the window:
     p = pv.Plotter(
         window_size=[1920, 1920],
@@ -342,38 +286,9 @@ def visualize_point_overlap(
     )
 
     setup_lights(p,light_mode, **light_params)
-
-    # install pyvistaqt for background plotting that plots without pause the program
-    # p = pyvistaqt.BackgroundPlotter(off_screen= not show)
-
     p.add_text(title, font_size=18)
-
-    p.add_mesh(
-        pv.PolyData(points1),
-        scalars=color_adaptive(feas1),
-        point_size=point_size[0] * PPI,
-        render_points_as_spheres=True,
-        lighting=True,
-        style="points",
-        show_scalar_bar=False,
-        ambient=0.5,
-        rgb=rgb_on[0],
-        opacity=opacity[0],
-    )
-
-    p.add_mesh(
-        pv.PolyData(points2),
-        scalars=color_adaptive(feas2),
-        point_size=point_size[1] * PPI,
-        render_points_as_spheres=True,
-        lighting=True,
-        style="points",
-        show_scalar_bar=False,
-        ambient=0.5,
-        rgb=rgb_on[1],
-        opacity=opacity[1],
-    )
-
+    source_plot_func(p, points1, color_adaptive(feas1,col_adaptive), opacity=opacity[0])
+    target_plot_func(p, points2, color_adaptive(feas2,col_adaptive), opacity=opacity[1])
     # p.show_grid()
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
 
@@ -385,15 +300,15 @@ def visualize_full(
     flowed=None,
     target=None,
     flow=None,
-    rgb_on=True,
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
     add_bg_contrast=True,
     opacity= ("linear","linear","linear"),
-    source_plot_func=default_plot(),
-    flowed_plot_func=default_plot(),
-    target_plot_func=default_plot(),
+    source_plot_func=default_plot(cmap="magma"),
+    flowed_plot_func=default_plot(cmap="magma"),
+    target_plot_func=default_plot(cmap="viridis"),
+    col_adaptive =True,
     show=True,
     light_mode="light_kit",
     light_params={}
@@ -408,8 +323,7 @@ def visualize_full(
     if flow is not None:
         flow = format_input(flow)
 
-    if isinstance(rgb_on, bool):
-        rgb_on = [rgb_on] * 3
+
 
     # PyVista window:
     if source is None:
@@ -439,7 +353,7 @@ def visualize_full(
         plot_id += 1
         p.add_text(source["name"], font_size=18)
 
-        source_plot_func(p, source["points"], source["visualfea"],opacity=opacity[0])
+        source_plot_func(p, source["points"], color_adaptive(source["visualfea"],col_adaptive),opacity=opacity[0])
 
     # Plot 2 ---------------------------------
     p.subplot(0, plot_id)
@@ -447,7 +361,7 @@ def visualize_full(
 
     p.add_text(flowed["name"], font_size=18)
 
-    flowed_plot_func(p, flowed["points"], flowed["visualfea"],opacity=opacity[1])
+    flowed_plot_func(p, flowed["points"], color_adaptive(flowed["visualfea"],col_adaptive),opacity=opacity[1])
 
     if source is not None:
         obj1 = pv.PolyData(source["points"])
@@ -473,7 +387,7 @@ def visualize_full(
     if source is not None and add_bg_contrast:
         plot_ghost(p, obj1)
 
-    target_plot_func(p, target["points"], target["visualfea"],opacity=opacity[1])
+    target_plot_func(p, target["points"], color_adaptive(target["visualfea"],col_adaptive),opacity=opacity[1])
 
     # Plot 4: ----------------------------------
     p.subplot(0, plot_id)
@@ -482,14 +396,14 @@ def visualize_full(
     flowed_plot_func(
         p,
         flowed["points"],
-        flowed["visualfea"],
+        color_adaptive(flowed["visualfea"],col_adaptive),
         opacity=0.75 if light_mode=="none" else "linear",
     )
 
     target_plot_func(
         p,
         target["points"],
-        target["visualfea"],
+        color_adaptive(target["visualfea"],col_adaptive),
         opacity=0.75 if light_mode=="none" else "linear",
     )
 
@@ -509,8 +423,8 @@ def visualize_point_pair_overlap(
     pc2_visualfea,
     pc1_name,
     pc2_name,
-    pc1_plot_func=default_plot(color="magma"),
-    pc2_plot_func=default_plot(color="viridis"),
+    pc1_plot_func=default_plot(cmap="magma"),
+    pc2_plot_func=default_plot(cmap="viridis"),
     opacity=("linear","linear"),
     **kwargs,
 ):
@@ -543,9 +457,9 @@ def visualize_source_flowed_target_overlap(
     source_name,
     flowed_name,
     target_name,
-    source_plot_func=default_plot(color="magma"),
-    flowed_plot_func=default_plot(color="magma"),
-    target_plot_func=default_plot(color="viridis"),
+    source_plot_func=default_plot(cmap="magma"),
+    flowed_plot_func=default_plot(cmap="magma"),
+    target_plot_func=default_plot(cmap="viridis"),
     opacity=("linear", "linear", "linear"),
     **kwargs,
 ):
@@ -749,7 +663,6 @@ def capture_plotter(render_by_weight=False, camera_pos=None, add_bg_contrast=Tru
                     "source",
                     "flowed",
                     "target",
-                    rgb_on=True,
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     add_bg_contrast=add_bg_contrast,

@@ -391,7 +391,7 @@ def get_kitti_res(return_detail=False):
 
 
 def scatter_plot(name_list, x, y, xy_value, title, fpth=None):
-    fig, ax = plt.subplots(figsize=(15, 10))
+    fig, ax = plt.subplots(figsize=(12, 12))
     fig.suptitle(title, fontsize=50)
     sc = ax.scatter(x, y, s=200, c=xy_value, cmap="tab10")  #
     cbar = plt.colorbar(sc)
@@ -403,12 +403,14 @@ def scatter_plot(name_list, x, y, xy_value, title, fpth=None):
         ["10 MB", "30 MB", "0.1 GB", "0.3 GB", "1 GB", "3 GB", "10 GB"]
     )
     for i, name in enumerate(name_list):
-        if name == "PWC(im)":
-            ax.annotate(name, (x[i] - 0.012, y[i]), fontsize=30)
+        if name == "D-RobOT(PWC)":
+            ax.annotate(name, (x[i] - 0.012, y[i] +40), fontsize=25)
         elif name == "RobOT":
-            ax.annotate(name, (x[i] - 0.010, y[i]), fontsize=30)
+            ax.annotate(name, (x[i] - 0.010, y[i]), fontsize=25)
+        elif name == "PWC":
+            ax.annotate(name, (x[i] + 0.002, y[i]-10), fontsize=25)
         else:
-            ax.annotate(name, (x[i] + 0.001, y[i]), fontsize=30)
+            ax.annotate(name, (x[i] + 0.001, y[i]), fontsize=25)
 
     ax.yaxis.grid(True)
     for item in (
@@ -604,16 +606,16 @@ filtered = ["_batch" not in name and "_2step" not in name for name in name_list]
 name_list = [
     "PWC",
     "PWC_batch",
-    "PWC(im)",
-    "PWC(im)_batch",
+    "D-RobOT(PWC)",
+    "D-RobOT(PWC)_batch",
     "PWC(dense)",
     "PWC(dense)_batch",
-    "PWC(im&dense)",
-    "PWC(im&dense)_batch",
-    "DRobOT",
-    "DRobOT_batch",
-    "DRobOT(dense)",
-    "DRobOT(dense)_batch",
+    "D-RobOT(PWC&dense)",
+    "D-RobOT(PWC&dense)_batch",
+    "D-RobOT(spline)",
+    "D-RobOT(spline)_batch",
+    "D-RobOT(spline&dense)",
+    "D-RobOT(spline&dense)_batch",
     "spline_im_dense_2step",
     "spline_im_dense_2step_batch",
     "RobOT",
@@ -638,5 +640,5 @@ scatter_plot(
     res["time"],
     res["memory"],
     "Performance on KITTI",
-    fpth=None,
+    fpth=fpth,
 )

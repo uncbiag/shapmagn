@@ -99,6 +99,7 @@ class LDDMMOPT(nn.Module):
             )
             reg_param.requires_grad_()
             shape_pair.set_reg_param(reg_param)
+        return shape_pair
 
     def set_loss_fn(self, loss_fn):
         self.sim_loss_fn = loss_fn
@@ -373,8 +374,8 @@ class LDDMMOPT(nn.Module):
                     reg_factor,
                 )
             )
-            # if self.local_iter%10==0:
-            #     self.debug(shape_pair.source, shape_pair.flowed, shape_pair.target, alias="{}_{}".format(shape_pair.pair_name[0], int(self.local_iter.item())))
+            if self.local_iter%10==0:
+                self.debug(shape_pair.source, shape_pair.flowed, shape_pair.target, alias="{}_{}".format(shape_pair.pair_name[0], int(self.local_iter.item())))
         loss = sim_loss + reg_loss
         self.local_iter += 1
         self.global_iter += 1

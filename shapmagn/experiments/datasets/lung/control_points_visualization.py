@@ -13,11 +13,12 @@ import subprocess
 # process.wait()
 import torch
 from shapmagn.datasets.data_utils import read_json_into_list, get_pair_obj
-from shapmagn.experiments.datasets.lung.visualizer import lung_plot
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot, camera_pos
 from shapmagn.global_variable import shape_type, obj_factory, SHAPMAGN_PATH
 from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
 import pointnet2.lib.pointnet2_utils as pointutils
-from shapmagn.utils.visualizer import visualize_point_pair_overlap, visualize_point_overlap, visualize_landmark_overlap
+from shapmagn.utils.visualizer import visualize_point_pair_overlap, visualize_point_overlap, visualize_landmark_overlap, \
+    visualize_point_pair, default_plot
 from shapmagn.shape.point_sampler import (
     uniform_sampler,
     grid_sampler,
@@ -107,11 +108,7 @@ if __name__ == "__main__":
             sampled_points, sampled_weights, _ = sampler(
                 source_points[0], source_weights[0]
             )
-        camera_pos = [
-            (-4.924379645467042, 2.17374925796456, 1.5003730890759344),
-            (0.0, 0.0, 0.0),
-            (0.40133888001174545, 0.31574165540339943, 0.8597873634998591),
-        ]
+
         shape_name = pair_info_list[pair_id]["source"]["name"]
         saving_capture_path = os.path.join(saving_output_path, shape_name)
         if save_res:
@@ -122,16 +119,9 @@ if __name__ == "__main__":
         else:
             saving_capture_path = None
 
-        camera_pos = [
-            (-4.924379645467042, 2.17374925796456, 1.5003730890759344),
-            (0.0, 0.0, 0.0),
-            (0.40133888001174545, 0.31574165540339943, 0.8597873634998591),
-        ]
-
         constant_kwargs = {
             "light_mode": "none",
             "show": True,
-            "rgb_on": False,
             "camera_pos": camera_pos,
         }
         # visualize_point_overlap(
@@ -146,14 +136,15 @@ if __name__ == "__main__":
         #     camera_pos=camera_pos,
         #     show=True,
         # )
-        visualize_landmark_overlap(
+        visualize_point_overlap(
             source_points,
             sampled_points,
             source_weights,
             torch.ones_like(sampled_weights),
             "control point",
-            opacity=(0.15, 1),
+            opacity=(0.1, 1),
             saving_capture_path=saving_capture_path,
-            plot_func=lung_plot("source"),
+            source_plot_func=lung_plot("source"),
+            target_plot_func = default_plot(point_size=25),
             **constant_kwargs,
         )

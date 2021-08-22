@@ -4,6 +4,15 @@ import subprocess
 from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, default_plot, color_adaptive
 PPI=2
 
+camera_pos = [
+    (-4.924379645467042, 2.17374925796456, 1.5003730890759344),
+    (0.0, 0.0, 0.0),
+    (0.40133888001174545, 0.31574165540339943, 0.8597873634998591),
+]
+# camera_pos = [(2.7588283090717782, 6.555762175709003, 1.673781643266848),
+#  (0.023061048658378214, -0.0019414722919464111, -0.031303226947784424),
+#  (-0.10449633369794017, -0.209208619403546, 0.9722717057545956)]
+
 def lung_plot(color="source"):
     def plot(plotter, cloud, visualfea, levels=10, **kwargs):
 
@@ -19,22 +28,41 @@ def lung_plot(color="source"):
         # Normalize to [0, 1]:
         visualfea = color_adaptive(visualfea)
 
+        # mesh = pv.PolyData(cloud)
+        # mesh["weights"] = visualfea/10
+        # # Low resolution geometry
+        # geom = pv.Sphere(theta_resolution=8, phi_resolution=8)
+        #
+        # # Progress bar is a new feature on master branch
+        # glyphed = mesh.glyph(scale="weights", geom=geom, )  # progress_bar=True)
+        #
+        # plotter.add_mesh(glyphed,
+        #                  render_points_as_spheres=True,
+        #                 lighting=True,
+        #                 cmap=cmap,
+        #                 clim=clim,
+        #                 ambient=0.5,
+        #                 show_scalar_bar=False,
+        #                  **kwargs)
+
+
+
         for k in range(levels):
             mask = (visualfea > (k / levels)) * (visualfea <= ((k + 1) / levels))
-
-            plotter.add_mesh(
-                pv.PolyData(cloud[mask, :]),
-                scalars=visualfea[mask],
-                point_size=15 * PPI * (((k + 1) + 0.5) / levels),
-                render_points_as_spheres=True,
-                lighting=True,
-                cmap=cmap,
-                clim=clim,
-                style="points",
-                #show_scalar_bar=False,
-                ambient=0.5,
-                **kwargs,
-            )
+            if sum(mask)>0:
+                plotter.add_mesh(
+                    pv.PolyData(cloud[mask, :]),
+                    scalars=visualfea[mask],
+                    point_size=15 * PPI * (((k + 1) + 0.5) / levels),
+                    render_points_as_spheres=True,
+                    lighting=True,
+                    cmap=cmap,
+                    clim=clim,
+                    style="points",
+                    #show_scalar_bar=False,
+                    ambient=0.5,
+                    **kwargs,
+                )
     return plot
 
 

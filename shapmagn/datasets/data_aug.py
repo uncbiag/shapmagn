@@ -6,7 +6,7 @@ from shapmagn.shape.point_interpolator import KNNInterpolater
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.global_variable import Shape
 from shapmagn.utils.utils import get_grid_wrap_points
-from shapmagn.experiments.datasets.lung.visualizer import lung_plot
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot, camera_pos
 from shapmagn.utils.visualizer import visualize_point_pair_overlap, default_plot
 from shapmagn.shape.point_sampler import (
     point_uniform_sampler,
@@ -22,6 +22,8 @@ def visualize(
     point_weights=None,
     deformed_point_weights=None,
     deformed_coupled_points=None,
+    title1 = "original",
+    title2 = "deformed"
 ):
     ### visualization for general task
     # visualize_point_pair_overlap(points, deformed_points,
@@ -33,22 +35,24 @@ def visualize(
 
 
     ### visualization for lung task
+
     visualize_point_pair_overlap(points, deformed_points,
                                  point_weights,
                                  deformed_point_weights,
-                                 "original", "deformed",
+                                 title1, title2,
                                  pc1_plot_func=lung_plot(color="source"),
                                  pc2_plot_func=lung_plot(color="target"),
                                  opacity=(1,1),
-                                 rgb_on=False)
+                                 light_mode="none",
+                                 camera_pos =camera_pos)
     if deformed_coupled_points:
         visualize_point_pair_overlap(
             deformed_points,
             deformed_coupled_points,
             deformed_points,
             deformed_coupled_points,
-            "deformed",
-            "deformed with coupled",
+            title2,
+            title2 +" with coupled",
             rgb_on=False,
             show=True,
         )
@@ -144,7 +148,7 @@ class PointAug(object):
             if self.normalize_weights:
                 new_weights = new_weights * (point_weights.sum() / (new_weights.sum()))
             if self.plot:
-                visualize(points, new_points, point_weights, new_weights)
+                visualize(points, new_points, point_weights, new_weights,title1="before point aug", title2="after point aug")
             new_points_list.append(new_points)
             new_weights_list.append(new_weights)
             new_index_list.append(new_index)
@@ -339,6 +343,8 @@ class SplineAug(object):
                         point_weights,
                         deformed_weights,
                         deformed_coupled_points,
+                        title1="before local deform",
+                        title2="after local deform"
                     )
             if self.do_grid_aug:
                 (
@@ -355,6 +361,8 @@ class SplineAug(object):
                         point_weights,
                         deformed_weights,
                         deformed_coupled_points,
+                        title1="before global deform",
+                        title2="after global deform"
                     )
             if self.do_rigid_aug:
                 (
@@ -371,6 +379,8 @@ class SplineAug(object):
                         point_weights,
                         deformed_weights,
                         deformed_coupled_points,
+                        title1="before rigid deform",
+                        title2="after rigid deform"
                     )
             deformed_points_list.append(deformed_points)
             deformed_weights_list.append(deformed_weights)

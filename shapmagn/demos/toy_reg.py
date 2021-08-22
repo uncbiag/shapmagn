@@ -143,7 +143,7 @@ solver_opt["record_path"] = record_path
 solver_opt["point_grid_scales"] = [-1]
 solver_opt["iter_per_scale"] = [70]
 solver_opt["rel_ftol_per_scale"] = [1e-9]
-solver_opt["init_lr_per_scale"] = [1e-2]
+solver_opt["init_lr_per_scale"] = [1e-4]
 solver_opt["save_3d_shape_every_n_iter"] = 20
 solver_opt["shape_sampler_type"] = "point_grid"
 solver_opt["stragtegy"] = "use_optimizer_defined_here"
@@ -168,12 +168,12 @@ model_opt["sim_loss"]["geomloss"]["attr"] = "points"
 blur = 0.0005
 model_opt["sim_loss"]["geomloss"][
     "geom_obj"
-] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=True, backend='online')".format(
+] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8, debias=False, backend='online')".format(
     blur
 )
 model = MODEL_POOL[model_name](model_opt)
 solver = build_multi_scale_solver(solver_opt, model)
-model.init_reg_param(shape_pair)
+model.init_reg_param(shape_pair, force=True)
 shape_pair = solver(shape_pair)
 print("the registration complete")
 visualize_multi_point(
@@ -189,7 +189,7 @@ visualize_multi_point(
     saving_gif_path=None,
 )
 
-
+#
 """ Experiment 4:  Robust optimal transport projection (LDDMM) """
 task_name = "gradient_flow_guided_by_lddmm"
 solver_opt = ParameterDict()
@@ -215,7 +215,7 @@ solver_opt["scheduler"]["step_lr"]["step_size"] = 80
 
 model_name = "lddmm_opt"
 model_opt = ParameterDict()
-model_opt["running_result_visualize"] = False
+model_opt["running_result_visualize"] = True
 model_opt["saving_running_result_visualize"] = False
 model_opt["module"] = "hamiltonian"
 model_opt[("hamiltonian", {}, "settings for hamiltonian")]
@@ -247,7 +247,7 @@ model_opt["sim_loss"]["geomloss"][
 ] = "geomloss.SamplesLoss(loss='sinkhorn',blur=blurplaceholder, scaling=0.8, debias=False, backend='online')"
 
 model = MODEL_POOL[model_name](model_opt)
-model.init_reg_param(shape_pair)
+model.init_reg_param(shape_pair, force=True)
 solver = build_multi_scale_solver(solver_opt, model)
 shape_pair = solver(shape_pair)
 print("the registration complete")
@@ -363,7 +363,7 @@ else:
 
 model = MODEL_POOL[model_name](model_opt)
 solver = build_multi_scale_solver(solver_opt, model)
-model.init_reg_param(shape_pair)
+shape_pair = model.init_reg_param(shape_pair)
 shape_pair = solver(shape_pair)
 print("the registration complete")
 visualize_multi_point(

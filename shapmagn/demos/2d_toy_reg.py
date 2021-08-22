@@ -79,7 +79,9 @@ source, target = create_shape_pair_from_data_dict(input_data)
 shape_pair = create_shape_pair(source, target)
 
 # # ###############  do registration ###########################s############
-#
+
+
+# optimal transport
 """ Experiment 1:  gradient flow """
 task_name = "gradient_flow"
 solver_opt = ParameterDict()
@@ -130,8 +132,7 @@ visualize_source_flowed_target_overlap(
     "source",
     "gradient_flow",
     "target",
-    add_zero_last_dim(flow_points[0]),
-    rgb_on=[True, True, True],
+    flow=add_zero_last_dim(flow_points[0]),
     saving_gif_path=None,
 )
 
@@ -141,7 +142,7 @@ def update_sigma(sigma, iter):
     return sigma
 
 
-# Experiment 4:  optimization based discrete flow
+# Experiment 4:  optimization based discrete flow (spline)
 task_name = "discrete_flow"
 gradient_flow_mode = True
 solver_opt = ParameterDict()

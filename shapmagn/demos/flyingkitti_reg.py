@@ -112,6 +112,6 @@ visualize_source_flowed_target_overlap(
     "source",
     "gradient_flow",
     "target",
-    rgb_on=[True, True, True],
     saving_gif_path=None,
+    col_adaptive=True
 )

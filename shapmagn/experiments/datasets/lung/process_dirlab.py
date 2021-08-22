@@ -424,7 +424,7 @@ if save_cleaned_pointcloud:
             clean_and_save_pointcloud(pc_exp_path_list[i], cleaned_pc_folder)
         except:
             continue
-#
+
 # for i, _id in enumerate(id_list):
 #     get_center(pc_insp_path_list[i],_id, is_insp=True)
 #     get_center(pc_exp_path_list[i],_id,is_insp=False)

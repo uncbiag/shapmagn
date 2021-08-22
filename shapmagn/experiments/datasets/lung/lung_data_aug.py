@@ -23,6 +23,7 @@ import random
 import time
 from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 from shapmagn.global_variable import *
+from shapmagn.experiments.datasets.lung.visualizer import camera_pos, lung_plot
 from shapmagn.datasets.data_aug import SplineAug, PointAug
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.utils import enlarge_by_factor
@@ -202,7 +203,7 @@ if __name__ == "__main__":
     normalizer_obj = (
         "lung_dataloader_utils.lung_normalizer(weight_scale=60000,scale=[100,100,100])"
     )
-    sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=30000,sampled_by_weight=True)"
+    sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
     use_local_mount = True
     dataset_json_path = os.path.join(SHAPMAGN_PATH, "demos/data/lung_data/lung_dataset_splits/train/pair_data.json")
     saving_output_path = os.path.join(lung_expri_path, "output/data_aug_visual")
@@ -215,7 +216,7 @@ if __name__ == "__main__":
         [pair_info["source"]["data_path"], pair_info["target"]["data_path"]]
         for pair_info in pair_info_list
     ]
-    pair_id = 3
+    # pair_id = 0
 
     pair_index_list = list(range(len(pair_name_list)))
     for pair_id in pair_index_list:
@@ -301,11 +302,6 @@ if __name__ == "__main__":
         aug_shape = Shape().set_data(points=aug_points, weights=aug_points_weights)
         shape_pair = create_shape_pair(source, target)
         shape_pair.flowed = aug_shape
-        camera_pos = [
-            (-4.924379645467042, 2.17374925796456, 1.5003730890759344),
-            (0.0, 0.0, 0.0),
-            (0.40133888001174545, 0.31574165540339943, 0.8597873634998591),
-        ]
         shape_name = pair_info_list[pair_id]["source"]["name"]
         saving_capture_path = os.path.join(saving_output_path, shape_name)
         os.makedirs(saving_capture_path, exist_ok=True)
@@ -313,17 +309,19 @@ if __name__ == "__main__":
             saving_capture_path, "{}_synth.png".format(shape_name)
         )
         # visualize_point_pair_overlap(source_points, aug_points, source_weights, aug_points_weights, "source", "synth", rgb_on=False,  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=True)
-        visualize_point_pair(
+
+        visualize_point_pair_overlap(
             source_points,
             aug_points,
             source_weights,
             aug_points_weights,
             "source",
             "synth",
-            rgb_on=False,
-            point_size=[15, 15],
+            lung_plot(color="source"),
+            lung_plot(color="target"),
             saving_capture_path=saving_capture_path,
-            camera_pos=camera_pos,
-            show=True,
+            light_mode = "none",
+            camera_pos = camera_pos,
+            show=True
         )
         # visualize_point_overlap(source_points, aug_points, source_weights, aug_points_weights, "aug_overlap_target", point_size=[15,15],rgb_on=False,  saving_capture_path=saving_capture_path, camera_pos=camera_pos,show=True)

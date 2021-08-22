@@ -4,7 +4,7 @@ the feature comes from deep feature learning, and tsne projection (3 dim)
 import os
 from shapmagn.datasets.vtk_utils import read_vtk
 from shapmagn.global_variable import Shape, SHAPMAGN_PATH
-from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair
+from shapmagn.utils.visualizer import visualize_point_fea, visualize_point_pair, default_plot
 
 
 def reader(file_path):
@@ -38,6 +38,7 @@ visualize_point_pair(
     "source",
     "target",
     camera_pos=camera_pos,
-    rgb_on=True,
+    source_plot_func=default_plot(rgb=True),
+    target_plot_func=default_plot(rgb=True),
     col_adaptive=False,
 )

@@ -2,7 +2,7 @@ from os.path import join
 import torch
 
 # The main "visual" routines:
-from shapmagn.experiments.datasets.lung.visualizer import lung_plot
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot, camera_pos
 from shapmagn.utils.visualizer import (
     visualize_point_pair,
     visualize_point_pair_overlap,
@@ -30,6 +30,8 @@ ID_COPD = {
 ID_DATA = {v: k for k, v in ID_COPD.items()}
 
 
+
+
 def init_shape(points_path):
     """Turns a .vtk filename into a shape object with .points and .weights attributes."""
     if points_path:
@@ -42,6 +44,11 @@ def init_shape(points_path):
         return shape
     else:
         return None
+
+
+camera_pos =[(-4.205851447352218, 1.921304996624469, 0.5137380617737535),
+ (0.0, 0.0, 0.0),
+ (0.39515144308983535, 0.31778328015344526, 0.8618985577658995)]
 
 
 # Which folder are we going to read?
@@ -60,15 +67,16 @@ folder_suffix = "/records/3d/test_epoch_-1"
 #     "deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000_nonsmooth"
 # )
 
-# experiment_name = "deepflow/disp"
+#experiment_name = "deepflow/disp"
 experiment_name = "deepflow/lddmm"
-# experiment_name = "deepflow/spline"
+#experiment_name = "deepflow/spline"
 # experiment_name = "deepfeature/opt_discrete_flow_deep"
+# experiment_name = "deepfeature/opt_discrete_flow_deep_nonsmooth"
 
 folder_path = folder_root + experiment_name + folder_suffix
 
 # Our subject:
-copd_id = 1  # Any number in [1, 10] is fine
+copd_id = 8  # Any number in [1, 10] is fine
 case_id = ID_DATA[f"copd{copd_id}"]
 
 
@@ -86,7 +94,7 @@ def get_shape(s):
 
 source = get_shape("_source.vtk")
 target = get_shape("_target.vtk")
-prealigned = get_shape("__prealigned.vtk")
+#prealigned = get_shape("__prealigned.vtk")
 nonp = get_shape("_flowed.vtk")
 finetuned = get_shape("__gf_flowed.vtk")
 
@@ -96,16 +104,10 @@ landmarks_finetuned = get_shape("_landmark_gf_flowed.vtk")
 landmarks_target = get_shape("_landmark_gf_target.vtk")
 
 # Camera position:
-camera_pos = [
-    (-4.924379645467042, 2.17374925796456, 1.5003730890759344),
-    (0.0, 0.0, 0.0),
-    (0.40133888001174545, 0.31574165540339943, 0.8597873634998591),
-]
 
 constant_kwargs = {
     "light_mode":"none",
     "show": True,
-    "rgb_on": False,
     "camera_pos": camera_pos,
 }
 
@@ -130,7 +132,7 @@ visualize_source_flowed_target_overlap(
 
 snapshots = [
     (source, "source", "_2_source.jpg"),
-    (prealigned, "prealigned", "_3_prealigned.jpg"),
+    #(prealigned, "prealigned", "_3_prealigned.jpg"),
     (nonp, "nonparametric", "_4_nonparametric.jpg"),
     (finetuned, "finetuned", "_5_finetuned.jpg"),
 ]
@@ -167,6 +169,6 @@ for shape, landmarks, name, color, suffix in snapshots:
         name,
         opacity=(0.15, 1),
         saving_capture_path=filename(suffix),
-        plot_func =lung_plot(color),
+        source_plot_func =lung_plot(color="source"),
         **constant_kwargs,
     )

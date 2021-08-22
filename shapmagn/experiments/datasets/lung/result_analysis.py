@@ -193,24 +193,24 @@ def get_res_dic():
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/timing/opt_gf_60000/records/lmk_diff_mean_records_detail.npy",
     )
-    data_dic["RobOTP(spline)"] = get_experiment_data_from_record(
+    data_dic["RobOT-P(spline)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/timing/opt_discrete_flow_deep/records/lmk_diff_mean_records_detail.npy",
     )
-    data_dic["RobOTP(LDDMM)"] = get_experiment_data_from_record(
+    data_dic["RobOT-P(LDDMM)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/discrete_flow_on_dirlab_deep_lddmm/records/lmk_diff_mean_records_detail.npy",
     )
     data_dic["DGCNN-CPD"] = inc(), np.array([item[1] for item in DGCNN.items()])
-    data_dic["DRobOT(disp)"] = get_experiment_data_from_record(
+    data_dic["D-RobOT(disp)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/timing/deep_flow_prealign_pwc2_2_continue_60000/records/lmk_diff_mean_and_gf_records_detail.npy",
     )
-    data_dic["DRobOT(spline)"] = get_experiment_data_from_record(
+    data_dic["D-RobOT(spline)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/model_eval/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso/records/lmk_diff_mean_and_gf_records_detail.npy",
     )
-    data_dic["DRobOT(LDDMM)"] = get_experiment_data_from_record(
+    data_dic["D-RobOT(LDDMM)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun/records/lmk_diff_mean_gf_records_detail.npy",
     )
@@ -396,17 +396,6 @@ label = "Landmark Mean Square Error"
 ##################################Get Data ##############################################################
 
 
-# get dice box plot data
-#
-# data_list1, name_list = get_list_from_dic(get_syth_dice(),use_perc=True)
-# order = -1
-# fpth=None
-# draw_boxplot = True
-#
-# os.makedirs('/playpen-raid/zyshen/debugs/rdmm_res',exist_ok=True)
-# fpth = '/playpen-raid/zyshen/debugs/rdmm_res/syth_boxplot.png'
-# draw_single_boxplot(name_list,data_list1,label=label,fpth=fpth,data_name='synth',title="Average Dice on Synthesis Data")
-
 order = -1
 data_list1, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
 order = -1
@@ -414,7 +403,7 @@ order = -1
 fpth = "/playpen-raid1/zyshen/debug/lung_plots"
 os.makedirs(fpth, exist_ok=True)
 fpth = os.path.join(fpth, "res_boxplot.png")
-# draw_single_boxplot(name_list,data_list1,label=label,fpth=fpth,data_name='synth',title='Performance on DirLab')
+draw_single_boxplot(name_list,data_list1,label=label,fpth=fpth,data_name='synth',title='Performance on DirLab')
 
 compute_std(data_list1, name_list)
 data_list1, name_list = get_list_from_dic(get_res_dic(), use_perc=False)

@@ -15,6 +15,7 @@ from shapmagn.utils.visualizer import (
 
 
 dirlab_landmarks_folder_path = os.path.join(lung_expri_path,"dirlab_landmarks")
+#dirlab_landmarks_folder_path = "/playpen-raid1/Data/copd/processed_nobias/landmark_processed_colored"
 
 
 def get_flowed(shape_pair, interp_kernel):

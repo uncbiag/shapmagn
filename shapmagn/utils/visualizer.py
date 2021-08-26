@@ -407,7 +407,8 @@ def visualize_full(
         opacity=0.75 if light_mode=="none" else "linear",
     )
 
-    p.add_text(flowed["name"] + "_overlap_" + target["name"], font_size=22)
+    #p.add_text(flowed["name"] + "_overlap_" + target["name"], font_size=22)
+    p.add_text("overlap", font_size=22)
 
     # Camera manipulation: -----------------------
     p.link_views()  # link all the views

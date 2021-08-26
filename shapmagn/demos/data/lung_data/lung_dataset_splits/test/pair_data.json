@@ -1,3 +1,12 @@
 {
-  "copd1": {"source": {"name": "copd1_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd1_EXP.vtk"}, "target": {"name": "copd1_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd1_INSP.vtk"}}
+  "copd1": {"source": {"name": "copd1_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd1_EXP.vtk"}, "target": {"name": "copd1_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd1_INSP.vtk"}},
+  "copd2": {"source": {"name": "copd2_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd2_EXP.vtk"}, "target": {"name": "copd2_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd2_INSP.vtk"}},
+  "copd3": {"source": {"name": "copd3_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd3_EXP.vtk"}, "target": {"name": "copd3_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd3_INSP.vtk"}},
+  "copd4": {"source": {"name": "copd4_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd4_EXP.vtk"}, "target": {"name": "copd4_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd4_INSP.vtk"}},
+  "copd5": {"source": {"name": "copd5_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd5_EXP.vtk"}, "target": {"name": "copd5_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd5_INSP.vtk"}},
+  "copd6": {"source": {"name": "copd6_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd6_EXP.vtk"}, "target": {"name": "copd6_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd6_INSP.vtk"}},
+  "copd7": {"source": {"name": "copd7_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd7_EXP.vtk"}, "target": {"name": "copd7_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd7_INSP.vtk"}},
+  "copd8": {"source": {"name": "copd8_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd8_EXP.vtk"}, "target": {"name": "copd8_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd8_INSP.vtk"}},
+  "copd9": {"source": {"name": "copd9_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd9_EXP.vtk"}, "target": {"name": "copd9_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd9_INSP.vtk"}},
+  "copd10": {"source": {"name": "copd10_EXP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd10_EXP.vtk"}, "target": {"name": "copd10_INSP", "data_path": "./demos/data/lung_data/lung_vessel_demo_data/copd10_INSP.vtk"}}
 }

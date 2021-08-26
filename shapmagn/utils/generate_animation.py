@@ -6,6 +6,9 @@ support displacement, spline and LDDMM, prealign
 import os, sys
 import subprocess
 
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot
+from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, visualize_point_pair_overlap
+
 os.environ["DISPLAY"] = ":99.0"
 os.environ["PYVISTA_OFF_SCREEN"] = "true"
 os.environ["PYVISTA_USE_IPYVTK"] = "true"
@@ -172,7 +175,55 @@ def affine_interpolation(input_affine, t_list):
     return affine_list
 
 
+
+
+
 def visualize_animation(
+    shape1_list,
+    shape2_list,
+    title1_list,
+    title2_list,
+    rgb_on=True,
+    saving_capture_path_list=None,
+    camera_pos_list=None,
+    show=False,
+):
+    from shapmagn.utils.visualizer import color_adaptive
+    from shapmagn.utils.visualizer import format_input
+
+    for shape1, shape2, saving_capture_path, title1, title2, camera_pos in zip(
+        shape1_list,
+        shape2_list,
+        saving_capture_path_list,
+        title1_list,
+        title2_list,
+        camera_pos_list,
+    ):
+        points1, points2 = shape1.points, shape2.points
+        feas1, feas2 = shape1.weights, shape2.weights
+        points1 = format_input(points1)
+        points2 = format_input(points2)
+        feas1 = format_input(feas1)
+        feas2 = format_input(feas2)
+
+        visualize_point_pair_overlap(
+            points1,
+            points2,
+            feas1,
+            feas2,
+            title1,
+            title2,
+            lung_plot(color="source"),
+            lung_plot(color="target"),
+            saving_capture_path=saving_capture_path,
+            light_mode="none",
+            camera_pos=camera_pos,
+            show=False
+        )
+
+
+
+def visualize_animation_prev(
     shape1_list,
     shape2_list,
     title1_list,
@@ -293,26 +344,41 @@ def camera_pos_interp(pos1, pos2, t_list):
     pos_interp_list = [[tuple(sub_pos) for sub_pos in pos] for pos in pos_interp_list]
     return pos_interp_list
 
+COPD_ID={
+    "copd6":"12042G",
+    "copd7":"12105E",
+    "copd8":"12109M",
+    "copd9":"12239Z",
+    "copd10":"12829U",
+    "copd1":"13216S",
+    "copd2":"13528L",
+    "copd3":"13671Q",
+    "copd4":"13998W",
+    "copd5":"17441T"
+}
+
+
+
 if __name__ == "__main__":
     folder_path = "/playpen-raid1/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun2/records/3d/test_epoch_-1"
     # folder_path ="/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun2/records/3d/test_epoch_-1"
     case_id_list = ["copd{}".format(i) for i in range(1,11)]
     for case_id in case_id_list:
-        output_folder = os.path.join(folder_path, "gif", case_id)
+        output_folder = os.path.join(folder_path, "gif2", case_id)
         os.makedirs(output_folder, exist_ok=True)
         total_captrue_path_list = []
 
-        source_path = os.path.join(folder_path, case_id + "_source.vtk")
-        target_path = os.path.join(folder_path, case_id + "_target.vtk")
-        control_path = os.path.join(folder_path, case_id + "_control.vtk")
-        landmark_path = os.path.join(folder_path, case_id + "_landmark_gf_target.vtk")
-        prealigned_path = os.path.join(folder_path, case_id + "__prealigned.vtk")
-        reg_param_path = os.path.join(folder_path, case_id + "_reg_param.vtk")
+        source_path = os.path.join(folder_path, COPD_ID[case_id] + "_source.vtk")
+        target_path = os.path.join(folder_path, COPD_ID[case_id] + "_target.vtk")
+        control_path = os.path.join(folder_path, COPD_ID[case_id] + "_control.vtk")
+        landmark_path = os.path.join(folder_path, COPD_ID[case_id] + "_landmark_gf_target.vtk")
+        prealigned_path = os.path.join(folder_path, COPD_ID[case_id] + "__prealigned.vtk")
+        reg_param_path = os.path.join(folder_path, COPD_ID[case_id] + "_reg_param.vtk")
         prealign_reg_param_path = os.path.join(
-            folder_path, case_id + "_prealigned_reg_param.npy"
+            folder_path, COPD_ID[case_id] + "_prealigned_reg_param.npy"
         )
-        nonp_path = os.path.join(folder_path, case_id + "_flowed.vtk")
-        nonp_gf_path = os.path.join(folder_path, case_id + "__gf_flowed.vtk")
+        nonp_path = os.path.join(folder_path, COPD_ID[case_id] + "_flowed.vtk")
+        nonp_gf_path = os.path.join(folder_path, COPD_ID[case_id] + "__gf_flowed.vtk")
         source = init_shpae(source_path)
         target = init_shpae(target_path)
         control = init_shpae(control_path)
@@ -322,7 +388,7 @@ if __name__ == "__main__":
         prealign_reg_param = torch.Tensor(np.load(prealign_reg_param_path))[None]
 
         # 0 preview
-        output_folder = os.path.join(folder_path, "gif", case_id, "preview")
+        output_folder = os.path.join(folder_path, "gif2", case_id, "preview")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "preview"
         camera_pos_start = [
@@ -346,13 +412,13 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * n_t
         title2_list = ["target"] * n_t
-        # visualize_animation([source]*n_t, [target]*n_t, title1_list, title2_list, rgb_on=False,
-        #                     saving_capture_path_list=saving_capture_path_list, camera_pos_list=pos_interp_list, show=False)
+        visualize_animation([source]*n_t, [target]*n_t, title1_list, title2_list, rgb_on=False,
+                            saving_capture_path_list=saving_capture_path_list, camera_pos_list=pos_interp_list, show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
         # 1  affine
-        output_folder = os.path.join(folder_path, "gif", case_id, "prealign")
+        output_folder = os.path.join(folder_path, "gif2", case_id, "prealign")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "stage1: affine"
         model_type = "affine_interp"
@@ -385,13 +451,13 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * len(flow_opt["t_list"])
         title2_list = ["target"] * len(flow_opt["t_list"])
-        # visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
+        visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
         # 2  nonp
 
-        output_folder = os.path.join(folder_path, "gif", case_id, "nonp")
+        output_folder = os.path.join(folder_path, "gif2", case_id, "nonp")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "stage2: LDDMM"
         model_type = "lddmm_shooting"
@@ -436,12 +502,12 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * len(flow_opt["t_list"])
         title2_list = ["target"] * len(flow_opt["t_list"])
-        # visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
+        visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
         # 3  postprocess
-        output_folder = os.path.join(folder_path, "gif", case_id, "post")
+        output_folder = os.path.join(folder_path, "gif2", case_id, "post")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "stage3: postprocessing"
         model_type = "linear_interp"
@@ -474,11 +540,11 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * len(flow_opt["t_list"])
         title2_list = ["target"] * len(flow_opt["t_list"])
-        # visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
+        visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
-        gif_path = os.path.join(folder_path, "gif", case_id, "reg2.gif")
+        gif_path = os.path.join(folder_path, "gif2", case_id, "reg2.gif")
         generate_gif(total_captrue_path_list, gif_path)
 
         """

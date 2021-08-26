@@ -107,7 +107,6 @@ def lung_capture_plotter(camera_pos=None, add_bg_contrast=True):
                 "source",
                 "flowed",
                 "target",
-                rgb_on=False,
                 saving_capture_path=path,
                 camera_pos=camera_pos,
                 add_bg_contrast=add_bg_contrast,

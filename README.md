@@ -21,11 +21,11 @@ We assume all the following installation is under a conda virtual environment, e
 conda create -n shapmagn python=3.6
 conda activate shapmagn
 ```
-0. (Optional) if you cannot find nvcc in system, you can install via
+0.(Optional) if you cannot find nvcc in system, you can install via
 ```angular2html
 conda install -c conda-forge cudatoolkit-dev=11.2
 ```
-1. (Optional) Please use python=3.6 to workaround a known buffer overflow bug in vtk-9.0,
+1.(Optional) Please use python=3.6 to workaround a known buffer overflow bug in vtk-9.0,
 we recommend
    
 For system support apt-get:
@@ -42,13 +42,13 @@ yum install xorg-x11-server-Xvfb
 pip install vtk==8.1.2
 ```
 
-2. For general prediction tasks, the pytorch3d needs to be installed first [link](https://github.com/facebookresearch/pytorch3d/blob/master/INSTALL.md). 
+2.For general prediction tasks, the pytorch3d needs to be installed first [link](https://github.com/facebookresearch/pytorch3d/blob/master/INSTALL.md). 
    Please install all necessary packages mentioned there. 
     Essentially, pytorch3d needs pytorch to be installed first, we test using pytorch version 1.7.1. Make sure the pytorch is compiled with correct cuda version, e.g. with nvcc version=11.1, we can install pytorch
     via *conda install -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0*. However, if you have already installed cudatoolkit-dev=11.2 then don't include cudatoolkit=11.0 for pytorch installation
 
 
-3. Install the Keops [link](https://www.kernel-operations.io/keops/python/installation.html)
+3.Install the Keops [link](https://www.kernel-operations.io/keops/python/installation.html)
    (make sure the current system cmake version and nvcc version meet the requirement. [Here](https://askubuntu.com/questions/829310/how-to-upgrade-cmake-in-ubuntu) is how to upgrade cmake in Ubuntu,
    After installation please run the following test to make sure Keops work)
 ```
@@ -57,10 +57,7 @@ pykeops.clean_pykeops()          # just in case old build files are still presen
 pykeops.test_torch_bindings()   
 ```
 
-4. Install Teaser++ [link](https://teaser.readthedocs.io/en/master/installation.html)
-5. Install Open3d [link](http://www.open3d.org/docs/0.7.0/getting_started.html)
-   
-6. Now, we can install shapmagn by
+4.Now, we can install shapmagn by
 ```
 git clone https://github.com/uncbiag/shapmagn.git
 cd shapmagn/shapmagn
@@ -69,9 +66,9 @@ cd ..
 cd pointnet2/lib
 python setup.py install
 ```
-*if you use Fedora 33, you may meet a bug from a specific gcc version, you may need to downgrade gcc version via *dnf downgrade gcc*
+*if you use Fedora 33, you may meet a bug caused by a specific gcc version, you may need to downgrade gcc version via *dnf downgrade gcc*
 
-7. torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
+5.torch-scatter needs to be installed, see [here](https://github.com/rusty1s/pytorch_scatter).
 e.g. for cuda 11.0, 
 ```
 pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cu110.html
@@ -81,18 +78,18 @@ pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cu110
 
 If you are familiar with docker, it would be much easier to run shapmagn in docker.
 
-1. push lastest shapmagn image from dockerhub
+1.push lastest shapmagn image from dockerhub
 ```
 docker push hbgtjxzbbx/shapmagn:v0.5
 ```
-2. run docker locally
+2.run docker locally
 ```
 docker run --privileged --gpus all -it --rm  -v /home/zyshen/proj/shapmagn:/proj/shapmagn -v /home/zyshen/data/lung_data:/data/lung_data hbgtjxzbbx/shapmagn:v0.5
 ```
 * here -v refers to the map between the local path and the docker path,
   here we map a code path and a data path based on my local env, modify local path based on your own env.
 
-3. compile cuda code (if you use Fedora 33, you may meet a bug from a specific gcc version, you may need to downgrade gcc version via *dnf downgrade gcc*)
+3.compile cuda code (if you use Fedora 33, you may meet a bug from a specific gcc version, you may need to downgrade gcc version via *dnf downgrade gcc*)
 ```
 cd pointnet2/lib
 python setup.py install
@@ -105,6 +102,9 @@ For full function supports, additional package needs to be installed
    
    (open3d version in probreg is old, some APIs have been deprecated, we recommend to install from source and fix open3d minor crashes manually)
 
+2. Install Teaser++ [link](https://teaser.readthedocs.io/en/master/installation.html)
+3. Install Open3d [link](http://www.open3d.org/docs/0.7.0/getting_started.html)
+   
 
 ## Demo
 We provide a series of demos, which can be found at shapmagn/demos
@@ -155,11 +155,11 @@ We need prepare the data of KITTI Scene Flow 2015 first. Here we follow the inst
 Download and unzip [KITTI Scene Flow Evaluation 2015](http://www.cvlibs.net/download.php?file=data_scene_flow.zip) to directory `RAW_DATA_PATH`.
 Run the following script for kitti data preprocessing, the processed data are saved in `PROCESSED_DATA_PATH`; A shapmagn compatible format is saved in `SHAPMAN_INTPUT_PATH`:
 
-    ```
-    cd shapmagn/experiments/datasets/flying3d_and_kitti/flyingkitti_nonocc
-    python process_kitti_raw_data.py RAW_DATA_PATH PROCESSED_DATA_PATH
-    python prepare_data_test_on_kitti.py RAW_DATA_PATH PROCESSED_DATA_PATH SHAPMAN_INTPUT_PATH
-    ```
+```
+cd shapmagn/experiments/datasets/flying3d_and_kitti/flyingkitti_nonocc
+python process_kitti_raw_data.py RAW_DATA_PATH PROCESSED_DATA_PATH
+python prepare_data_test_on_kitti.py RAW_DATA_PATH PROCESSED_DATA_PATH SHAPMAN_INTPUT_PATH
+```
 
 Here is an example on evaluating a spline flow network on 142 Kitti pairs:
 

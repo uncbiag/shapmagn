@@ -9,9 +9,15 @@ from shapmagn.datasets.vtk_utils import read_vtk
 from shapmagn.shape.shape_utils import get_scale_and_center
 
 """
-1. flip the last dimension of the high dimension
+High resolution to low resoltuion dirlab mapping
+
+1. flip the last dimension of the high resolution image
 2. take the high resoltuion (max between the insp and exp )
-3.  padding at the end (for the argmin(insp, exp) image)
+3.  padding at the end
+
+Landmark mapping
+loc[z] = (high_image.shape[z] - low_index[z]*4 + 1.5)*high_spacing + high_origin ( 2 seems better in practice)
+
 """
 
 COPD_ID={

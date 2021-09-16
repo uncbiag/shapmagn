@@ -26,11 +26,11 @@ LOSS_POOL = {
 }
 
 
-from shapmagn.datasets.custom_dataset import CustomDataset
+from shapmagn.datasets.general_dataset import GeneralDataset
 from shapmagn.datasets.pair_dataset import RegistrationPairDataset
 
 DATASET_POOL = {
-    "custom_dataset": CustomDataset,
+    "general_dataset": GeneralDataset,
     "pair_dataset": RegistrationPairDataset,
 }
 

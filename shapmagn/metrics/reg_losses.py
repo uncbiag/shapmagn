@@ -10,7 +10,6 @@ from shapmagn.modules_reg.networks.pointconv_util import index_points_group
 from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.global_variable import Shape
 from shapmagn.utils.utils import sigmoid_decay
-from shapmagn.modules_reg.keops_utils import KNN
 
 
 class CurrentDistance(object):
@@ -269,7 +268,7 @@ class CurvatureReg(object):
         knn_obj = opt[
             (
                 "knn_obj",
-                "keops_utils.KNN()",
+                "knn_utils.KNN()",
                 "the kernel size used to interpolate between the flowed shape from the target shape",
             )
         ]

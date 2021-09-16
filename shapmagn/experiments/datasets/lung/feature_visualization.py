@@ -18,6 +18,9 @@ def reader(file_path):
 
 # folder_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/records/fea_visual"
 folder_path = os.path.join(SHAPMAGN_PATH,"demos/data/lung_data/lung_deep_feature_visual")
+gif_folder_path = os.path.join(folder_path,"gif")
+os.makedirs(gif_folder_path,exist_ok=True)
+gif_path = os.path.join(gif_folder_path,"output.gif")
 
 case_name = "copd1"
 source_path = os.path.join(folder_path, "{}_source.vtk".format(case_name))
@@ -25,20 +28,24 @@ target_path = os.path.join(folder_path, "{}_target.vtk".format(case_name))
 source = reader(source_path)
 target = reader(target_path)
 camera_pos = [
-    (-4.924379645467042, 2.17374925796456, 1.5003730890759344),
-    (0.0, 0.0, 0.0),
-    (0.40133888001174545, 0.31574165540339943, 0.8597873634998591),
-]
+    [(2.576607272393312, 7.604950051542313, 1.5688047371066083),
+ (0.0, 0.0, 0.0),
+ (-0.3947804584146587, -0.05543223798587872, 0.9171017700592389)],
+[(-6.645152022006699, 4.6303031874159055, 1.1565317214828066),
+ (0.0, 0.0, 0.0),
+ (-0.08966640328220832, -0.3605772093151145, 0.9284093990503095)]
+    ]
 
 visualize_point_pair(
     source.points.squeeze(),
     target.points.squeeze(),
     source.pointfea.squeeze(),
     target.pointfea.squeeze(),
-    "source",
-    "target",
+    "Source Feature",
+    "Target Feature",
     camera_pos=camera_pos,
     source_plot_func=default_plot(rgb=True),
     target_plot_func=default_plot(rgb=True),
     col_adaptive=False,
+    saving_gif_path=gif_path
 )

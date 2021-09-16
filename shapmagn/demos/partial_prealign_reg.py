@@ -14,7 +14,7 @@ import open3d as o3
 from probreg import cpd, filterreg
 import transformations as trans
 from probreg import features
-from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
+from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, get_slerp_cam_pos
 import torch
 
 from shapmagn.global_variable import *
@@ -37,14 +37,23 @@ def rigid_deform(points, rotation, translation):
     )
     return deformed_points
 
+expri_settings = {
+    "bunny":{"data_path":"./data/toy_demo_data/bunny.pcd","FPFH_settings":{"radius_normal":0.02, "radius_feature":0.05}},
+    "dragon":{"data_path":"./data/toy_demo_data/dragon_10k.ply","FPFH_settings":{"radius_normal":0.02, "radius_feature":0.05}},
+    "armadillo":{"data_path":"./data/toy_demo_data/armadillo_10k.ply","FPFH_settings":{"radius_normal":0.02, "radius_feature":0.05}}
+                  }
+
 
 # prepare data
+expri_name = "bunny"
+assert expri_name in expri_settings
 device = torch.device(
     "cuda:0" if torch.cuda.is_available() else "cpu"
 )  # "cuda:0" if torch.cuda.is_available() else "cpu"
 totensor = lambda x: torch.tensor(np.asarray(x.points).astype(np.float32))
-source = o3.io.read_point_cloud("./data/toy_demo_data/bunny.pcd")
+source = o3.io.read_point_cloud(expri_settings[expri_name]["data_path"])
 # source = o3.io.read_point_cloud('./data/toy_demo_data/bunny_high.ply')
+
 source = source.voxel_down_sample(voxel_size=0.005)
 source_points = totensor(source).to(device)
 source_points, _ = memory_sort(source_points, 0.005)
@@ -69,32 +78,31 @@ cv = lambda x: np.asarray(x.points if isinstance(x, o3.geometry.PointCloud) else
 source_fea = None
 target_fea = None
 
-
-""" Experiment 1  run cpd registration from probreg package """
-tf_param, _, _ = cpd.registration_cpd(
-    source, target, tf_type_name="rigid", w=0.7, maxiter=200, tol=0.0001
-)
-result = copy.deepcopy(source)
-result.points = tf_param.transform(result.points)
-source.paint_uniform_color([1, 0, 0])
-target.paint_uniform_color([0, 1, 0])
-result.paint_uniform_color([0, 0, 1])
-# o3.visualization.draw_geometries([source, target, result])
-visualize_source_flowed_target_overlap(
-    np.asarray(source.points),
-    np.asarray(result.points),
-    np.asarray(target.points),
-    np.asarray(source.points),
-    np.asarray(result.points),
-    np.asarray(target.points),
-    "CPD: source",
-    "prealigned",
-    "target",
-    rgb_on=False,
-    show=True,
-    add_bg_contrast=False,
-)
-
+#
+# """ Experiment 1  run cpd registration from probreg package """
+# tf_param, _, _ = cpd.registration_cpd(
+#     source, target, tf_type_name="rigid", w=0.7, maxiter=200, tol=0.0001
+# )
+# result = copy.deepcopy(source)
+# result.points = tf_param.transform(result.points)
+# source.paint_uniform_color([1, 0, 0])
+# target.paint_uniform_color([0, 1, 0])
+# result.paint_uniform_color([0, 0, 1])
+# # o3.visualization.draw_geometries([source, target, result])
+# visualize_source_flowed_target_overlap(
+#     np.asarray(source.points),
+#     np.asarray(result.points),
+#     np.asarray(target.points),
+#     np.asarray(source.points),
+#     np.asarray(source.points),
+#     np.asarray(target.points),
+#     "CPD: source",
+#     "prealigned",
+#     "target",
+#     show=True,
+#     add_bg_contrast=False,
+# )
+#
 
 """ Experiment 2  run filterreg registration from probreg package """
 cbs = []  # [callbacks.Open3dVisualizerCallback(source, target)]
@@ -107,7 +115,7 @@ tf_param, _, _ = filterreg.registration_filterreg(
     w=0.9,
     tol=1e-9,
     sigma2=None,
-    feature_fn=features.FPFH(radius_normal=0.01, radius_feature=0.05),
+    feature_fn=features.FPFH(**expri_settings[expri_name]["FPFH_settings"]),
     callbacks=cbs,
 )
 result = copy.deepcopy(source)
@@ -126,7 +134,9 @@ visualize_source_flowed_target_overlap(
     "Filterreg: source",
     "prealigned",
     "target",
-    rgb_on=False,
+    source_plot_func=default_plot(cmap="viridis",rgb=True),
+    flowed_plot_func=default_plot(cmap="viridis",rgb=True),
+    target_plot_func=default_plot(cmap="magma",rgb=True),
     show=True,
     add_bg_contrast=False,
 )
@@ -169,7 +179,10 @@ model_opt["gradflow_prealign"]["geomloss"][
 )
 model_opt["gradflow_prealign"][
     "pair_feature_extractor_obj"
-] = "local_feature_extractor.pair_feature_FPFH_extractor(radius_normal=0.01, radius_feature=0.05)"  # it only works for the same scale
+] = "local_feature_extractor.pair_feature_FPFH_extractor(radius_normal={}, radius_feature={})"\
+    .format(
+    expri_settings[expri_name]["FPFH_settings"]["radius_normal"], # it only works for the same scale
+    expri_settings[expri_name]["FPFH_settings"]["radius_feature"])  # it only works for the same scale
 
 model_opt["sim_loss"]["loss_list"] = ["geomloss"]
 model_opt["sim_loss"][("geomloss", {}, "settings for geomloss")]
@@ -193,7 +206,62 @@ visualize_source_flowed_target_overlap(
     "OT: source",
     "prealigned",
     "target",
-    rgb_on=False,
     show=True,
     add_bg_contrast=False,
 )
+
+
+from shapmagn.utils.generate_animation import FlowModel, visualize_animation, generate_gif
+stage_name = "rigid"
+model_type = "affine_interp"
+flow_opt = ParameterDict()
+flow_opt["model_type"] = model_type
+flow_opt["t_list"] = list(np.linspace(0, 1.0, num=20))
+target_list = [target] * len(flow_opt["t_list"])
+flow_model = FlowModel(flow_opt)
+# shape_pair = create_shape_pair(source, target, pair_name="partial", n_control_points=-1)
+# shape_pair.reg_param = prealign_reg_param
+flowed_list = flow_model(shape_pair)
+camera_setting= {"dragon":
+                     {"camera_pos_start":[(1.6266550924236722, -2.099841657967842, -6.593959765170743),
+                        (0.0, 0.0, 0.0),
+                         (0.7551972577330768, -0.5473888228098531, 0.3606141685725674)],
+                        "camera_pos_end":[(-3.0655411776452, -4.8116479294033745, -4.24100797624424),
+                        (0.0, 0.0, 0.0),
+                        (0.851354951228469, -0.5241825060822709, -0.02067479954150231)]},
+                "armadillo":
+                     {"camera_pos_start":[(1.6266550924236722, -2.099841657967842, -6.593959765170743),
+                        (0.0, 0.0, 0.0),
+                         (0.7551972577330768, -0.5473888228098531, 0.3606141685725674)],
+                        "camera_pos_end":[(-3.0655411776452, -4.8116479294033745, -4.24100797624424),
+                        (0.0, 0.0, 0.0),
+                        (0.851354951228469, -0.5241825060822709, -0.02067479954150231)]},
+                "bunny":
+                     {"camera_pos_start":[(0.8431791512037158, 0.2101021826733043, 0.08686872665705404),
+                         (0.0, 0.0, 0.0),
+                         (0.26027809752959574, -0.883768292340572, -0.3888559082742651)],
+                        "camera_pos_end":[(0.6165830947396432, 0.1284806320433733, 0.6049447894897156),
+                         (0.0, 0.0, 0.0),
+                         (0.44590473117812224, -0.8522803083860243, -0.2734725701974333)]
+}
+
+                 }
+
+pos_interp_list = [get_slerp_cam_pos(camera_setting[expri_name]["camera_pos_start"], camera_setting[expri_name]["camera_pos_end"], t) for t in flow_opt["t_list"]]
+
+#pos_interp_list = [camera_pos_start]*len(flow_opt["t_list"])
+gif_output_folder = os.path.join(record_path,"gif")
+os.makedirs(gif_output_folder,exist_ok=True)
+saving_capture_path_list = [os.path.join(gif_output_folder, "t_{:.2f}.png").format(t) for t in flow_opt["t_list"]]
+title1_list = [stage_name] * len(flow_opt["t_list"])
+title2_list = ["target"] * len(flow_opt["t_list"])
+for _flowed in flowed_list:
+    _flowed.weights = source.points
+
+for _target in target_list:
+    _target.weights = target.points
+
+visualize_animation(flowed_list,target_list,title1_list,title2_list,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,light_mode="light_kit",show=False)
+saving_capture_path_list += [saving_capture_path_list[-1]]*10
+gif_path = os.path.join(record_path,"gif", "{}.gif".format(expri_name))
+generate_gif(saving_capture_path_list,gif_path)

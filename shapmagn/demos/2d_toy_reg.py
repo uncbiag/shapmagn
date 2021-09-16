@@ -34,9 +34,9 @@ assert (
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 server_path = "./"  # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
 source_path = (
-    server_path + "data/toy_demo_data/tree_2d_source3.png"
+    server_path + "data/toy_demo_data/tree_2d_source.png"
 )  # tree_2d_source3 tree_2d_source3_3
-target_path = server_path + "data/toy_demo_data/tree_2d_target3.png"  #
+target_path = server_path + "data/toy_demo_data/tree_2d_target.png"  #
 
 
 def get_points(path, npoint=1000, dtype=torch.FloatTensor):

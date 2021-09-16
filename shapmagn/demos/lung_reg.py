@@ -5,10 +5,12 @@ To better understand the behaviors of deformation models, we recommend to work o
 """
 
 import os, sys
-
 sys.path.insert(0, os.path.abspath("."))
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("../.."))
+
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot, camera_pos
+
 
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.datasets.data_utils import get_file_name, generate_pair_name, get_obj
@@ -23,8 +25,6 @@ from shapmagn.demos.demo_utils import *
 from shapmagn.experiments.datasets.lung.lung_data_analysis import *
 from shapmagn.experiments.datasets.lung.lung_shape_pair import create_shape_pair
 
-# import pykeops
-# pykeops.clean_pykeops()
 
 
 def analysis(
@@ -43,13 +43,15 @@ def analysis(
         points_list=[source.points, flowed.points, target.points],
         feas_list=[fea_to_map, fea_to_map, mapped_fea],
         titles_list=["source", method_name, "target"],
-        rgb_on=[True, True, True],
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_full.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_full.png"),
+        plot_func_list=[default_plot(cmap="magma"), default_plot(cmap="magma"), default_plot(cmap="viridis")],
+        camera_pos=camera_pos,
+        col_adaptive=False
     )
 
     # #
@@ -65,13 +67,16 @@ def analysis(
             target_weight_transform(target_half.weights, compute_on_half_lung),
         ],
         titles_list=["source", method_name, "target"],
-        rgb_on=[False, False, False],
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_main.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_main.png"),
+        plot_func_list=[lung_plot(color="source"), lung_plot(color="source"), lung_plot(color="target")],
+        opacity_list=[1, 1, 1],
+        light_mode="none",
+        camera_pos=camera_pos
     )
 
     visualize_point_pair_overlap(
@@ -79,32 +84,39 @@ def analysis(
         target_half.points,
         source_weight_transform(source_half.weights, compute_on_half_lung),
         target_weight_transform(target_half.weights, compute_on_half_lung),
-        title1="source",
-        title2="target",
-        rgb_on=False,
+        "source",
+        "target",
+        lung_plot(color="source"),
+        lung_plot(color="target"),
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "s_t_overlap.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "s_t_overlap.png"),
+        opacity=[1, 1, 1],
+        light_mode="none",
+        camera_pos=camera_pos
     )
     visualize_point_pair_overlap(
         flowed_half.points,
         target_half.points,
         flowed_weight_transform(flowed_half.weights, compute_on_half_lung),
         target_weight_transform(target_half.weights, compute_on_half_lung),
-        title1="flowed",
-        title2="target",
-        rgb_on=False,
+        "flowed",
+        "target",
+        lung_plot(color="source"),
+        lung_plot(color="target"),
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "ft_overlap.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "f_t_overlap.png"),
+        opacity=[1, 1, 1],
+        light_mode="none",
+        camera_pos=camera_pos
     )
-
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -113,8 +125,8 @@ assert (
     shape_type == "pointcloud"
 ), "set shape_type = 'pointcloud'  in global_variable.py"
 server_path = "./"  # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path = server_path + "data/lung_data/lung_vessel_demo_data/case2_exp.vtk"  # 10031R 10005Q
-target_path = server_path + "data/lung_data/lung_vessel_demo_data/case2_insp.vtk"
+source_path = server_path + "data/lung_data/lung_vessel_demo_data/copd2_EXP.vtk"  # 10031R 10005Q
+target_path = server_path + "data/lung_data/lung_vessel_demo_data/copd2_INSP.vtk"
 compute_on_half_lung = True
 
 ####################  prepare data ###########################

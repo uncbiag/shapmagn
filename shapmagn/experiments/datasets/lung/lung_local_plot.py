@@ -14,7 +14,7 @@ from shapmagn.experiments.datasets.lung.lung_feature_extractor import (
 )
 from shapmagn.utils.visualizer import (
     visualize_point_fea_with_arrow,
-    visualize_point_overlap, default_plot,
+    visualize_point_overlap, default_plot,visualize_point_fea
 )
 
 # import pykeops
@@ -34,14 +34,14 @@ pair_id = 0
 
 path_1, path_2 = pair_path_list[pair_id]
 saving_path = "/playpen-raid1/zyshen/debug/debugg_point_visual2.vtk"
-reader_obj = "lung_dataloader_utils.lung_reader()"
+reader_obj = "lung_dataloader_utils.lung_reader(use_radius=False)"
 scale = (
     -1
 )  # an estimation of the physical diameter of the lung, set -1 for auto rescaling   #[99.90687, 65.66011, 78.61013]
 normalizer_obj = "lung_dataloader_utils.lung_normalizer(scale={})".format(
     [100, 100, 100]
 )
-sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=60000,sampled_by_weight=True)"
+sampler_obj = "lung_dataloader_utils.lung_sampler( method='combined',scale=0.0003,num_sample=100000,sampled_by_weight=True)"
 get_obj_func = get_obj(
     reader_obj, normalizer_obj, sampler_obj, device=torch.device("cpu")
 )
@@ -93,15 +93,25 @@ fg_spheres_color = fg_spheres_color
 #  (0.023061048658378214, -0.0019414722919464111, -0.031303226947784424),
 #  (-0.10449633369794017, -0.209208619403546, 0.9722717057545956)]
 
-visualize_point_overlap(
+# visualize_point_overlap(
+#     points,
+#     spheres,
+#     weights_1,
+#     fg_spheres_color,
+#     "aniso_filter_with_kernel_radius",
+#     source_plot_func=lung_plot(color="source"),
+#     #source_plot_func=default_plot("viridis"),
+#     target_plot_func=default_plot(rgb=True),
+#     opacity=(0.8,0.03),
+#     camera_pos =camera_pos
+# )
+
+visualize_point_fea(
     points,
-    spheres,
     weights_1,
-    fg_spheres_color,
-    "aniso_filter_with_kernel_radius",
-    source_plot_func=lung_plot(color="source"),
-    #source_plot_func=default_plot("viridis"),
-    target_plot_func=default_plot(rgb=True),
-    opacity=(0.8,0.03),
-    camera_pos =camera_pos
+    cmap= "Reds",
+    camera_pos=camera_pos,
+    show=True,
+    col_adaptive=False,
+    opacity=1.0
 )

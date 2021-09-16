@@ -40,7 +40,7 @@ KNOWN_MODULES = {
     "probreg": "probreg",
     "features": "probreg.features",
     "utils": "shapmagn.utils.utils",
-    "keops_utils": "shapmagn.modules_reg.keops_utils"
+    "knn_utils": "shapmagn.utils.knn_utils"
     #'probreg.filterreg':'probreg.filterreg'
 }
 

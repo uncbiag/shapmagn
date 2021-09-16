@@ -424,7 +424,6 @@ class LDDMMOPT(nn.Module):
             ["source", "flowed", "target"],
             # gradflowed_disp,
             camera_pos=camera_toy_pos,
-            rgb_on=[True, True, True],
             show=True,
             saving_capture_path=os.path.join(self.record_path, alias),
         )

@@ -21,11 +21,11 @@ from shapmagn.utils.utils import get_grid_wrap_points
 from shapmagn.utils.visualizer import (
     visualize_point_fea,
     visualize_point_pair,
-    visualize_multi_point,
+    visualize_multi_point, visualize_source_flowed_target_overlap,
 )
 from shapmagn.demos.demo_utils import *
 from shapmagn.utils.utils import timming
-
+from shapmagn.experiments.datasets.toy.visualizer import toy_plot
 # set shape_type = "pointcloud"  in global_variable.py
 assert (
     shape_type == "pointcloud"
@@ -60,7 +60,6 @@ shape_pair.pair_name = "toy"
 
 
 """ Experiment 1:  Robust optimal transport """
-
 task_name = "gradient_flow"
 solver_opt = ParameterDict()
 record_path = server_path + "output/toy_reg/{}".format(task_name)
@@ -76,7 +75,7 @@ model_opt["sim_loss"]["loss_list"] = ["geomloss"]
 model_opt["sim_loss"][("geomloss", {}, "settings for geomloss")]
 model_opt["sim_loss"]["geomloss"]["attr"] = "points"
 blur = 0.005
-reach = 100  # 0.1  # change the value to explore behavior of the OT
+reach = 1  # 0.1  # change the value to explore behavior of the OT
 model_opt["sim_loss"]["geomloss"][
     "geom_obj"
 ] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.9,debias=False,reach={})".format(
@@ -87,7 +86,7 @@ solver = build_single_scale_model_embedded_solver(solver_opt, model)
 model.init_reg_param(shape_pair)
 shape_pair = timming(solver)(shape_pair)
 print("the registration complete")
-fea_to_map = shape_pair.source.points[0]
+fea_to_map = shape_pair.source.weights[0]
 mapped_fea = get_omt_mapping(
     model_opt["sim_loss"]["geomloss"],
     source,
@@ -97,13 +96,46 @@ mapped_fea = get_omt_mapping(
     mode="hard",
     confid=0.1,
 )
+
+
 visualize_multi_point(
     [shape_pair.source.points, shape_pair.flowed.points, shape_pair.target.points],
     [fea_to_map, fea_to_map, mapped_fea],
     ["source", "gradient_flow", "target"],
-    rgb_on=[True, True, True],
     saving_gif_path=None,
 )
+
+
+##########################  generate animation ##############################
+# camera_pos = [
+#     [(-7.173530184956302, 3.6070661015804486, 13.76240469670179),
+#      (0.0, 0.0, 0.0),
+#      (0.1631938959381345, 0.9718956320180774, -0.16966623940170006)]
+#     ,
+# [(13.255397121921689, 5.475388454611053, 6.941816233713159),
+#  (0.0, 0.0, 0.0),
+#  (-0.12154657907057081, 0.87894355550386, -0.4611774662258278)]
+#     ]
+#
+# mapped_fea[-1000,0]=0 # dirty solution for a good visualization
+# visualize_source_flowed_target_overlap(
+#     shape_pair.source.points, shape_pair.flowed.points, shape_pair.target.points,
+#     shape_pair.source.weights, shape_pair.flowed.weights, shape_pair.target.weights*mapped_fea[None],
+#     "source",
+#     "flowed",
+#     "target",
+#     source_plot_func=toy_plot(color="source"),
+#     flowed_plot_func=toy_plot(color="source"),
+#     target_plot_func=toy_plot(color="target"),
+#     opacity=(1, 1, 1),
+#     light_mode="none",
+#     show=True,
+#     add_bg_contrast=False,
+#     camera_pos = camera_pos,
+#     saving_gif_path= os.path.join(record_path,"expri_{}.gif".format(reach))
+# )
+
+
 
 
 """ Experiment 2: Robust optimal transport projection (spline) """
@@ -128,7 +160,6 @@ visualize_multi_point(
     [shape_pair.source.points, shape_pair.source.points, shape_pair.target.points],
     ["source", "gradient_flow", "target"],
     camera_pos=camera_pos,
-    rgb_on=[True, True, True],
     saving_gif_path=None,
 )
 
@@ -185,7 +216,6 @@ visualize_multi_point(
     [shape_pair.source.points, shape_pair.source.points, shape_pair.target.points],
     ["source", "gradient_flow", "target"],
     camera_pos=camera_pos,
-    rgb_on=[True, True, True],
     saving_gif_path=None,
 )
 
@@ -276,7 +306,6 @@ visualize_multi_point(
     ],
     [fea_to_map, fea_to_map, mapped_fea],
     ["source", "gradient_flow", "target"],
-    [True, True, True],
     saving_gif_path=None,
 )
 
@@ -375,7 +404,6 @@ visualize_multi_point(
     [shape_pair.source.points, shape_pair.source.points, shape_pair.target.points],
     ["source", "discrete_flow", "target"],
     camera_pos=camera_pos,
-    rgb_on=[True, True, True],
     saving_gif_path=None,
 )
 

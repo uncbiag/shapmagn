@@ -3,6 +3,7 @@ data reader for the toys
 given a file path, the reader will return a dict
 {"points":Nx3, "weights":Nx1, "faces":Nx3}
 """
+import numpy as np
 from shapmagn.datasets.vtk_utils import read_vtk
 
 
@@ -35,15 +36,22 @@ def toy_sampler():
     return do_nothing
 
 
-def toy_normalizer():
+def toy_normalizer(add_random_noise_on_weight=False):
     """
     :return:
     """
 
     def do_nothing(data_dict):
         return data_dict
-
-    return do_nothing
+    def randomized_weight(data_dict):
+        weights = data_dict["weights"]
+        min_weight = np.min(weights)
+        npoints = len(weights)
+        rand_noise =np.random.rand(npoints) * abs(min_weight)/10
+        weights = weights + rand_noise
+        data_dict["weights"] = weights/np.sum(weights)
+        return data_dict
+    return do_nothing if not add_random_noise_on_weight else randomized_weight
 
 
 if __name__ == "__main__":

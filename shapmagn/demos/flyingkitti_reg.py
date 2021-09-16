@@ -1,5 +1,9 @@
 import os, sys
 
+from shapmagn.experiments.datasets.flying3d_and_kitti.visualizer import kitti_plot
+from shapmagn.utils.generate_animation import generate_gif
+from shapmagn.utils.linked_slerp import get_slerp_cam_pos
+
 sys.path.insert(0, os.path.abspath("."))
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("../.."))
@@ -10,7 +14,8 @@ from shapmagn.models_reg.multiscale_optimization import (
     build_single_scale_model_embedded_solver,
 )
 from shapmagn.global_variable import MODEL_POOL, Shape, shape_type
-from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
+from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, visualize_point_fea, \
+    visualize_point_pair_overlap, visualize_point_overlap, default_plot
 from shapmagn.demos.demo_utils import *
 from shapmagn.experiments.datasets.toy.toy_utils import *
 
@@ -115,3 +120,82 @@ visualize_source_flowed_target_overlap(
     saving_gif_path=None,
     col_adaptive=True
 )
+
+def linear_interp_shape(flowed_points, toflow_points, weights,t_list):
+    interp_shape_list = []
+    for t in t_list:
+        interp_points = (flowed_points - toflow_points) * t + toflow_points
+        interp_shape = Shape()
+        interp_shape.set_data(points=interp_points, weights=weights)
+        interp_shape_list.append(interp_shape)
+    return interp_shape_list
+
+def visualize_animation(
+    shape1_list,
+    shape2_list,
+    title_list,
+    saving_capture_path_list=None,
+    camera_pos_list=None,
+    shape1_plot_func = kitti_plot(color="source",rgb=False),
+    shape2_plot_func = kitti_plot(color="target",rgb=False),
+    light_mode="none",
+    show=False,
+):
+    from shapmagn.utils.visualizer import format_input
+
+    for shape1, shape2, saving_capture_path, title, camera_pos in zip(
+        shape1_list,
+        shape2_list,
+        saving_capture_path_list,
+        title_list,
+        camera_pos_list,
+    ):
+        points1, points2 = shape1.points, shape2.points
+        feas1, feas2 = shape1.weights, shape2.weights
+        points1 = format_input(points1)
+        points2 = format_input(points2)
+        feas1 = format_input(feas1)
+        feas2 = format_input(feas2)
+
+        visualize_point_overlap(
+            points1,
+            points2,
+            feas1,
+            feas2,
+            title,
+            source_plot_func=shape1_plot_func,
+            target_plot_func=shape2_plot_func,
+            saving_capture_path=saving_capture_path,
+            light_mode=light_mode,
+            camera_pos=camera_pos,
+            show=show
+        )
+
+
+
+
+print("Now Generating gif....")
+output_gif_path = os.path.join(record_path,"gif")
+os.makedirs(output_gif_path,exist_ok=True)
+t_list = list(np.linspace(0, 1.0, num=40))
+camera_pos_start =[(-28.292797572097605, 29.04880002585719, 75.4639264991298),
+ (0.0, 0.0, 0.0),
+ (0.17502876601426093, 0.9390600122012284, -0.2958567635734463)]
+camera_pos_end =[(27.40660591245471, 29.441147895914067, 75.63872118825323),
+ (0.0, 0.0, 0.0),
+ (-0.06122065070146193, 0.9374467035923124, -0.3427035305502367)]
+# pos_interp_list = [camera_pos_start]*len(t_list)
+pos_interp_list = [get_slerp_cam_pos(camera_pos_start, camera_pos_end, t) for t in t_list]
+interp_shape_list= linear_interp_shape(shape_pair.flowed.points, shape_pair.source.points,  shape_pair.source.points,t_list)
+title_list = ["flowed_t_{:.2f}".format(t) for t in t_list]
+interp_shape_list += [interp_shape_list[-1]]*5
+pos_interp_list += [pos_interp_list[-1]]*5
+title_list +=[title_list[-1]]*5
+shape_pair.target.weights = shape_pair.target.points
+target_shape_list = [shape_pair.target]*len(interp_shape_list)
+saving_capture_path_list = [os.path.join(output_gif_path,"capture_{}.png".format(i)) for i in range(len(interp_shape_list))]
+saving_gif_path=os.path.join(output_gif_path,"ot_animation.gif")
+visualize_animation(interp_shape_list,target_shape_list,title_list,saving_capture_path_list, camera_pos_list=pos_interp_list,light_mode="light_kit",show=False)
+generate_gif(saving_capture_path_list,saving_gif_path)
+
+

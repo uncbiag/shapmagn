@@ -18,6 +18,7 @@ class HybirdData(object):
         synth_ratio=1.0,
         ratio_decay_rate=8,
         min_synth_ratio=0.3,
+        sampled_by_weight=True,
     ):
         super(HybirdData, self).__init__()
         self.synthsizer = obj_factory(synthsizer_obj) if synthsizer_obj else None
@@ -29,6 +30,7 @@ class HybirdData(object):
         self.raw_source_target_has_corr = raw_source_target_has_corr
         self.corr_sampled_source_target = corr_sampled_source_target
         self.test_time_randomize = test_time_randomize
+        self.sampled_by_weight = sampled_by_weight
         self.npoints = npoints
 
     def sampling(self, input_data, use_synth):
@@ -156,14 +158,14 @@ class HybirdData(object):
             self.sampler = batch_uniform_sampler(
                 self.npoints,
                 fixed_random_seed=not self.test_time_randomize,
-                sampled_by_weight=True,
+                sampled_by_weight=self.sampled_by_weight,
             )
             return not self.raw_source_target_has_corr, True, True
         elif phase == "val":
             self.sampler = batch_uniform_sampler(
                 self.npoints,
                 fixed_random_seed=not self.test_time_randomize,
-                sampled_by_weight=True,
+                sampled_by_weight=self.sampled_by_weight,
             )
             return (
                 False,
@@ -174,7 +176,7 @@ class HybirdData(object):
             self.sampler = batch_uniform_sampler(
                 self.npoints,
                 fixed_random_seed=not self.test_time_randomize,
-                sampled_by_weight=True,
+                sampled_by_weight=self.sampled_by_weight,
             )
             return (
                 False,
@@ -183,7 +185,7 @@ class HybirdData(object):
             )
         elif phase == "train":
             self.sampler = batch_uniform_sampler(
-                self.npoints, fixed_random_seed=False, sampled_by_weight=True
+                self.npoints, fixed_random_seed=False, sampled_by_weight=self.sampled_by_weight
             )
             synth_ratio = (
                 self.synth_ratio

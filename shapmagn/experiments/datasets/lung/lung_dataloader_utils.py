@@ -32,7 +32,7 @@ attri dnn_radius with size (73412,)
 """
 
 
-def lung_reader():
+def lung_reader(use_radius=True):
     """
     :return:
     """
@@ -49,10 +49,14 @@ def lung_reader():
         raw_data_dict = reader(path)
         data_dict = {}
         data_dict["points"] = raw_data_dict["points"]
-        try:  # todo fixed this, this is a temporaily fix for the one-synth-pair diagnosis
-            data_dict["weights"] = raw_data_dict["dnn_radius"][:, None]
-        except:
-            data_dict["weights"] = raw_data_dict["weights"][:, None]
+        if not use_radius:
+            num_sample = data_dict["points"].shape[0]
+            data_dict["weights"] =np.ones([num_sample, 1], dtype=np.float32)
+        else:
+            try:  # todo fixed this, this is a temporaily fix for the one-synth-pair diagnosis
+                data_dict["weights"] = raw_data_dict["dnn_radius"][:, None]
+            except:
+                data_dict["weights"] = raw_data_dict["weights"][:, None]
         fea_list = [
             norm_fea(exp_dim_fn(raw_data_dict[fea_name])) for fea_name in fea_to_merge
         ]
@@ -60,6 +64,10 @@ def lung_reader():
         return data_dict
 
     return read
+
+
+
+
 
 
 def lung_sampler(method="uniform", sampled_by_weight=True, **args):
@@ -168,9 +176,10 @@ def lung_normalizer(**args):
 
 def lung_pair_postprocess(**kwargs):
     def postprocess(source_dict, target_dict, sampler=None, phase=None):
-        source_dict["weights"] = matching_np_radius(
-            source_dict["weights"], target_dict["weights"]
-        )
+        if kwargs.get("use_radius",True):
+            source_dict["weights"] = matching_np_radius(
+                source_dict["weights"], target_dict["weights"]
+            )
         if sampler is not None:
             source_dict, ind = sampler(
                 source_dict, ind=None, fixed_random_seed=phase != "train"

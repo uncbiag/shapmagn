@@ -2,7 +2,7 @@ import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.modules_reg.keops_utils import KNN
+from shapmagn.utils.knn_utils import KNN
 
 
 def compute_nadwat_kernel(scale=0.1, exp_order=2, iso=True, self_center=False):

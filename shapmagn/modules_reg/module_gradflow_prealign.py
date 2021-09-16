@@ -277,7 +277,7 @@ class GradFlowPreAlign(nn.Module):
     def visualize(
         self, source, transformed, target, weight_map_ratio, geomloss_setting, iter
     ):
-        from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
+        from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, default_plot
         from shapmagn.demos.demo_utils import get_omt_mapping
 
         # mapped_fea = get_omt_mapping(geomloss_setting,source, target,
@@ -285,7 +285,7 @@ class GradFlowPreAlign(nn.Module):
         weight_map_ratio = torch.log10(weight_map_ratio + 1e-8)
         weight_map_ratio = (weight_map_ratio - weight_map_ratio.min()) / (
             weight_map_ratio.max() - weight_map_ratio.min()
-        ).repeat(1, 1, 3)
+        ).repeat(1, 1, 1)
         visualize_source_flowed_target_overlap(
             source.points,
             transformed.points,
@@ -296,7 +296,10 @@ class GradFlowPreAlign(nn.Module):
             "source",
             "attention",
             "target",
-            rgb_on=False,
+            source_plot_func=default_plot(cmap="viridis",rgb=True),
+            flowed_plot_func=default_plot(cmap="magma",rgb=False),
+            target_plot_func=default_plot(cmap="magma",rgb=True),
+            opacity= (0.1,"linear",0.02),
             show=True,
             add_bg_contrast=False,
         )

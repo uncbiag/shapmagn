@@ -8,11 +8,9 @@ import torch
 import torch.nn as nn
 from pykeops.torch import LazyTensor
 import torch.nn.functional as F
-from time import time
-import numpy as np
 import pointnet2.lib.pointnet2_utils as pointnet2_utils
 from shapmagn.shape.point_interpolator import nadwat_kernel_interpolator
-from shapmagn.modules_reg.keops_utils import KNN, AnisoKNN
+from shapmagn.utils.knn_utils import KNN, AnisoKNN
 
 LEAKY_RATE = 0.1
 use_bn = False

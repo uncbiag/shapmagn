@@ -4,6 +4,8 @@ this script provides lung examples on Robust optimal transport, the goal of this
 
 import os, sys
 
+from shapmagn.experiments.datasets.lung.visualizer import lung_plot, camera_pos
+
 sys.path.insert(0, os.path.abspath("../.."))
 from shapmagn.utils.module_parameters import ParameterDict
 from shapmagn.utils.visualizer import *
@@ -20,8 +22,8 @@ assert (
     shape_type == "pointcloud"
 ), "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-source_path = "data/lung_data/lung_vessel_demo_data/case2_exp.vtk"
-target_path = "data/lung_data/lung_vessel_demo_data/case2_insp.vtk"
+source_path = "data/lung_data/lung_vessel_demo_data/copd2_EXP.vtk"
+target_path = "data/lung_data/lung_vessel_demo_data/copd2_INSP.vtk"
 reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = (
     -1
@@ -53,20 +55,15 @@ toflow_weights = source.weights
 toflow_points.requires_grad_()
 blur = 0.005
 geomloss_setting = ParameterDict()
-geomloss_setting[
-    "geom_obj"
-] = "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False, backend='online')".format(
+geomloss_setting["geom_obj"] = \
+    "geomloss.SamplesLoss(loss='sinkhorn',blur={}, scaling=0.8,reach=0.1,debias=False, backend='online')".format(
     blur
 )
 geomloss_fn = obj_factory(geomloss_setting["geom_obj"])
 sim_loss = geomloss_fn(
     toflow_weights[..., 0], toflow_points, target.weights[..., 0], target.points
 )
-print(
-    " geom loss is {}".format(
-        sim_loss.item(),
-    )
-)
+print(" geom loss is {}".format(sim_loss.item()))
 grad_toflow = grad(sim_loss, toflow_points)[0]
 flowed_points = toflow_points - grad_toflow / (toflow_weights)
 flowed_points.detach_()
@@ -88,13 +85,15 @@ def analysis(
         points_list=[source.points, flowed.points, target.points],
         feas_list=[fea_to_map, fea_to_map, mapped_fea],
         titles_list=["source", "gradient_flow", "target"],
-        rgb_on=[True, True, True],
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_full.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_full.png"),
+        plot_func_list=[default_plot(cmap="magma"),default_plot(cmap="magma"),default_plot(cmap="viridis")],
+        camera_pos=camera_pos,
+        col_adaptive = False
     )
 
     # #
@@ -110,13 +109,14 @@ def analysis(
             target_weight_transform(target_half.weights, compute_on_half_lung),
         ],
         titles_list=["source", "gradient_flow", "target"],
-        rgb_on=[False, False, False],
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_main.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "s_f_t_main.png"),
+        plot_func_list=[default_plot(cmap="magma"),default_plot(cmap="magma"),default_plot(cmap="viridis")],
+        camera_pos=camera_pos
     )
 
     visualize_point_pair_overlap(
@@ -124,30 +124,38 @@ def analysis(
         target_half.points,
         source_weight_transform(source_half.weights, compute_on_half_lung),
         target_weight_transform(target_half.weights, compute_on_half_lung),
-        title1="source",
-        title2="target",
-        rgb_on=False,
+        "source",
+        "target",
+        lung_plot(color="source"),
+        lung_plot(color="target"),
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "s_t_overlap.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "s_t_overlap.png"),
+        opacity=[1, 1, 1],
+        light_mode="none",
+        camera_pos=camera_pos
     )
     visualize_point_pair_overlap(
         flowed_half.points,
         target_half.points,
         flowed_weight_transform(flowed_half.weights, compute_on_half_lung),
         target_weight_transform(target_half.weights, compute_on_half_lung),
-        title1="flowed",
-        title2="target",
-        rgb_on=False,
+        "flowed",
+        "target",
+        lung_plot(color="source"),
+        lung_plot(color="target"),
         saving_gif_path=None
         if not saving_path
         else os.path.join(saving_path, "ft_overlap.gif"),
         saving_capture_path=None
         if not saving_path
         else os.path.join(saving_path, "f_t_overlap.png"),
+        opacity=[1, 1, 1],
+        light_mode="none",
+        camera_pos=camera_pos
     )
 
 

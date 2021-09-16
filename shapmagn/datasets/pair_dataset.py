@@ -184,9 +184,13 @@ class RegistrationPairDataset(Dataset):
         :param data_dict:
         :return:
         """
+        def zip_fn(item):
+            if isinstance(item, dict):
+                return {key: zip_fn(_item) for key, _item in item.items()}
+            else:
+                return blosc.pack_array(item)
         for fn in tqdm(data_path_dic):
             case_dict = self._preprocess_data(data_path_dic[fn])
-            zip_fn = lambda x: blosc.pack_array(x)
             data_dict[fn] = {key: zip_fn(case_dict[key]) for key in case_dict}
 
     def _inverse_name(self, name):
@@ -224,6 +228,12 @@ class RegistrationPairDataset(Dataset):
         :return: pair_data_dict, pair_name
 
         """
+
+        def unzip_shape_fn(item):
+            if isinstance(item, dict):
+                return {key: unzip_shape_fn(_item) for key, _item in item.items()}
+            else:
+                return blosc.unpack_array(item)
         # print(idx)
         self.setup_random_seed()
         idx = idx % len(self.pair_name_list)
@@ -235,10 +245,6 @@ class RegistrationPairDataset(Dataset):
             target_dict = self._preprocess_data(target_info)
         else:
             zip_source_dict, zip_target_dict = self.pair_list[idx]
-            unzip_fn = lambda x: blosc.unpack_array(x)
-            unzip_shape_fn = lambda shape_dict: {
-                key: unzip_fn(fea) for key, fea in shape_dict.items()
-            }
             source_dict = unzip_shape_fn(zip_source_dict)
             target_dict = unzip_shape_fn(zip_target_dict)
 

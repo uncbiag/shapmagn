@@ -21,7 +21,7 @@ from shapmagn.global_variable import shape_type
 from shapmagn.utils.visualizer import (
     visualize_point_fea,
     visualize_point_fea_with_arrow,
-    visualize_point_overlap,
+    visualize_point_overlap, default_plot,
 )
 from shapmagn.experiments.datasets.toy.toy_utils import *
 from shapmagn.utils.utils import memory_sort
@@ -109,6 +109,6 @@ visualize_point_overlap(
     mass,
     fg_spheres_color,
     "aniso_filter_with_kernel_radius",
-    point_size=[20, 10],
-    rgb_on=[False, True],
+    source_plot_func=default_plot(cmap="magma",point_size=20),
+    target_plot_func=default_plot(cmap="viridis",point_size=10),
 )

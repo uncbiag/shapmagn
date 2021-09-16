@@ -9,7 +9,7 @@ except:
     print("pointnet2 load failed, please compile it first: python pointnet2/lib/setup.py install")
     raise ImportError
 
-from shapmagn.modules_reg.keops_utils import AnisoKNN
+from shapmagn.utils.knn_utils import AnisoKNN
 class FurthestPointSampling(Function):
 
     @staticmethod

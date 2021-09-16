@@ -3,22 +3,12 @@ visulization  for the  optimization-model and deep-model
 
 support displacement, spline and LDDMM, prealign
 """
-import os, sys
-import subprocess
+
 
 from shapmagn.experiments.datasets.lung.visualizer import lung_plot
-from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, visualize_point_pair_overlap
-
-os.environ["DISPLAY"] = ":99.0"
-os.environ["PYVISTA_OFF_SCREEN"] = "true"
-os.environ["PYVISTA_USE_IPYVTK"] = "true"
-bashCommand = "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
-process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
-process.wait()
-sys.path.insert(0, os.path.abspath("../.."))
+from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, visualize_point_pair_overlap, default_plot
 from PIL import Image
 from shapmagn.datasets.data_utils import get_obj
-from shapmagn.experiments.datasets.lung.lung_dataloader_utils import lung_reader
 from shapmagn.global_variable import Shape
 from shapmagn.utils.obj_factory import obj_factory
 import numpy as np
@@ -32,10 +22,10 @@ import pyvista as pv
 from pygifsicle import optimize
 import pykeops
 
-cache_path = "/home/zyshen/keops_cache"
-os.makedirs(cache_path, exist_ok=True)
-pykeops.set_bin_folder(cache_path)  # change the build folder
-print("change keops cache path into  {}".format(pykeops.config.bin_folder))
+# cache_path = "/home/zyshen/keops_cache"
+# os.makedirs(cache_path, exist_ok=True)
+# pykeops.set_bin_folder(cache_path)  # change the build folder
+# print("change keops cache path into  {}".format(pykeops.config.bin_folder))
 
 
 class FlowModel(nn.Module):
@@ -140,15 +130,7 @@ class ShapePair:
         pass
 
 
-def init_shpae(points_path):
-    if points_path:
-        shape = Shape()
-        get_shape = get_obj(lung_reader())
-        shape_dict, _ = get_shape(points_path)
-        shape.set_data(**shape_dict)
-        return shape
-    else:
-        return None
+
 
 
 def init_reg_param(points_path, is_affine=False):
@@ -164,14 +146,14 @@ def affine_interpolation(input_affine, t_list):
     :param t_list:
     :return:
     """
-
-    affine_matrix = input_affine.numpy().squeeze()
+    device = input_affine.device
+    affine_matrix = input_affine.detach().cpu().numpy().squeeze()
     affine_matrix = np.transpose(affine_matrix)  # 3x4
     affine_matrix = np.concatenate([affine_matrix, np.array([[0, 0, 0, 1]])], 0)
     logB = logm(affine_matrix)
     affine_list = [expm(t * logB)[:3, :] for t in t_list]
     affine_list = [np.transpose(affine) for affine in affine_list]
-    affine_list = [torch.Tensor(affine[None]) for affine in affine_list]
+    affine_list = [torch.Tensor(affine[None]).to(device) for affine in affine_list]
     return affine_list
 
 
@@ -183,12 +165,13 @@ def visualize_animation(
     shape2_list,
     title1_list,
     title2_list,
-    rgb_on=True,
     saving_capture_path_list=None,
     camera_pos_list=None,
+    shape1_plot_func = default_plot(cmap="magma"),
+    shape2_plot_func = default_plot(cmap="viridis"),
+    light_mode="none",
     show=False,
 ):
-    from shapmagn.utils.visualizer import color_adaptive
     from shapmagn.utils.visualizer import format_input
 
     for shape1, shape2, saving_capture_path, title1, title2, camera_pos in zip(
@@ -213,115 +196,14 @@ def visualize_animation(
             feas2,
             title1,
             title2,
-            lung_plot(color="source"),
-            lung_plot(color="target"),
+            shape1_plot_func,
+            shape2_plot_func,
             saving_capture_path=saving_capture_path,
-            light_mode="none",
+            light_mode=light_mode,
             camera_pos=camera_pos,
-            show=False
+            show=show
         )
 
-
-
-def visualize_animation_prev(
-    shape1_list,
-    shape2_list,
-    title1_list,
-    title2_list,
-    rgb_on=True,
-    saving_capture_path_list=None,
-    camera_pos_list=None,
-    show=False,
-):
-    from shapmagn.utils.visualizer import color_adaptive
-    from shapmagn.utils.visualizer import format_input
-
-    for shape1, shape2, saving_capture_path, title1, title2, camera_pos in zip(
-        shape1_list,
-        shape2_list,
-        saving_capture_path_list,
-        title1_list,
-        title2_list,
-        camera_pos_list,
-    ):
-        points1, points2 = shape1.points, shape2.points
-        feas1, feas2 = shape1.weights, shape2.weights
-        points1 = format_input(points1)
-        points2 = format_input(points2)
-        feas1 = format_input(feas1)
-        feas2 = format_input(feas2)
-
-        if isinstance(rgb_on, bool):
-            rgb_on = [rgb_on] * 2
-
-        p = pv.Plotter(
-            window_size=[2500, 1024], shape=(1, 3), border=False, off_screen=not show
-        )
-        p.subplot(0, 0)
-        p.add_text(title1_list[0], font_size=18)
-        p.add_mesh(
-            pv.PolyData(points1),
-            scalars=color_adaptive(feas1),
-            cmap="viridis",
-            point_size=10,
-            render_points_as_spheres=True,
-            rgb=rgb_on[0],
-            opacity="linear",
-            lighting=True,
-            style="points",
-            show_scalar_bar=True,
-        )
-        p.subplot(0, 1)
-        p.add_text(title2, font_size=18)
-        p.add_mesh(
-            pv.PolyData(points2),
-            scalars=color_adaptive(feas2),
-            cmap="magma",
-            point_size=10,
-            render_points_as_spheres=True,
-            rgb=rgb_on[1],
-            opacity="linear",
-            lighting=True,
-            style="points",
-            show_scalar_bar=True,
-        )
-        p.subplot(0, 2)
-        p.add_text("overlap", font_size=18)
-        p.add_mesh(
-            pv.PolyData(points1),
-            scalars=color_adaptive(feas1),
-            cmap="viridis",
-            point_size=10,
-            render_points_as_spheres=True,
-            rgb=rgb_on[0],
-            opacity="linear",
-            lighting=True,
-            style="points",
-            show_scalar_bar=True,
-        )
-        p.add_mesh(
-            pv.PolyData(points2),
-            scalars=color_adaptive(feas2),
-            cmap="magma",
-            point_size=10,
-            render_points_as_spheres=True,
-            rgb=rgb_on[1],
-            opacity="linear",
-            lighting=True,
-            style="points",
-            show_scalar_bar=True,
-        )
-
-        p.link_views()  # link all the views
-        if camera_pos is not None:
-            p.camera_position = camera_pos
-
-        if show:
-            cur_pos = p.show(auto_close=False)
-            print(cur_pos)
-        if saving_capture_path:
-            p.screenshot(saving_capture_path)
-        p.close()
 
 
 def generate_gif(img_capture_path_list, saving_path):
@@ -330,7 +212,7 @@ def generate_gif(img_capture_path_list, saving_path):
     images = []
     for img_capture_path in img_capture_path_list:
         image = imageio.imread(img_capture_path)
-        image = Image.fromarray(image).resize((1250, 512))
+        image = Image.fromarray(image)#.resize((1250, 512))
         images.append(image)
     imageio.mimsave(saving_path, images)
     optimize(saving_path)  # For overwriting the original one
@@ -344,22 +226,46 @@ def camera_pos_interp(pos1, pos2, t_list):
     pos_interp_list = [[tuple(sub_pos) for sub_pos in pos] for pos in pos_interp_list]
     return pos_interp_list
 
-COPD_ID={
-    "copd6":"12042G",
-    "copd7":"12105E",
-    "copd8":"12109M",
-    "copd9":"12239Z",
-    "copd10":"12829U",
-    "copd1":"13216S",
-    "copd2":"13528L",
-    "copd3":"13671Q",
-    "copd4":"13998W",
-    "copd5":"17441T"
-}
+
 
 
 
 if __name__ == "__main__":
+    import os, sys
+    import subprocess
+
+    os.environ["DISPLAY"] = ":99.0"
+    os.environ["PYVISTA_OFF_SCREEN"] = "true"
+    os.environ["PYVISTA_USE_IPYVTK"] = "true"
+    bashCommand = "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
+    process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
+    process.wait()
+    sys.path.insert(0, os.path.abspath("../.."))
+    from shapmagn.experiments.datasets.lung.lung_dataloader_utils import lung_reader
+
+
+    def init_shpae(points_path):
+        if points_path:
+            shape = Shape()
+            get_shape = get_obj(lung_reader())
+            shape_dict, _ = get_shape(points_path)
+            shape.set_data(**shape_dict)
+            return shape
+        else:
+            return None
+
+    COPD_ID = {
+        "copd6": "12042G",
+        "copd7": "12105E",
+        "copd8": "12109M",
+        "copd9": "12239Z",
+        "copd10": "12829U",
+        "copd1": "13216S",
+        "copd2": "13528L",
+        "copd3": "13671Q",
+        "copd4": "13998W",
+        "copd5": "17441T"
+    }
     folder_path = "/playpen-raid1/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun2/records/3d/test_epoch_-1"
     # folder_path ="/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun2/records/3d/test_epoch_-1"
     case_id_list = ["copd{}".format(i) for i in range(1,11)]
@@ -412,8 +318,9 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * n_t
         title2_list = ["target"] * n_t
-        visualize_animation([source]*n_t, [target]*n_t, title1_list, title2_list, rgb_on=False,
-                            saving_capture_path_list=saving_capture_path_list, camera_pos_list=pos_interp_list, show=False)
+        visualize_animation([source]*n_t, [target]*n_t, title1_list, title2_list,
+                            saving_capture_path_list=saving_capture_path_list, camera_pos_list=pos_interp_list, shape1_plot_func=lung_plot("source"),
+                            shape2_plot_func=lung_plot("target"), show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
@@ -451,7 +358,8 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * len(flow_opt["t_list"])
         title2_list = ["target"] * len(flow_opt["t_list"])
-        visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
+        visualize_animation(flowed_list,target_list,title1_list,title2_list,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,shape1_plot_func=lung_plot("source"),
+                            shape2_plot_func=lung_plot("target"),show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
@@ -502,7 +410,8 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * len(flow_opt["t_list"])
         title2_list = ["target"] * len(flow_opt["t_list"])
-        visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
+        visualize_animation(flowed_list,target_list,title1_list,title2_list,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,shape1_plot_func=lung_plot("source"),
+                            shape2_plot_func=lung_plot("target"), show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
@@ -540,7 +449,8 @@ if __name__ == "__main__":
         ]
         title1_list = [stage_name] * len(flow_opt["t_list"])
         title2_list = ["target"] * len(flow_opt["t_list"])
-        visualize_animation(flowed_list,target_list,title1_list,title2_list,rgb_on=False,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,show=False)
+        visualize_animation(flowed_list,target_list,title1_list,title2_list,saving_capture_path_list=saving_capture_path_list,camera_pos_list=pos_interp_list,shape1_plot_func=lung_plot("source"),
+                            shape2_plot_func=lung_plot("target"), show=False)
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 

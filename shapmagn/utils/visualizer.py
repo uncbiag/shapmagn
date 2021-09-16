@@ -3,13 +3,14 @@ import numpy as np
 import torch
 import pyvista as pv
 import subprocess
+
+from shapmagn.utils.linked_slerp import get_slerp_cam_pos
 from shapmagn.utils.utils import add_zero_last_dim
 pv.set_plot_theme("document")
 PPI = 2
 
 
 def setup_lights(plotter, light_mode="light_kit", elev=75, azim=100):
-
     if light_mode == "none":
         # elev = 0, azim = 0 is the +x direction
         # elev = 0, azim = 90 is the +y direction
@@ -32,7 +33,7 @@ def format_input(input):
 def color_adaptive(color, turn_on=True):
     if turn_on:
         if len(color) > 3:
-            color = (color - color.min()) / (color.max() - color.min() + 1e-7)
+            color = (color - color.min(0)) / (color.max(0) - color.min(0) + 1e-7)
     return color
 
 
@@ -69,64 +70,62 @@ def plot_ghost(plotter, obj):
 
 def finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path):
     if camera_pos is not None:
-        p.camera_position = camera_pos
+        p.camera_position = camera_pos[0] if len(camera_pos)==2 else camera_pos
     if show:
+        # import vtk
+        # def my_cpos_callback(*args):
+        #     p.add_text(str(p.camera_position), name="cpos")
+        #     return
+        #
+        # p.iren.AddObserver(vtk.vtkCommand.EndInteractionEvent, my_cpos_callback)
         cur_camera_pos = p.show(auto_close=False)
         print(cur_camera_pos)
         if saving_capture_path:
             p.screenshot(saving_capture_path)
-
     elif saving_capture_path:
         p.show(screenshot=saving_capture_path)
 
     if saving_gif_path:
+        from pygifsicle import optimize
+        if len(camera_pos)!=2:
+            # here we assume only the initial camera postion is provided, and camera will not move
+            camera_pos = [camera_pos, camera_pos]
         p.open_gif(saving_gif_path)
+        begin_pos, end_pos = camera_pos[0], camera_pos[1]
+        nframe = 40
 
-        # Update camera and write a frame for each updated position
-        nframe = 360
         for i in range(nframe):
-            p.camera_position = [
-                (
-                    7 * np.cos(i * np.pi / 180.0),
-                    7 * np.cos(i * np.pi / 180.0),
-                    7 * np.sin(i * np.pi / 180.0),
-                ),
-                (0, 0, 0),
-                (0, 1, 0),
-            ]
+            intermediate_pos = get_slerp_cam_pos(begin_pos, end_pos, i / nframe)
+            p.camera_position = intermediate_pos
             p.write_frame()
             p.render()
-
         # Close movie and delete object
     p.close()
+    if saving_gif_path:
+        optimize(saving_gif_path)
+
 
 
 def visualize_point_fea(
     points,
     fea,
-    rgb_on=True,
+    title="",
+    opacity='linear',
+    plot_func=default_plot(cmap="magma"),
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
     show=True,
     col_adaptive=True,
+    light_mode="light_kit",
+    light_params={}
 ):
     points = format_input(points)
     fea = format_input(fea)
     p = pv.Plotter(window_size=[1920, 1280], off_screen=not show)
-    p.add_mesh(
-        pv.PolyData(points),
-        scalars=color_adaptive(fea, col_adaptive),
-        cmap="magma",
-        point_size=10,
-        render_points_as_spheres=True,
-        rgb=rgb_on,
-        opacity="linear",
-        lighting=True,
-        style="points",
-        show_scalar_bar=True,
-    )
-    # p.show_grid()
+    setup_lights(p, light_mode, **light_params)
+    p.add_text(title, font_size=18)
+    plot_func(p, points, color_adaptive(fea, col_adaptive), opacity=opacity, show_scalar_bar=True)
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
     return p
 
@@ -164,9 +163,7 @@ def visualize_point_fea_with_arrow(
         show_scalar_bar=True,
     )
     p.show_grid()
-
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
-
     return p
 
 
@@ -203,15 +200,14 @@ def visualize_point_pair(
 
     setup_lights(p, light_mode, **light_params)
     p.subplot(0, 0)
-    p.add_text(title1, font_size=18)
+    p.add_text(title1, font_size=25)
     source_plot_func(p, points1, color_adaptive(feas1, col_adaptive), opacity=opacity[0], show_scalar_bar=True)
     p.subplot(0, 1)
-    p.add_text(title2, font_size=18)
+    p.add_text(title2, font_size=25)
     target_plot_func(p, points2, color_adaptive(feas2, col_adaptive), opacity=opacity[1], show_scalar_bar=True)
     p.link_views()  # link all the views
 
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
-
     return p
 
 
@@ -272,6 +268,7 @@ def visualize_point_overlap(
     light_mode="light_kit",
     light_params={}
 ):
+
     # Format the source and target shapes:
     points1 = format_input(points1)
     points2 = format_input(points2)
@@ -291,7 +288,6 @@ def visualize_point_overlap(
     target_plot_func(p, points2, color_adaptive(feas2,col_adaptive), opacity=opacity[1])
     # p.show_grid()
     finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
-
     return p
 
 
@@ -313,7 +309,6 @@ def visualize_full(
     light_mode="light_kit",
     light_params={}
 ):
-
     # Format the input data:
     for dic in [source, flowed, target]:
         if dic is not None:
@@ -358,11 +353,8 @@ def visualize_full(
     # Plot 2 ---------------------------------
     p.subplot(0, plot_id)
     plot_id += 1
-
     p.add_text(flowed["name"], font_size=18)
-
     flowed_plot_func(p, flowed["points"], color_adaptive(flowed["visualfea"],col_adaptive),opacity=opacity[1])
-
     if source is not None:
         obj1 = pv.PolyData(source["points"])
 
@@ -383,7 +375,6 @@ def visualize_full(
     p.subplot(0, plot_id)
     plot_id += 1
     p.add_text(target["name"], font_size=18)
-
     if source is not None and add_bg_contrast:
         plot_ghost(p, obj1)
 
@@ -392,19 +383,18 @@ def visualize_full(
     # Plot 4: ----------------------------------
     p.subplot(0, plot_id)
     plot_id += 1
-
     flowed_plot_func(
         p,
         flowed["points"],
         color_adaptive(flowed["visualfea"],col_adaptive),
-        opacity=0.75 if light_mode=="none" else "linear",
+        opacity=0.75 if light_mode=="none" else opacity[1],
     )
 
     target_plot_func(
         p,
         target["points"],
         color_adaptive(target["visualfea"],col_adaptive),
-        opacity=0.75 if light_mode=="none" else "linear",
+        opacity=0.75 if light_mode=="none" else opacity[2],
     )
 
     #p.add_text(flowed["name"] + "_overlap_" + target["name"], font_size=22)
@@ -492,19 +482,25 @@ def visualize_multi_point(
     points_list,
     feas_list,
     titles_list,
-    rgb_on=True,
+    plot_func_list = None,
+    opacity_list = None,
     saving_gif_path=None,
     saving_capture_path=None,
     camera_pos=None,
     show=True,
+    col_adaptive=True,
+    light_mode="light_kit",
+    light_params={}
 ):
     num_views = len(points_list)
     for i, points in enumerate(points_list):
         points_list[i] = format_input(points)
     for i, feas in enumerate(feas_list):
         feas_list[i] = format_input(feas)
-    if isinstance(rgb_on, bool):
-        rgb_on = [rgb_on] * num_views
+    if opacity_list is None:
+        opacity_list = ['linear'] * num_views
+    if plot_func_list is None:
+        plot_func_list = [default_plot()]*num_views
 
     p = pv.Plotter(
         window_size=[1920, 1280],
@@ -513,104 +509,18 @@ def visualize_multi_point(
         border=False,
         off_screen=not show,
     )
+    setup_lights(p,light_mode, **light_params)
+
     for i in range(num_views):
         p.subplot(0, i)
         p.add_text(titles_list[i], font_size=18)
-        p.add_mesh(
-            pv.PolyData(points_list[i]),
-            scalars=color_adaptive(feas_list[i]),
-            cmap="magma",
-            point_size=10,
-            render_points_as_spheres=True,
-            rgb=rgb_on[i],
-            opacity="linear",
-            lighting=True,
-            style="points",
-            show_scalar_bar=True,
-        )
+        plot_func_list[i](p, points_list[i], color_adaptive(feas_list[i], col_adaptive), opacity=opacity_list[i])
+
     p.link_views()  # link all the views
-    # Set a camera position to all linked views
-    if camera_pos is not None:
-        p.camera_position = camera_pos
+    finalize_camera(p, camera_pos, show, saving_capture_path, saving_gif_path)
 
-    if show:
-        cm_position = p.show(auto_close=False)
-        print(cm_position)
-    if saving_capture_path:
-        p.show(screenshot=saving_capture_path)
-
-    if saving_gif_path:
-        p.open_gif(saving_gif_path)
-
-        # Update camera and write a frame for each updated position
-        nframe = 360
-        for i in range(nframe):
-            p.camera_position = [
-                (
-                    7 * np.cos(i * np.pi / 180.0),
-                    7 * np.cos(i * np.pi / 180.0),
-                    7 * np.sin(i * np.pi / 180.0),
-                ),
-                (0, 0, 0),
-                (0, 1, 0),
-            ]
-            p.write_frame()
-            p.render()
-
-        # Close movie and delete object
-        p.close()
     return p
 
-
-# def visualize_multi_point(points_list, feas_list, titles_list,rgb_on=True, saving_gif_path=None, saving_capture_path=None, camera_pos=None,show=True):
-#     num_views = len(points_list)
-#     for i,points in enumerate(points_list):
-#         points_list[i] = format_input(points)
-#     for i, feas in enumerate(feas_list):
-#         feas_list[i] = format_input(feas)
-#     if isinstance(rgb_on,bool):
-#         rgb_on = [rgb_on]* num_views
-#
-#     p = pv.Plotter(window_size=[1920, 1280],notebook=0, shape=(1, num_views), border=False, off_screen= not show)
-#     for i in range(num_views):
-#         p.subplot(0, i)
-#         p.add_text(titles_list[i], font_size=18)
-#         p.add_mesh(pv.PolyData(points_list[i]),
-#                          scalars=color_adaptive(feas_list[i]),
-#                          cmap="magma", point_size=10,
-#                          render_points_as_spheres=True,
-#                          rgb=rgb_on[i],
-#                          opacity="linear",
-#                          lighting=True,
-#                          style="points", show_scalar_bar=True)
-#     p.link_views()  # link all the views
-#     # Set a camera position to all linked views
-#     if camera_pos is not None:
-#         p.camera_position = camera_pos
-#
-#
-#     if show:
-#         cm_position = p.show(auto_close=False)
-#     if saving_capture_path:
-#         p.show(screenshot=saving_capture_path)
-#
-#     if saving_gif_path:
-#         p.open_gif(saving_gif_path)
-#
-#         # Update camera and write a frame for each updated position
-#         nframe = 360
-#         for i in range(nframe):
-#             p.camera_position = [
-#                 (7 * np.cos(i * np.pi / 180.0), 7 * np.cos(i * np.pi / 180.0), 7 * np.sin(i * np.pi / 180.0)),
-#                 (0, 0, 0),
-#                 (0, 1, 0),
-#             ]
-#             p.write_frame()
-#             p.render()
-#
-#         # Close movie and delete object
-#         p.close()
-#     return p
 
 
 def capture_plotter(render_by_weight=False, camera_pos=None, add_bg_contrast=True):
@@ -644,7 +554,6 @@ def capture_plotter(render_by_weight=False, camera_pos=None, add_bg_contrast=Tru
                     "source",
                     "flowed",
                     "target",
-                    rgb_on=False,
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     add_bg_contrast=add_bg_contrast,
@@ -695,7 +604,6 @@ def shape_capture_plotter(
                 visualize_point_fea(
                     sp,
                     sw,
-                    rgb_on=False,
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     show=False,
@@ -704,7 +612,6 @@ def shape_capture_plotter(
                 visualize_point_fea(
                     sp,
                     sp,
-                    rgb_on=True,
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     show=False,
@@ -714,5 +621,4 @@ def shape_capture_plotter(
                 path, os.path.join(stage_folder, shape_name + ".png")
             )
             subprocess.Popen(cp_command, stdout=subprocess.PIPE, shell=True)
-
     return save

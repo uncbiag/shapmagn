@@ -193,11 +193,11 @@ def get_res_dic():
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/timing/opt_gf_60000/records/lmk_diff_mean_records_detail.npy",
     )
-    data_dic["RobOT-P(spline)"] = get_experiment_data_from_record(
+    data_dic["P-RobOT(spline)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/timing/opt_discrete_flow_deep/records/lmk_diff_mean_records_detail.npy",
     )
-    data_dic["RobOT-P(LDDMM)"] = get_experiment_data_from_record(
+    data_dic["P-RobOT(LDDMM)"] = get_experiment_data_from_record(
         inc(),
         "/playpen-raid1/zyshen/data/lung_expri/discrete_flow_on_dirlab_deep_lddmm/records/lmk_diff_mean_records_detail.npy",
     )

@@ -8,8 +8,8 @@ from shapmagn.kernels.keops_kernels import LazyKeopsKernel
 from shapmagn.kernels.torch_kernels import TorchKernel
 
 torch.backends.cudnn.deterministic = True
-# import pykeops
-# pykeops.clean_pykeops()
+import pykeops
+pykeops.clean_pykeops()
 
 torch.manual_seed(123)
 

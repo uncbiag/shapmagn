@@ -1,6 +1,6 @@
 """
-this script provides lung examples on Robust optimal transpart/spline projection/LDDMM /LDDMM projection/ Discrete flow(point drift)
-(Though we list these solutions here, the optimization approaches doesn't work well on the lung vessel dataset
+this script provides lung examples on pure point based (no deep feature) Robust optimal transport/spline projection/LDDMM /LDDMM projection/ Discrete flow(point drift)
+(Though we list these solutions here, pure point based methods and pure optimization approaches doesn't work well on the lung vessel dataset
 To better understand the behaviors of deformation models, we recommend to work on toy_reg.py first)
 """
 

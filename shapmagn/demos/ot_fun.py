@@ -1,5 +1,4 @@
 import os, sys
-import subprocess
 import torch
 import numpy as np
 from shapmagn.utils.generate_animation import generate_gif
@@ -29,8 +28,7 @@ from shapmagn.utils.visualizer import (
 )
 from shapmagn.demos.demo_utils import *
 from shapmagn.utils.utils import timming
-from shapmagn.experiments.datasets.toy.visualizer import toy_plot
-from shapmagn.utils.generate_animation import FlowModel
+
 
 
 camera_pos = [(1.867353567083761, 0.47007407616247987, -3.4740998944712214),

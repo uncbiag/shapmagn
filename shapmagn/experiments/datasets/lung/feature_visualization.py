@@ -18,7 +18,7 @@ def reader(file_path):
 
 # folder_path = "/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/deep_feature_pointconv_dirlab_complex_aniso_15dim_normalized_60000/records/fea_visual"
 folder_path = os.path.join(SHAPMAGN_PATH,"demos/data/lung_data/lung_deep_feature_visual")
-gif_folder_path = os.path.join(folder_path,"gif")
+gif_folder_path = os.path.join(SHAPMAGN_PATH,"demos/output/lung_demo/lung_deep_feature_visual")
 os.makedirs(gif_folder_path,exist_ok=True)
 gif_path = os.path.join(gif_folder_path,"output.gif")
 

@@ -1,6 +1,6 @@
 ## Shapmagn
 
-This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
+This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport" (oming soon).
 
 The repository provides a general framework for the point cloud/mesh registration and general deep learning frameworks, supporting both optimization and learning
 based approaches. 
@@ -17,15 +17,15 @@ Here are two examples on how to run the optimization-based demos :
 
 ### Optimization demos
 ```
-cd shapmagn/shapmagn/demos/data/lung_data
-gdown https://drive.google.com/uc?id=19YG-je_7QfKd-Z8Rhg4R0nL6hVIpEco6
-unzip lung_vessel_demo_data.zip
-cd ..
+cd shapmagn/shapmagn/demos
 python 2d_toy_reg.py
+python ot_fun.py
 python toy_reg.py
 python partial_prealign_reg.py
+python lung_gradient_flow.py
 python lung_reg.py
 python flyingkitti_reg.py
+python ot_sampling.py
 ```
 
 ### Deep demo on Lung vessel tree

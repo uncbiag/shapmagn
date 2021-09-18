@@ -1,5 +1,5 @@
 """
-visulization  for the  optimization-model and deep-model
+animation generation for deformation models
 
 support displacement, spline and LDDMM, prealign
 """

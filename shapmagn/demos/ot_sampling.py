@@ -1,5 +1,5 @@
 """
-uniform mass sampling on a given shape
+uniform mass sampling from a given shape
 """
 
 import numpy as np

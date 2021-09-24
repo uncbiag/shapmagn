@@ -1,9 +1,31 @@
 ## Shapmagn
 
-This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport" (oming soon).
+This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport" (coming soon).
 
-The repository provides a general framework for the point cloud/mesh registration and general deep learning frameworks, supporting both optimization and learning
-based approaches. 
+The repository provides a general framework for the point cloud/mesh registration, supporting both optimization and learning
+based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. 3D landmark detection. 
+
+### Supported Approach list:
+
+####Optimization-based approaches:
+1. Spline registration (support anisotropic kernel)
+2. Fluid registration (support LDDMM)
+3. Coherent Point Drift
+4. Robust Optimal Transport (RobOT)
+5. RobOT Projection (rigid, spline, LDDMM)
+6. RobOT based uniform mass sampling
+7. Thirdparty approaches (Probreg, Open3d, Teaser++)
+
+
+####Deep learning based registration approaches:
+1. Spline registration (support anisotropic kernel)
+2. Fluid registration (support LDDMM)
+3. Point cloud feature learning (self-supervised)
+4. end-to-end registration (prealign, spline/LDDMM, postprocessing)
+
+####Deep learning based other approaches:
+1. Landmark Detection
+
 
 
 ## Instalation
@@ -97,7 +119,7 @@ Here are some examples on supported functions:
 **[Scene Flow Estimation](shapmagn/demos/flyingkitti_reg.py)**:
  ![node](.github/scene_flow.gif) 
 
-**Unsupervised Feature Learning**:
+**Self-supervised Feature Learning**:
  ![node](.github/lung_fea.gif) 
  
 **[Synthesized Data Pair Generation](shapmagn/experiments/datasets/lung/lung_data_aug.py)**:

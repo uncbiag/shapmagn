@@ -330,6 +330,7 @@ def get_pair_obj(
     normalizer_obj=None,
     sampler_obj=None,
     pair_postprocess_obj=None,
+    place_sampler_in_postprocess=False,
     device=None,
     expand_bch_dim=True,
     return_tensor=True,
@@ -354,16 +355,23 @@ def get_pair_obj(
         normalizer = obj_factory(normalizer_obj) if normalizer_obj else None
         data_dict = normalizer(raw_data_dict) if normalizer_obj else raw_data_dict
         min_interval = compute_interval(data_dict["points"])
-        sampler = obj_factory(sampler_obj) if sampler_obj else None
-        data_dict, _ = sampler(data_dict) if sampler_obj else (data_dict, None)
+        if not place_sampler_in_postprocess:
+            sampler = obj_factory(sampler_obj) if sampler_obj else None
+            data_dict, _ = sampler(data_dict) if sampler_obj else (data_dict, None)
         return data_dict, min_interval
 
     def _get_pair_obj(source_path, target_path):
         source_dict, source_interval = _get_obj(source_path)
         target_dict, target_interval = _get_obj(target_path)
+
         if pair_postprocess_obj is not None:
             pair_postprocess = obj_factory(pair_postprocess_obj)
-            source_dict, target_dict = pair_postprocess(source_dict, target_dict)
+            if not place_sampler_in_postprocess:
+                source_dict, target_dict = pair_postprocess(source_dict, target_dict)
+            else:
+                sampler = obj_factory(sampler_obj) if sampler_obj else None
+                source_dict, target_dict = pair_postprocess(source_dict, target_dict, sampler)
+
         source_dict = to_tensor(source_dict) if return_tensor else source_dict
         target_dict = to_tensor(target_dict) if return_tensor else target_dict
         if expand_bch_dim:

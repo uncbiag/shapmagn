@@ -3,7 +3,7 @@ import os
 import numpy as np
 import shapmagn.experiments.datasets.flying3d_and_kitti.geometry as geometry
 from shapmagn.utils.shape_visual_utils import save_shape_into_files
-
+from shapmagn.shape.shape_pair import Shape
 
 def evaluate_3d(sf_pred, sf_gt):
     """
@@ -51,7 +51,7 @@ def evaluate_res(is_kitti=False):
         has_gt = batch_info["has_gt"]
         if not has_gt:
             return metrics
-
+        gt_flowed = Shape().set_data(points=shape_pair.extra_info["gt_flowed"], weights=shape_pair.source.points)
         sp, tp, fp = (
             shape_pair.source.points,
             shape_pair.extra_info["gt_flowed"],
@@ -62,9 +62,7 @@ def evaluate_res(is_kitti=False):
             and additional_param["prealign_param"] is not None
         )
         record_path = os.path.join(
-            batch_info["record_path"],
-            "3d",
-            "{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]),
+            batch_info["record_path"],"3d","{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]),
         )
         os.makedirs(record_path, exist_ok=True)
         if (
@@ -72,20 +70,19 @@ def evaluate_res(is_kitti=False):
             and has_prealign
             and "mapped_position" not in additional_param
         ):
-            save_shape_into_files(
-                record_path,
-                alias + "_prealigned",
-                batch_info["pair_name"],
-                additional_param["prealigned"],
+            save_shape_into_files(record_path,
+                alias + "_prealigned",batch_info["pair_name"],additional_param["prealigned"],
             )
             reg_param = additional_param["prealign_param"].detach().cpu().numpy()
             for pid, pair_name in enumerate(batch_info["pair_name"]):
-                np.save(
-                    os.path.join(
-                        record_path, pair_name + alias + "_prealigned_reg_param.npy"
-                    ),
-                    reg_param[pid],
-                )
+                np.save(os.path.join(record_path, pair_name + alias + "_prealigned_reg_param.npy"),
+                    reg_param[pid],)
+            save_shape_into_files(
+                record_path,
+                alias + "_gt_flowed",
+                batch_info["pair_name"],
+                gt_flowed
+            )
         if additional_param is not None and "mapped_position" in additional_param:
             fp = additional_param["mapped_position"]
             save_shape_into_files(

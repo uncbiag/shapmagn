@@ -28,7 +28,7 @@ assert (
 device = torch.device("cpu")  # cuda:0  cpu
 reader_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_reader(flying3d=False)"
 normalizer_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_normalizer()"
-sampler_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_sampler(num_sample=20000)"
+sampler_obj = "flyingkitti_nonocc_utils.flyingkitti_nonocc_sampler(num_sample=8192)"
 pair_postprocess_obj = (
     "flyingkitti_nonocc_utils.flyingkitti_nonocc_pair_postprocess(flying3d=False)"
 )
@@ -38,15 +38,17 @@ assert (
     shape_type == "pointcloud"
 ), "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+case_id = "000146"
 server_path = "./"  # "/playpen-raid1/"#"/home/zyshen/remote/llr11_mount/"
-source_path = server_path + "data/kitti_data/000000/pc1.npy"
-target_path = server_path + "data/kitti_data/000000/pc2.npy"
+source_path = server_path + "data/kitti_data/{}/pc1.npy".format(case_id)
+target_path = server_path + "data/kitti_data/{}/pc2.npy".format(case_id)
 get_obj_func = get_pair_obj(
     reader_obj,
     normalizer_obj,
     sampler_obj,
     pair_postprocess_obj,
-    device,
+    place_sampler_in_postprocess= True,
+    device = device,
     expand_bch_dim=True,
 )
 source_obj, target_obj, source_interval, target_interval = get_obj_func(
@@ -97,26 +99,30 @@ gif_folder = os.path.join(record_path, "gif")
 os.makedirs(gif_folder, exist_ok=True)
 saving_gif_path = os.path.join(gif_folder, task_name + ".gif")
 fea_to_map = shape_pair.source.points[0]
-mapped_fea = get_omt_mapping(
-    model_opt["sim_loss"]["geomloss"],
-    source,
-    target,
-    fea_to_map,
-    p=2,
-    mode="hard",
-    confid=0.0,
-)
+# mapped_fea = get_omt_mapping(
+#     model_opt["sim_loss"]["geomloss"],
+#     source,
+#     target,
+#     fea_to_map,
+#     p=2,
+#     mode="hard",
+#     confid=0.0,
+# )
+
+
+
 flow_points = shape_pair.flowed.points - shape_pair.source.points
 visualize_source_flowed_target_overlap(
     shape_pair.source.points,
     shape_pair.flowed.points,
     shape_pair.target.points,
-    fea_to_map,
-    fea_to_map,
-    mapped_fea,
+    shape_pair.source.points,
+    shape_pair.source.points,
+    shape_pair.target.points,
     "source",
     "gradient_flow",
     "target",
+    flow=shape_pair.flowed.points - shape_pair.source.points,
     saving_gif_path=None,
     col_adaptive=True
 )

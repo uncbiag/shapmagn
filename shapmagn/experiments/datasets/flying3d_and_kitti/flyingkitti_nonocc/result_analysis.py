@@ -599,43 +599,56 @@ def inc():
     order += 1
     return order
 
-
 #
-res, name_list = get_kitti_res()
-filtered = ["_batch" not in name and "_2step" not in name for name in name_list]
-name_list = [
-    "PWC",
-    "PWC_batch",
-    "D-RobOT(PWC)",
-    "D-RobOT(PWC)_batch",
-    "PWC(dense)",
-    "PWC(dense)_batch",
-    "D-RobOT(PWC&dense)",
-    "D-RobOT(PWC&dense)_batch",
-    "D-RobOT(spline)",
-    "D-RobOT(spline)_batch",
-    "D-RobOT(spline&dense)",
-    "D-RobOT(spline&dense)_batch",
-    "spline_im_dense_2step",
-    "spline_im_dense_2step_batch",
-    "RobOT",
-    "RobOT_batch",
-    "RobOT(dense)",
-    "RobOT(dense)_batch",
-    "FLOT",
-    "FLOT_batch",
-]
-name_list = [name.replace("_batch", "") for name in name_list]
-name_list = [name_list[i] for i, ind in enumerate(filtered) if ind]
-res["performance"] = [res["performance"][i] for i, ind in enumerate(filtered) if ind]
-res["time"] = [res["time"][i] for i, ind in enumerate(filtered) if ind]
-res["memory"] = [res["memory"][i] for i, ind in enumerate(filtered) if ind]
+# #
+# res, name_list = get_kitti_res()
+# filtered = ["_batch" not in name and "_2step" not in name for name in name_list]
+# name_list = [
+#     "PWC",
+#     "PWC_batch",
+#     "D-RobOT(PWC)",
+#     "D-RobOT(PWC)_batch",
+#     "PWC(dense)",
+#     "PWC(dense)_batch",
+#     "D-RobOT(PWC&dense)",
+#     "D-RobOT(PWC&dense)_batch",
+#     "D-RobOT(spline)",
+#     "D-RobOT(spline)_batch",
+#     "D-RobOT(spline&dense)",
+#     "D-RobOT(spline&dense)_batch",
+#     "spline_im_dense_2step",
+#     "spline_im_dense_2step_batch",
+#     "RobOT",
+#     "RobOT_batch",
+#     "RobOT(dense)",
+#     "RobOT(dense)_batch",
+#     "FLOT",
+#     "FLOT_batch",
+# ]
+# name_list = [name.replace("_batch", "") for name in name_list]
+# name_list = [name_list[i] for i, ind in enumerate(filtered) if ind]
+# res["performance"] = [res["performance"][i] for i, ind in enumerate(filtered) if ind]
+# res["time"] = [res["time"][i] for i, ind in enumerate(filtered) if ind]
+# res["memory"] = [res["memory"][i] for i, ind in enumerate(filtered) if ind]
+#
+# def save_json(path, data):
+#     import json
+#     with open(path, "w") as f:
+#         json.dump(data, f)
 
+# res["name_list"] = name_list
+# save_json("./res.json",res)
+def load_json(file_path):
+    import json
+    with open(file_path) as f:
+        data_dict = json.load(f)
+    return data_dict
+res = load_json("./res.json")
 fpth = "/playpen-raid1/zyshen/debug/kitti_plots"
 os.makedirs(fpth, exist_ok=True)
 fpth = os.path.join(fpth, "scatter_plot.png")
 scatter_plot(
-    name_list,
+    res["name_list"],
     res["performance"],
     res["time"],
     res["memory"],

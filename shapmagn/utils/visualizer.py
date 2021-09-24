@@ -364,9 +364,9 @@ def visualize_full(
             index = list(range(0, npoints, 30))
             flow_[index, :] = flow[index]
             obj1.point_arrays["flow"] = flow_  # flow_
-            geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035)
+            geom = pv.Arrow(tip_radius=0.08, shaft_radius=0.035, scale=None)
             arrows = obj1.glyph(orient="flow", geom=geom)
-            p.add_mesh(arrows, color="black", opacity=0.3)
+            p.add_mesh(arrows, color="brown", opacity=0.3)
 
         if add_bg_contrast:
             plot_ghost(p, obj1)
@@ -573,6 +573,7 @@ def capture_plotter(render_by_weight=False, camera_pos=None, add_bg_contrast=Tru
                     "source",
                     "flowed",
                     "target",
+                    # flow=shape_pair.flowed.points - shape_pair.source.points,
                     saving_capture_path=path,
                     camera_pos=camera_pos,
                     add_bg_contrast=add_bg_contrast,

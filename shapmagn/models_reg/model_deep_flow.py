@@ -201,14 +201,8 @@ class DeepDiscreteFlow(nn.Module):
             mapped_position = flowed_points + smoothed_disp
             # todo experimental code,  clean and wrap the code into a iter function
             #
-            cur_flowed = Shape().set_data_with_refer_to(
-                mapped_position, shape_pair.flowed
-            )
-            (
-                mapped_target_index,
-                mapped_topK_target_index,
-                mapped_position,
-            ) = wasserstein_barycenter_mapping(
+            cur_flowed = Shape().set_data_with_refer_to(mapped_position, shape_pair.flowed)
+            mapped_target_index, mapped_topK_target_index, mapped_position = wasserstein_barycenter_mapping(
                 cur_flowed, shape_pair.target, geomloss_setting
             )  # BxN
             disp = mapped_position - cur_flowed.points
@@ -238,17 +232,13 @@ class DeepDiscreteFlow(nn.Module):
 
         B, N = source_points.shape[0], source_points.shape[1]
         device = source_points.device
-        print(
-            "the current data is {}".format(
-                "synth" if batch_info["is_synth"] else "real"
-            )
-        )
+        print("the current data is {}".format("synth" if batch_info["is_synth"] else "real"))
         if corr_source_target:
             gt_index = torch.arange(N, device=device).repeat(B, 1)  # B,N
             acc = (mapped_target_index == gt_index).sum(1) / N
             topk_acc = (
-                (mapped_topK_target_index == (gt_index[..., None])).sum(2) > 0
-            ).sum(1) / N
+                               (mapped_topK_target_index == (gt_index[..., None])).sum(2) > 0
+                       ).sum(1) / N
             metrics = {
                 "score": [_topk_acc.item() for _topk_acc in topk_acc],
                 "loss": [_loss.item() for _loss in loss],
@@ -267,18 +257,12 @@ class DeepDiscreteFlow(nn.Module):
         if self.external_evaluate_metric is not None:
             additional_param = {
                 "model": self,
-                "initial_nonp_control_points": self.buffer[
-                    "initial_nonp_control_points"
-                ],
+                "initial_nonp_control_points": self.buffer["initial_nonp_control_points"],
                 "prealign_param": self.buffer["prealign_param"],
                 "prealigned": self.buffer["prealigned"],
             }
             self.external_evaluate_metric(
-                metrics,
-                shape_pair,
-                batch_info,
-                additional_param=additional_param,
-                alias="",
+                metrics, shape_pair, batch_info, additional_param=additional_param, alias="",
             )
             additional_param.update({"mapped_position": mapped_position})
             self.external_evaluate_metric(

@@ -58,7 +58,6 @@ visualize_source_flowed_target_overlap(
     "source",
     "nonp_gf",
     "target",
-    rgb_on=False,
     add_bg_contrast=True,
     camera_pos=camera_pos,
     saving_capture_path=None,

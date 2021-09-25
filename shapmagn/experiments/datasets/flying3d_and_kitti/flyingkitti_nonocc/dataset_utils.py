@@ -187,10 +187,6 @@ def flyingkitti_nonocc_pair_postprocess(
         if sampler is not None:
             if phase == "train":
                 raise NotImplemented  # no train on kitti yet
-                source_dict, ind = sampler(
-                    source_dict, ind=None, fixed_random_seed=False
-                )
-                target_dict, _ = sampler(target_dict, ind=ind, fixed_random_seed=False)
             else:
                 source_dict, _ = sampler(source_dict, ind=None, fixed_random_seed=False)
                 target_dict, _ = sampler(target_dict, ind=None, fixed_random_seed=False)

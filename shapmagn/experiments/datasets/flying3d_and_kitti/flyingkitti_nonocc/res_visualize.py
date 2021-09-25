@@ -1,13 +1,12 @@
 from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
-from shapmagn.utils.obj_factory import obj_factory
 import torch
 
 case_id = "000024" # 000060  000061  000062  000146
-expri_output_folder = "/home/zyshen/remote/llr11_mount/zyshen/data/flying3d_nonocc_test_on_kitti/model_eval/repd_todel/deepflow_spline_8192_withaug_kitti_prealigned/records/3d/test_epoch_-1/"
+expri_output_folder = "/home/zyshen/data/kitti_task/methods/drobot_spline/"  # drobot_pwc drobot_spline  pwc flot
 source_path = expri_output_folder+"{}_source.vtk".format(case_id)
 target_path = expri_output_folder+"{}_target.vtk".format(case_id)
 flowed_path = expri_output_folder+ "{}_flowed.vtk".format(case_id)
-gt_flowed_path = expri_output_folder+"{}__gt_flowed.vtk".format(case_id)
+gt_flowed_path = expri_output_folder+"{}_gt_flowed.vtk".format(case_id)
 
 from shapmagn.datasets.vtk_utils import read_vtk
 source_dict = read_vtk(source_path)
@@ -23,7 +22,7 @@ pred_sf, gt_sf = flowed_points - source_points, gt_flowed_points - source_points
 l2_norm = torch.norm(gt_sf - pred_sf, p=2, dim=-1)
 sf_norm = torch.norm(gt_sf, p=2, dim=-1)
 relative_err = l2_norm / (sf_norm + 1e-4)
-
+print(relative_err.mean())
 visualize_source_flowed_target_overlap(
     source_points,
     flowed_points,

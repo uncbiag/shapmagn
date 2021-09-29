@@ -104,7 +104,7 @@ python run_eval.py -dj SHAPMAN_INTPUT_PATH/pair_data.json -o ./demos/output/test
 Here are some examples on supported functions:
 
 **[Robust Optimal Transport (RobOT)](shapmagn/demos/ot_fun.py)**:
- <img src=".github/shape_transfer.gif" alt="shape_transfer"  width="300" height="300"/>
+ <img src=".github/shape_transfer.gif" alt="shape_transfer"  width="400" height="300"/>
 
 **[RobOT Projection (Partial Rigid Registration)](shapmagn/demos/partial_prealign_reg.py)**:
  ![node](.github/partial_bunny.gif) 
@@ -125,4 +125,5 @@ Here are some examples on supported functions:
  ![node](.github/synthesize_data.png) 
 
 **Facial Landmark Detection**:
+
  <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>

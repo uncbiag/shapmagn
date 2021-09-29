@@ -1,6 +1,6 @@
 ## Shapmagn
 
-This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport" (coming soon).
+This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
 
 The repository provides a general framework for the point cloud/mesh registration, supporting both optimization and learning
 based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. 3D landmark detection. 
@@ -104,8 +104,7 @@ python run_eval.py -dj SHAPMAN_INTPUT_PATH/pair_data.json -o ./demos/output/test
 Here are some examples on supported functions:
 
 **[Robust Optimal Transport (RobOT)](shapmagn/demos/ot_fun.py)**:
-
-![node](.github/shape_transfer.gif)
+ <img src=".github/shape_transfer.gif" alt="shape_transfer"  width="300" height="300"/>
 
 **[RobOT Projection (Partial Rigid Registration)](shapmagn/demos/partial_prealign_reg.py)**:
  ![node](.github/partial_bunny.gif) 
@@ -124,3 +123,6 @@ Here are some examples on supported functions:
  
 **[Synthesized Data Pair Generation](shapmagn/experiments/datasets/lung/lung_data_aug.py)**:
  ![node](.github/synthesize_data.png) 
+
+**Facial Landmark Detection**:
+ <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>

@@ -747,10 +747,7 @@ class PWCLoss(nn.Module):
             ).sum(1)
         w = flowed.weights / flowed.weights.sum(1, keepdim=True)
         additional_loss = (
-            (dist_fn(flowed.points - gt_flowed.points)).sum(2, keepdim=True) * w
-        ).sum(
-            1
-        )  # todo test
+            (dist_fn(flowed.points - gt_flowed.points)).sum(2, keepdim=True) * w).sum(1)  # todo test
         reg = 0
         if "control_shift" in additional_param:
             reg = dist_fn(additional_param["control_shift"]).sum(2).mean(1) * 10

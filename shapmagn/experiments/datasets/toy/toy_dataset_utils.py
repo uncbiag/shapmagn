@@ -36,12 +36,13 @@ def toy_sampler():
     return do_nothing
 
 
-def toy_normalizer(add_random_noise_on_weight=False):
+def toy_normalizer(scale=1, add_random_noise_on_weight=False):
     """
     :return:
     """
 
-    def do_nothing(data_dict):
+    def scale_data(data_dict):
+        data_dict["points"] = data_dict["points"] *scale
         return data_dict
     def randomized_weight(data_dict):
         weights = data_dict["weights"]
@@ -51,7 +52,7 @@ def toy_normalizer(add_random_noise_on_weight=False):
         weights = weights + rand_noise
         data_dict["weights"] = weights/np.sum(weights)
         return data_dict
-    return do_nothing if not add_random_noise_on_weight else randomized_weight
+    return scale_data if not add_random_noise_on_weight else randomized_weight
 
 
 if __name__ == "__main__":

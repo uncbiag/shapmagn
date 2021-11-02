@@ -100,17 +100,16 @@ def _do_learning(args):
             )
         )
     else:
-        print(
-            "copy dataset json files from {} to {}".format(
-                dataset_path, output_root_path
-            )
-        )
-        [
-            copy_tree(
-                os.path.join(dataset_path, phase), os.path.join(output_root_path, phase)
-            )
-            for phase in ["train", "val", "test", "debug"]
-        ]
+        print("copy dataset json files from {} to {}".format(dataset_path, output_root_path))
+        try:
+            [
+                copy_tree(
+                    os.path.join(dataset_path, phase), os.path.join(output_root_path, phase)
+                )
+                for phase in ["train", "val", "test", "debug"]
+            ]
+        except:
+            Warning("Failed to find train/val/test/debug splits, ignore this warnning if you use your customized dataloader")
     os.makedirs(task_output_path, exist_ok=True)
     tsm = init_task_env(setting_folder_path, output_root_path, task_name)
     if args.eval:
@@ -167,10 +166,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "-ds",
         "--dataset_folder",
-        required=True,
+        required=False,
         type=str,
         default=None,
-        help="the path of dataset splits",
+        help="the path of dataset splits, must be provided unless using customized dataloader",
     )
     parser.add_argument(
         "-o",

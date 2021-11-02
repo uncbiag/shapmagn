@@ -22,8 +22,8 @@ assert (
     shape_type == "pointcloud"
 ), "set shape_type = 'pointcloud'  in global_variable.py"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-source_path = "data/lung_data/lung_vessel_demo_data/copd2_EXP.vtk"
-target_path = "data/lung_data/lung_vessel_demo_data/copd2_INSP.vtk"
+source_path = "data/lung_data/lung_vessel_demo_data/copd_000002_EXP.vtk"
+target_path = "data/lung_data/lung_vessel_demo_data/copd_000002_INSP.vtk"
 reader_obj = "lung_dataloader_utils.lung_reader()"
 scale = (
     -1

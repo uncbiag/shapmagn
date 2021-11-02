@@ -362,3 +362,44 @@ class AnisoQueryAndGroup(nn.Module):
             new_features = grouped_xyz
 
         return new_features
+
+
+
+
+class IsoQueryAndGroup(nn.Module):
+    def __init__(self,  nsample: int, use_xyz: bool = True):
+        """
+        :param radius: float, radius of ball
+        :param nsample: int, maximum number of features to gather in the ball
+        :param use_xyz:
+        """
+        from shapmagn.utils.knn_utils import KNN
+        super().__init__()
+        self.knn = KNN(return_value=False)
+        self.nsample = nsample
+        self.use_xyz = use_xyz
+
+    def forward(self, xyz: torch.Tensor, new_xyz: torch.Tensor, features: torch.Tensor = None) -> Tuple[torch.Tensor]:
+        """
+        :param xyz: (B, N, 3) xyz coordinates of the features
+        :param new_xyz: (B, npoint, 3) centroids
+        :param features: (B, C, N) descriptors of the features
+        :return:
+            new_features: (B, 3 + C, npoint, nsample)
+        """
+        idx = self.knn(new_xyz,xyz,self.nsample).detach()
+        xyz_trans = xyz.transpose(1, 2).contiguous()
+        grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, nsample)
+        grouped_xyz -= new_xyz.transpose(1, 2).unsqueeze(-1)
+
+        if features is not None:
+            grouped_features = grouping_operation(features, idx)
+            if self.use_xyz:
+                new_features = torch.cat([grouped_xyz, grouped_features], dim=1)  # (B, C + 3, npoint, nsample)
+            else:
+                new_features = grouped_features
+        else:
+            assert self.use_xyz, "Cannot have not features and not use xyz as a feature!"
+            new_features = grouped_xyz
+
+        return new_features

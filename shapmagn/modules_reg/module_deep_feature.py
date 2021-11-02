@@ -27,7 +27,7 @@ class PointNet2FeaExtractor(nn.Module):
             self.opt[
                 (
                     "local_pair_feature_extractor_obj",
-                    "",
+                    "local_feature_extractor.default_local_pair_feature_extractor()",
                     "function object for local_feature_extractor",
                 )
             ]
@@ -35,6 +35,8 @@ class PointNet2FeaExtractor(nn.Module):
         self.input_channel = self.opt[("input_channel", 10, "input channel")]
         self.output_channel = self.opt[("output_channel", 12, "output channel")]
         self.initial_radius = self.opt[("initial_radius", 0.001, "initial radius")]
+        self.initial_npoints = self.opt[("initial_npoints",4096, "initial_npoints")]
+        self.group_via_knn = self.opt[("group_via_knn",False, "group_via_knn")]
         self.include_pos_in_final_feature = self.opt[
             (
                 "include_pos_in_final_feature",
@@ -55,7 +57,9 @@ class PointNet2FeaExtractor(nn.Module):
                 "shrink factor the model parameter, #params/param_shrink_factor",
             )
         ]
-
+        self.pretrained_model_path = self.opt[
+            ("pretrained_model_path", "", "the path of the pretrained model")
+        ]
         if not self.use_complex_network:
             self.init_simple_deep_feature_extractor()
             self.deep_pair_feature_extractor = self.simple_deep_pair_feature_extractor
@@ -64,24 +68,43 @@ class PointNet2FeaExtractor(nn.Module):
             self.deep_pair_feature_extractor = self.complex_deep_pair_feature_extractor
         self.buffer = {}
         self.iter = 0
+        self.load_from_pretrained_model()
+
+    def load_from_pretrained_model(self):
+        if self.pretrained_model_path:
+            checkpoint = torch.load(self.pretrained_model_path, map_location="cpu")
+            cur_state = self.state_dict()
+            for key in list(checkpoint["state_dict"].keys()):
+                if "module.pair_feature_extractor." in key:
+                    replaced_key = key.replace("module.pair_feature_extractor.", "")
+                    if replaced_key in cur_state:
+                        cur_state[replaced_key] = checkpoint["state_dict"].pop(key)
+                    else:
+                        print("")
+            self.load_state_dict(cur_state)
+            print("load pretrained model from {}".format(self.pretrained_model_path))
 
     def init_simple_deep_feature_extractor(self):
         self.sa1 = PointNetSetAbstraction(
-            npoint=4096,
+            npoint=int(self.initial_npoints),
             radius=self.initial_radius * 20,
             nsample=32,
             in_channel=self.input_channel,
             mlp=[16, 32],
             group_all=False,
+            use_knn = self.group_via_knn,
+            use_aniso_kernel = False,
             include_xyz=self.include_pos_info_network,
         )
         self.sa2 = PointNetSetAbstraction(
-            npoint=1024,
+            npoint=int(self.initial_npoints/4),
             radius=self.initial_radius * 40,
             nsample=32,
             in_channel=32,
             mlp=[32, 64],
             group_all=False,
+            use_knn=self.group_via_knn,
+            use_aniso_kernel=False,
             include_xyz=self.include_pos_info_network,
         )
         self.su1 = PointNetSetUpConv(
@@ -126,6 +149,8 @@ class PointNet2FeaExtractor(nn.Module):
         x = F.relu(self.bn1(l0_fnew2))
         tf = self.conv2(x)
 
+        # sf = (sf ) / (sf.std(2, keepdim=True) + 1e-7)
+        # tf = (tf) / (tf.std(2, keepdim=True) + 1e-7)
         # sf = (sf-sf.mean(2,keepdim=True))/(sf.std(2,keepdim=True)+1e-7)
         # tf = (tf-tf.mean(2,keepdim=True))/(tf.std(2,keepdim=True)+1e-7)
 
@@ -135,19 +160,16 @@ class PointNet2FeaExtractor(nn.Module):
             sf = torch.cat([cur_source.points, sf], 2)
             tf = torch.cat([target.points, tf], 2)
 
-        new_cur_source = Shape().set_data(
-            points=cur_source.points, weights=cur_source.weights, pointfea=sf
-        )
-        new_target = Shape().set_data(
-            points=target.points, weights=target.weights, pointfea=tf
-        )
-        return new_cur_source, new_target
+        cur_source.pointfea = sf
+        target.pointfea = tf
+        return cur_source, target
+
 
     def init_complex_deep_feature_extractor(self):
         sbf = partial(shrink_by_factor, factor=self.param_shrink_factor)
 
         self.sa0 = PointNetSetAbstraction(
-            npoint=4096,
+            npoint=int(self.initial_npoints),
             radius=20 * self.initial_radius,
             nsample=16,
             in_channel=self.input_channel,
@@ -158,7 +180,7 @@ class PointNet2FeaExtractor(nn.Module):
             aniso_kernel_scale=self.initial_radius * 80,
         )
         self.sa1 = PointNetSetAbstraction(
-            npoint=4096,
+            npoint=int(self.initial_npoints),
             radius=20 * self.initial_radius,
             nsample=16,
             in_channel=sbf(16),
@@ -167,7 +189,7 @@ class PointNet2FeaExtractor(nn.Module):
             include_xyz=self.include_pos_info_network,
         )
         self.sa2 = PointNetSetAbstraction(
-            npoint=1024,
+            npoint=int(self.initial_npoints/4),
             radius=40 * self.initial_radius,
             nsample=16,
             in_channel=sbf(32),
@@ -176,7 +198,7 @@ class PointNet2FeaExtractor(nn.Module):
             include_xyz=self.include_pos_info_network,
         )
         self.sa3 = PointNetSetAbstraction(
-            npoint=256,
+            npoint=int(self.initial_npoints/16),
             radius=80 * self.initial_radius,
             nsample=8,
             in_channel=sbf(64),
@@ -185,7 +207,7 @@ class PointNet2FeaExtractor(nn.Module):
             include_xyz=self.include_pos_info_network,
         )
         self.sa4 = PointNetSetAbstraction(
-            npoint=64,
+            npoint=int(self.initial_npoints/64),
             radius=160 * self.initial_radius,
             nsample=8,
             in_channel=sbf(128),
@@ -251,7 +273,6 @@ class PointNet2FeaExtractor(nn.Module):
         l0_fnew1 = self.fp(pc1, l1_pc1, feature1, l1_fnew1)
         x = F.relu(self.bn1(self.conv1(l0_fnew1)))
         sf = self.conv2(x)
-        sf = sf.transpose(2, 1).contiguous()
 
         l0_pc2, l0_feature2, _ = self.sa0(pc2, feature2)
         l1_pc2, l1_feature2, _ = self.sa1(l0_pc2, l0_feature2)
@@ -264,19 +285,20 @@ class PointNet2FeaExtractor(nn.Module):
         l0_fnew2 = self.fp(pc2, l1_pc2, feature2, l1_fnew2)
         x = F.relu(self.bn1(self.conv1(l0_fnew2)))
         tf = self.conv2(x)
+        sf = (sf) / (sf.std(2, keepdim=True) + 1e-7)
+        tf = (tf) / (tf.std(2, keepdim=True) + 1e-7)
+        # sf = (sf-sf.mean(2,keepdim=True))/(sf.std(2,keepdim=True)+1e-7)
+        # tf = (tf-tf.mean(2,keepdim=True))/(tf.std(2,keepdim=True)+1e-7)
+        sf = sf.transpose(2, 1).contiguous()
         tf = tf.transpose(2, 1).contiguous()
 
         if self.include_pos_in_final_feature:
             sf = torch.cat([cur_source.points, sf], 2)
             tf = torch.cat([target.points, tf], 2)
 
-        new_cur_source = Shape().set_data(
-            points=cur_source.points, weights=cur_source.weights, pointfea=sf
-        )
-        new_target = Shape().set_data(
-            points=target.points, weights=target.weights, pointfea=tf
-        )
-        return new_cur_source, new_target
+        cur_source.pointfea = sf
+        target.pointfea = tf
+        return cur_source, target
 
     def normalize_fea(self):
         pass
@@ -296,7 +318,7 @@ class DGCNNFeaExtractor(nn.Module):
             self.opt[
                 (
                     "local_pair_feature_extractor_obj",
-                    "",
+                    "local_feature_extractor.default_local_pair_feature_extractor()",
                     "function object for local_feature_extractor",
                 )
             ]
@@ -354,14 +376,15 @@ class PointConvFeaExtractor(nn.Module):
             self.opt[
                 (
                     "local_pair_feature_extractor_obj",
-                    "",
-                    "function object for local_feature_extractor",
+                    "local_feature_extractor.default_local_pair_feature_extractor()",
+                    "function object for local_feature_extractor"
                 )
             ]
         )
         self.input_channel = self.opt[("input_channel", 1, "input channel")]
         self.output_channel = self.opt[("output_channel", 6, "output channel")]
         self.initial_radius = self.opt[("initial_radius", 0.001, "initial radius")]
+        self.initial_npoints = self.opt[("initial_npoints",2048, "inital_n")]
         self.param_shrink_factor = self.opt[
             ("param_shrink_factor", 2, "network parameter shrink factor")
         ]
@@ -384,6 +407,7 @@ class PointConvFeaExtractor(nn.Module):
             output_channels=self.output_channel,
             param_shrink_factor=self.param_shrink_factor,
             use_aniso_kernel=self.use_aniso_kernel,
+            first_sampling_npoints = self.initial_npoints
         )
         if self.pretrained_model_path:
             checkpoint = torch.load(self.pretrained_model_path, map_location="cpu")
@@ -460,7 +484,7 @@ class DeepFeatureLoss(nn.Module):
         pointfea1 = cur_source.pointfea
         pointfea2 = target.pointfea
         weights = cur_source.weights
-        sigma = 0.005
+        sigma = self.soften_gt_sigma
         x_i = LazyTensor(points[:, :, None] / sigma)  # BxNx1xD
         x_j = LazyTensor(points[:, None] / sigma)  # Bx1xNxD
         point_dist2 = -x_i.sqdist(x_j)  # BxNxNx1

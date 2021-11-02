@@ -249,7 +249,7 @@ class DeepFeature(nn.Module):
         gt_flowed_points = (
             shape_pair.target.points.clone()
             if not has_gt
-            else shape_pair.extra_info["gt_flowed"]
+            else shape_pair.extra_info.get("gt_flowed",None)
         )
         gt_flowed = Shape().set_data_with_refer_to(gt_flowed_points, shape_pair.source)
         cur_source, shape_pair.target = self.pair_feature_extractor(
@@ -267,11 +267,11 @@ class DeepFeature(nn.Module):
         shape_pair.source = cur_source
 
         if self.local_iter % self.print_step == 0:
-            print(
-                "debugging: feature norm {}".format(
-                    shape_pair.source.pointfea.norm(2, 2).mean(1)
-                )
-            )
+            # print(
+            #     "debugging: feature norm {}".format(
+            #         shape_pair.source.pointfea.norm(2, 2).mean(1)
+            #     )
+            # )
             print(
                 "{} th step, {} sim_loss is {}, reg_loss is {}, sim_factor is {}, reg_factor is {}".format(
                     self.local_iter.item(),

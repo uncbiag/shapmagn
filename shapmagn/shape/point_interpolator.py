@@ -2,7 +2,7 @@ import torch
 from pykeops.torch import LazyTensor
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
 from shapmagn.utils.obj_factory import obj_factory
-from shapmagn.utils.knn_utils import KNN
+from shapmagn.utils.knn_utils import NN, KNN
 
 
 def compute_nadwat_kernel(scale=0.1, exp_order=2, iso=True, self_center=False):
@@ -423,6 +423,18 @@ class KNNInterpolater(object):
         return pc1_interp_fea
 
 
+
+
+class NNInterpolater(object):
+    def __init__(self):
+        super(NNInterpolater,self).__init__()
+        self.nn = NN(return_value=False)
+
+    def __call__(self,pc1, pc2, pc2_fea):
+        from shapmagn.modules_reg.networks.pointconv_util import index_points_group
+        index = self.nn(pc1, pc2)
+        pc1_interp_fea =index_points_group(pc2_fea,index)[:,:,0]
+        return pc1_interp_fea
 #
 # if __name__ == "__main__":
 #     a=torch.rand(1,10000,3).cuda()

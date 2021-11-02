@@ -4,11 +4,28 @@ from shapmagn.utils.obj_factory import obj_factory
 from shapmagn.utils.local_feature_extractor import compute_anisotropic_gamma_from_points
 from functools import partial
 
+def NN(return_value=True, return_pos=False):
+    def compute(pc1, pc2):
+        from shapmagn.modules_reg.networks.pointconv_util import index_points_group
+
+        B,N = pc1.shape[0], pc1.shape[1]
+        pc_i = LazyTensor(pc1[:,:,None])
+        pc_j = LazyTensor(pc2[:,None])
+        dist2 = pc_i.sqdist(pc_j)
+        if return_value:
+            K_min, index = dist2.min_argmin(dim=2)
+            return K_min.view(B, N, 1), index.long().view(B, N, 1)
+        elif return_pos:
+            K_min, index = dist2.min_argmin(dim=2)
+            Kmin_pc3 = index_points_group(pc2,index)
+            return Kmin_pc3[:,:,0].contiguous(), index.long().view(B, N, 1)
+        else:
+            return dist2.argmin(dim=2).long().view(B, N, 1)
+    return compute
 
 def KNN(return_value=True):
     def compute(pc1, pc2, K):
         from shapmagn.modules_reg.networks.pointconv_util import index_points_group
-
         B, N = pc1.shape[0], pc1.shape[1]
         pc_i = LazyTensor(pc1[:, :, None])
         pc_j = LazyTensor(pc2[:, None])
@@ -22,6 +39,7 @@ def KNN(return_value=True):
             return index.long().view(B, N, K)
 
     return compute
+
 
 
 def AnisoKNN(
@@ -48,7 +66,6 @@ def AnisoKNN(
 
     def compute(pc1, pc2, K):
         from shapmagn.modules_reg.networks.pointconv_util import index_points_group
-
         B, N = pc1.shape[0], pc1.shape[1]
         if not self_center:
             gamma = compute_gamma(pc2)
@@ -72,3 +89,4 @@ def AnisoKNN(
             return index.long().view(B, N, K)
 
     return compute
+

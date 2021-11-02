@@ -1,13 +1,13 @@
-from glob import glob
-import os
-import copy
+import os,sys
+sys.path.insert(0, os.path.abspath("../../../.."))
 import numpy as np
+from shapmagn.datasets.data_utils import save_json
 import pyvista as pv
 import SimpleITK as sitk
-from shapmagn.experiments.datasets.lung.img_sampler import DataProcessing
 from shapmagn.datasets.vtk_utils import read_vtk
 from shapmagn.shape.shape_utils import get_scale_and_center
-import pykeops
+from shapmagn.experiments.datasets.lung.global_variable import lung_expri_path
+
 """
 High resolution to low resoltuion dirlab mapping
 
@@ -21,29 +21,29 @@ loc[z] = (high_image.shape[z] - low_index[z]*4 + 1.5)*high_spacing + high_origin
 """
 
 COPD_ID={
-    "copd6":"12042G",
-    "copd7":"12105E",
-    "copd8":"12109M",
-    "copd9":"12239Z",
-    "copd10":"12829U",
-    "copd1":"13216S",
-    "copd2":"13528L",
-    "copd3":"13671Q",
-    "copd4":"13998W",
-    "copd5":"17441T"
+    "copd1":  "copd_000001",
+    "copd2":  "copd_000002",
+    "copd3":  "copd_000003",
+    "copd4":  "copd_000004",
+    "copd5":  "copd_000005",
+    "copd6":  "copd_000006",
+    "copd7":  "copd_000007",
+    "copd8":  "copd_000008",
+    "copd9":  "copd_000009",
+    "copd10": "copd_000010"
 }
 
 ID_COPD={
-    "12042G":"copd6",
-    "12105E":"copd7",
-    "12109M":"copd8",
-    "12239Z":"copd9",
-    "12829U":"copd10",
-    "13216S":"copd1",
-    "13528L":"copd2",
-    "13671Q":"copd3",
-    "13998W":"copd4",
-    "17441T":"copd5"
+    "copd_000001":"copd1",
+    "copd_000002":"copd2",
+    "copd_000003":"copd3",
+    "copd_000004":"copd4",
+    "copd_000005":"copd5",
+    "copd_000006":"copd6",
+    "copd_000007":"copd7",
+    "copd_000008":"copd8",
+    "copd_000009":"copd9",
+    "copd_000010":"copd10"
 }
 
 #in sitk coord
@@ -59,7 +59,7 @@ COPD_spacing = {"copd1": [0.625, 0.625, 2.5],
                 "copd10": [0.742, 0.742, 2.5]}
 
 # in sitk coord
-COPD_shape = {"copd1": [512, 512, 121],
+COPD_low_shape = {"copd1": [512, 512, 121],
               "copd2": [512, 512, 102],
               "copd3": [512, 512, 126],
               "copd4": [512, 512, 126],
@@ -71,6 +71,56 @@ COPD_shape = {"copd1": [512, 512, 121],
               "copd10":[512, 512, 135]}
 
 
+# in sitk coord
+COPD_high_insp_shape = {"copd1": [512, 512, 482],
+              "copd2": [512, 512, 406],
+              "copd3": [512, 512, 502],
+              "copd4": [512, 512, 501],
+              "copd5": [512, 512, 522],
+              "copd6": [512, 512, 474],
+              "copd7": [512, 512, 446],
+              "copd8": [512, 512, 458],
+              "copd9": [512, 512, 461],
+              "copd10":[512, 512, 535]}
+
+
+# in sitk coord
+COPD_high_exp_shape = {"copd1": [512, 512, 473],
+              "copd2": [512, 512, 378],
+              "copd3": [512, 512, 464],
+              "copd4": [512, 512, 461],
+              "copd5": [512, 512, 522],
+              "copd6": [512, 512, 461],
+              "copd7": [512, 512, 407],
+              "copd8": [512, 512, 426],
+              "copd9": [512, 512, 380],
+              "copd10":[512, 512, 539]}
+
+COPD_info = {"copd1": {"insp":{'size': [512, 512, 482],'spacing': [0.625, 0.625, 0.625], 'origin': [-148.0, -145.0, -310.625]},
+                        "exp":{'size': [512, 512, 473],'spacing': [0.625, 0.625, 0.625], 'origin': [-148.0, -145.0, -305.0]}},
+              "copd2":  {"insp":{'size': [512, 512, 406],'spacing': [0.644531, 0.644531, 0.625], 'origin': [-176.9, -165.0, -254.625]},
+                        "exp":{'size': [512, 512, 378],'spacing': [0.644531, 0.644531, 0.625], 'origin': [-177.0, -165.0, -237.125]}},
+              "copd3":  {"insp":{'size': [512, 512, 502],'spacing': [0.652344, 0.652344, 0.625], 'origin': [-149.4, -167.0, -343.125]},
+                        "exp":{'size': [512, 512, 464],'spacing': [0.652344, 0.652344, 0.625], 'origin': [-149.4, -167.0, -319.375]}},
+              "copd4":  {"insp":{'size': [512, 512, 501],'spacing': [0.589844, 0.589844, 0.625], 'origin': [-124.1, -151.0, -308.25]},
+                        "exp":{'size': [512, 512, 461],'spacing': [0.589844, 0.589844, 0.625], 'origin': [-124.1, -151.0, -283.25]}},
+              "copd5":  {"insp":{'size': [512, 512, 522],'spacing': [0.646484, 0.646484, 0.625], 'origin': [-145.9, -175.9, -353.875]},
+                        "exp":{'size': [512, 512, 522],'spacing': [0.646484, 0.646484, 0.625], 'origin': [-145.9, -175.9, -353.875]}},
+              "copd6":  {"insp":{'size': [512, 512, 474],'spacing': [0.632812, 0.632812, 0.625], 'origin': [-158.4, -162.0, -299.625]},
+                        "exp":{'size': [512, 512, 461],'spacing': [0.632812, 0.632812, 0.625], 'origin': [-158.4, -162.0, -291.5]}},
+              "copd7":  {"insp":{'size': [512, 512, 446],'spacing': [0.625, 0.625, 0.625], 'origin': [-150.7, -160.0, -301.375]},
+                        "exp":{'size': [512, 512, 407],'spacing': [0.625, 0.625, 0.625], 'origin': [-151.0, -160.0, -284.25]}},
+              "copd8":  {"insp":{'size': [512, 512, 458],'spacing': [0.585938, 0.585938, 0.625], 'origin': [-142.3, -147.4, -313.625]},
+                        "exp":{'size': [512, 512, 426],'spacing': [0.585938, 0.585938, 0.625], 'origin': [-142.3, -147.4, -294.625]}},
+              "copd9":  {"insp":{'size': [512, 512, 461],'spacing': [0.664062, 0.664062, 0.625], 'origin': [-156.1, -170.0, -310.25]},
+                        "exp":{'size': [512, 512, 380],'spacing': [0.664062, 0.664062, 0.625], 'origin': [-156.1, -170.0, -259.625]}},
+              "copd10": {"insp":{'size': [512, 512, 535],'spacing': [0.742188, 0.742188, 0.625], 'origin': [-189.0, -176.0, -355.0]},
+                        "exp":{'size': [512, 512, 539],'spacing': [0.742188, 0.742188, 0.625], 'origin': [-189.0, -176.0, -346.25]}}
+              }
+
+
+
+
 
 """
 before mapping
@@ -80,14 +130,14 @@ current COPD_ID;copd3 , and the current_mean 12.6391693237195                   
 current COPD_ID;copd4 , and the current_mean 29.583560337310402                     current COPD_ID;copd4 , and the current_mean 29.580001001346986
 current COPD_ID;copd5 , and the current_mean 30.082670091996842                     current COPD_ID;copd5 , and the current_mean 30.066294774082003
 current COPD_ID;copd6 , and the current_mean 28.456016850531874                     current COPD_ID;copd6 , and the current_mean 28.44935880947926
-current COPD_ID;copd7 , and the current_mean 21.601714709640365                     current COPD_ID;copd7 , and the current_mean 16.04527530944317 #
-current COPD_ID;copd8 , and the current_mean 26.456861641390127                     current COPD_ID;copd8 , and the current_mean 25.831153412715352 #
+current COPD_ID;copd7 , and the current_mean 21.601714709640365                     current COPD_ID;copd7 , and the current_mean 16.04527530944317
+current COPD_ID;copd8 , and the current_mean 26.456861641390127                     current COPD_ID;copd8 , and the current_mean 25.831153412715352
 current COPD_ID;copd9 , and the current_mean 14.860263389215536                     current COPD_ID;copd9 , and the current_mean 14.860883966778562
-current COPD_ID;copd10 , and the current_mean 21.805702262166907                    current COPD_ID;copd10 , and the current_mean 27.608698637477584 #
+current COPD_ID;copd10 , and the current_mean 21.805702262166907                    current COPD_ID;copd10 , and the current_mean 27.608698637477584
 """
 
 
-
+CENTER_BIAS = 2
 
 def read_dirlab(file_path, shape):
     dtype = np.dtype("<i2")
@@ -97,7 +147,7 @@ def read_dirlab(file_path, shape):
     return img_np
 
 def save_dirlab_into_niigz(file_path, output_path, fname, is_insp=False):
-    img_np = read_dirlab(file_path, np.flipud(COPD_shape[fname]))
+    img_np = read_dirlab(file_path, np.flipud(COPD_low_shape[fname]))
     img_sitk = sitk.GetImageFromArray(img_np)
     # img_sitk.SetOrigin()
     img_sitk.SetSpacing(np.array(COPD_spacing[fname]))
@@ -112,85 +162,6 @@ def save_dirlab_into_niigz(file_path, output_path, fname, is_insp=False):
         saving_path = os.path.join(output_path,fname+"_eBHCT.nii.gz")
     sitk.WriteImage(img_sitk,saving_path)
     return saving_path
-
-
-
-def clean_and_save_pointcloud(file_path, output_folder,case_name):
-    raw_data_dict = read_vtk(file_path)
-    data_dict = {}
-    data_dict["points"] = raw_data_dict["points"].astype(np.float32)
-    try:
-        data_dict["weights"] = raw_data_dict["dnn_radius"].astype(np.float32)
-    except:
-        raise ValueError
-    data = pv.PolyData(data_dict["points"])
-    data.point_arrays["weights"] = data_dict["weights"][:,None]
-    fpath = os.path.join(output_folder,os.path.split(file_path)[-1])
-    data.save(fpath)
-    fpath = os.path.join(output_folder,case_name+'.vtk')
-    data.save(fpath)
-    return fpath
-
-
-
-
-def read_img(file_path, return_np=True):
-    img_sitk = sitk.ReadImage(file_path)
-    spacing_itk = img_sitk.GetSpacing()
-    origin_itk = img_sitk.GetOrigin()
-    img_np = sitk.GetArrayFromImage(img_sitk)
-    if return_np:
-        return img_np, np.flipud(spacing_itk),np.array([0.,0.,0])
-    else:
-        return img_sitk, spacing_itk, np.array([0.,0.,0])
-
-
-def read_axis_reversed_img(file_path, return_np=True):
-    img_sitk = sitk.ReadImage(file_path)
-    spacing_itk = img_sitk.GetSpacing()
-    origin_itk = img_sitk.GetOrigin()
-    direction_itk = img_sitk.GetDirection()
-    img_np = sitk.GetArrayFromImage(img_sitk)
-    img_np = img_np[::-1]
-    if return_np:
-        return img_np, np.flipud(spacing_itk), np.array([0.,0.,0])
-    else:
-        img_sitk = sitk.GetImageFromArray(img_np)
-        img_sitk.SetSpacing(spacing_itk)
-        img_sitk.SetOrigin(np.array([0.,0.,0]))
-        img_sitk.SetDirection(direction_itk)
-        return img_sitk, spacing_itk, np.array([0.,0.,0])
-
-def compare_dirlab_and_high_nrrd(high_pair_path,case_id = None):
-    high_insp_path, high_exp_path = high_pair_path
-    dir_insp_exp_shape = COPD_shape[ID_COPD[case_id]]
-    high_insp_np, _, _  = read_img(high_insp_path)
-    high_insp_shape = np.flipud(high_insp_np.shape)
-    high_exp_np, _, _ = read_img(high_exp_path)
-    high_exp_shape = np.flipud(high_exp_np.shape)
-    print("{}, {} , exp_sz: {}, insp_sz: {}, copd_sz: {}, copd*4_sz: {}".format(case_id,ID_COPD[case_id], high_exp_shape[-1], high_insp_shape[-1], dir_insp_exp_shape[-1], dir_insp_exp_shape[-1]*4))
-
-
-def process_high_to_dirlab(high_pair_path,case_id=None, saving_folder=None):
-    high_insp_path, high_exp_path = high_pair_path
-    high_insp, spacing_itk, _ = read_axis_reversed_img(high_insp_path,return_np=False)
-    output_spacing = np.array(spacing_itk)
-    #output_spacing[-1] = output_spacing[-1]*4
-    output_spacing = COPD_spacing[ID_COPD[case_id]]
-    processed_insp = DataProcessing.resample_image_itk_by_spacing_and_size(high_insp, output_spacing = output_spacing, output_size=COPD_shape[ID_COPD[case_id]], output_type=None,
-                                               interpolator=sitk.sitkBSpline, padding_value=0, center_padding=False)
-    high_exp, spacing_itk, _ = read_axis_reversed_img(high_exp_path,return_np=False)
-    processed_exp = DataProcessing.resample_image_itk_by_spacing_and_size(high_exp, output_spacing = output_spacing, output_size=COPD_shape[ID_COPD[case_id]], output_type=None,
-                                               interpolator=sitk.sitkBSpline, padding_value=0, center_padding=False)
-    saving_path = os.path.join(saving_folder,case_id+"_INSP_STD_USD_COPD.nii.gz")
-    sitk.WriteImage(processed_insp,saving_path)
-    saving_path = os.path.join(saving_folder, ID_COPD[case_id] +"_iBHCT.nii.gz")
-    sitk.WriteImage(processed_insp,saving_path)
-    saving_path = os.path.join(saving_folder,case_id+"_EXP_STD_USD_COPD.nii.gz")
-    sitk.WriteImage(processed_exp,saving_path)
-    saving_path = os.path.join(saving_folder,ID_COPD[case_id]+"_eBHCT.nii.gz")
-    sitk.WriteImage(processed_exp,saving_path)
-
 
 
 
@@ -230,38 +201,51 @@ def get_img_info(img_path):
 
 def transfer_landmarks_from_dirlab_to_high(dirlab_index, high_shape):
     new_index= dirlab_index.copy()
-    new_index[:,-1] =(high_shape[-1]- dirlab_index[:,-1]*4) + 2
+    new_index[:,-1] =(high_shape[-1]- dirlab_index[:,-1]*4) + CENTER_BIAS
     return new_index
 
+def transfer_landmarks_from_dirlab_to_high_range(dirlab_index, high_shape):
+    index_range_shape = list(dirlab_index.shape)+[2]
+    new_index_range= np.zeros(index_range_shape)
+    new_index_range[:,0,0] = dirlab_index[:,0] - 0.5
+    new_index_range[:,0,1] = dirlab_index[:,0] + 0.5
+    new_index_range[:,1,0] = dirlab_index[:,1] - 0.5
+    new_index_range[:,1,1] = dirlab_index[:,1] + 0.5
+    new_index_range[:,2,0] = (high_shape[-1] - dirlab_index[:,-1]*4) + CENTER_BIAS - 2
+    new_index_range[:,2,1] = (high_shape[-1] - dirlab_index[:,-1]*4) + CENTER_BIAS + 2
+    return new_index_range
 
 
 
-
-def process_points(point_path, img_path, case_id, output_folder, is_insp):
+def process_points(point_path, case_id, point_mapped_path, is_insp):
     index = read_landmark_index(point_path)
-    img_shape_itk, spacing_itk, origin_itk = get_img_info(img_path)
     copd = ID_COPD[case_id]
-
-    print("origin {}_{}:{}".format(copd,"insp" if is_insp else "exp",origin_itk))
-    print("size {}_{}:{}".format(copd,"insp" if is_insp else "exp",img_shape_itk))
+    phase = "insp" if is_insp else "exp"
+    img_info = COPD_info[copd][phase]
+    img_shape_itk, spacing_itk, origin_itk = np.array(img_info["size"]), np.array(img_info["spacing"]), np.array(img_info["origin"])
     downsampled_spacing_itk = np.copy(spacing_itk)
     downsampled_spacing_itk[-1] = downsampled_spacing_itk[-1]*4
     # downsampled_spacing_itk = COPD_spacing[ID_COPD[case_id]]
     print("spatial ratio corrections:")
     print("{} : {},".format(copd,np.array(COPD_spacing[copd])/downsampled_spacing_itk))
     transfered_index = transfer_landmarks_from_dirlab_to_high(index, img_shape_itk)
+    transfered_index_range = transfer_landmarks_from_dirlab_to_high_range(index, img_shape_itk)
     physical_points = transfered_index*spacing_itk+origin_itk
+    physical_points_range = transfered_index_range*(spacing_itk.reshape(1,3,1)) + origin_itk.reshape(1,3,1)
     # for i in range(len(physical_points)):
     #     physical_points[i][-1] = spacing_itk[-1] * img_shape_itk[-1] - index[i][-1]* COPD_spacing[ID_COPD[case_id]][-1] + origin_itk[-1]
     data = pv.PolyData(physical_points)
     data.point_arrays["idx"] = np.arange(1,301)
-    suffix = "_INSP_STD_USD_COPD.vtk" if is_insp else "_EXP_STD_USD_COPD.vtk"
-    fpath = os.path.join(output_folder,case_id+suffix)
-    data.save(fpath)
-    suffix = "_INSP.vtk" if is_insp else "_EXP.vtk"
-    fpath = os.path.join(output_folder,ID_COPD[case_id]+suffix)
-    data.save(fpath)
+    data.save(point_mapped_path)
+    np.save(point_mapped_path.replace(".vtk","_range.npy"), physical_points_range)
+    case_info = {"raw_spacing":spacing_itk.tolist(), "raw_origin":origin_itk.tolist(),
+                 "dirlab_spacing":downsampled_spacing_itk.tolist(), "raw_shape":img_shape_itk.tolist(), "z_bias":CENTER_BIAS}
+    save_json(point_mapped_path.replace(".vtk","_info.json"), case_info)
     return physical_points
+
+
+
+
 
 
 def get_center(point_path,case_id, is_insp):
@@ -290,84 +274,46 @@ def compute_nn_dis_between_landmark_and_point_cloud(ldm_path, pc_path, case_id):
     return diff
 
 
-save_dirlab_IMG_into_niigz = False
-get_dirlab_high_shape_info = False
-map_high_to_dirlab = False
 project_landmarks_from_dirlab_to_high = True
-save_cleaned_pointcloud = False
-compute_shift = True
+compute_nearest_points_from_landmarks = False
+visualize_landmarks_and_vessel_tree = True
 
-root_path = "/home/zyshen/data/dirlab_data" #/playpen-raid1/Data
-pc_folder_path = os.path.join(root_path,"DIRLABVascular")
-low_folder_path =os.path.join(root_path,"copd")
-high_folder_path = os.path.join(root_path,"DIRLABCasesHighRes")
+copd_data_path = ""
+if len(sys.argv):
+    copd_data_path = sys.argv[0]
+#############  map dirlab landmarks into physical space  #########################
+low_folder_path = "/playpen-raid1/Data/copd"
+#low_folder_path = "/home/zyshen/data/dirlab_data/copd" #/playpen-raid1/Data/copd"
 landmark_insp_key = "*_300_iBH_xyz_r1.txt"
-img_insp_key = "*_iBHCT.img"
-insp_key = "*_INSP_STD_*"
-
-processed_output_path = os.path.join(root_path,"copd/processed_current")
+processed_output_path = os.path.join(lung_expri_path,"dirlab_landmarks")
 os.makedirs(processed_output_path,exist_ok=True)
-pc_insp_path_list= glob(os.path.join(pc_folder_path,insp_key))
-pc_exp_path_list = [path.replace("INSP","EXP") for path in pc_insp_path_list]
-for exp_path in pc_exp_path_list:
-    assert os.path.isfile(exp_path),"the file {} is not exist".format(exp_path)
-print("num of {} pair detected".format(len(pc_insp_path_list)))
-id_list = [os.path.split(path)[-1].split("_")[0] for path in pc_insp_path_list]
-landmark_insp_path_list = [os.path.join(low_folder_path,ID_COPD[_id],ID_COPD[_id],ID_COPD[_id]+"_300_iBH_xyz_r1.txt") for _id in id_list]
-landmark_exp_path_list = [os.path.join(low_folder_path,ID_COPD[_id],ID_COPD[_id],ID_COPD[_id]+"_300_eBH_xyz_r1.txt") for _id in id_list]
-
-high_img_insp_path_list = [os.path.join(high_folder_path,_id+"_INSP_STD_USD_COPD.nrrd") for _id in id_list]
-high_img_exp_path_list = [os.path.join(high_folder_path,_id+"_EXP_STD_USD_COPD.nrrd") for _id in id_list]
-
-low_processed_folder = os.path.join(processed_output_path, "dirlab")
-os.makedirs(low_processed_folder, exist_ok=True)
-
-low_img_insp_path_list = [os.path.join(low_processed_folder,_id+"_INSP_STD_USD_COPD.nii.gz") for _id in id_list]
-low_img_exp_path_list = [os.path.join(low_processed_folder,_id+"_EXP_STD_USD_COPD.nii.gz") for _id in id_list]
-
-if get_dirlab_high_shape_info:
-    for i, _id in enumerate(id_list):
-        high_img_insp_path, high_img_exp_path = high_img_insp_path_list[i], high_img_exp_path_list[i]
-        compare_dirlab_and_high_nrrd(high_pair_path=[high_img_insp_path, high_img_exp_path],case_id = _id)
-
-high_to_dirlab_processed_folder =  os.path.join(processed_output_path, "process_to_dirlab")
-os.makedirs(high_to_dirlab_processed_folder, exist_ok=True)
-
-landmark_processed_folder =  os.path.join(processed_output_path, "landmark_processed_colored")
-os.makedirs(landmark_processed_folder, exist_ok=True)
+id_list = list(ID_COPD.keys())
+landmark_dirlab_insp_path_list = [os.path.join(low_folder_path,ID_COPD[_id],ID_COPD[_id],ID_COPD[_id]+"_300_iBH_xyz_r1.txt") for _id in id_list]
+landmark_dirlab_exp_path_list = [os.path.join(low_folder_path,ID_COPD[_id],ID_COPD[_id],ID_COPD[_id]+"_300_eBH_xyz_r1.txt") for _id in id_list]
+landmark_physical_insp_path_list = [os.path.join(processed_output_path,_id+"_INSP.vtk") for _id in id_list]
+landmark_physical_exp_path_list = [os.path.join(processed_output_path,_id+"_EXP.vtk") for _id in id_list]
 if project_landmarks_from_dirlab_to_high:
-    landmark_insp_physical_pos_list = [ process_points(landmark_insp_path_list[i], high_img_insp_path_list[i], id_list[i],landmark_processed_folder, is_insp=True) for i in range(len(id_list))]
-    landmark_exp_physical_pos_list = [ process_points(landmark_exp_path_list[i], high_img_exp_path_list[i],id_list[i],landmark_processed_folder, is_insp=False) for i in range(len(id_list))]
-    init_diff_list = []
-    for i in range(len(id_list)):
-        copid = "copd{}".format(i+1)
-        index = id_list.index(COPD_ID[copid])
-        diff = np.linalg.norm(landmark_insp_physical_pos_list[index]-landmark_exp_physical_pos_list[index],2,1).mean()
-        init_diff_list.append(diff)
-        print("COPD_ID;{} , and the current mse is {}".format(copid,diff))
-    print("overall mean {}".format(np.mean(init_diff_list)))
-    print("overall median {}".format(np.median(init_diff_list)))
-
-cleaned_pc_folder = os.path.join(processed_output_path, "cleaned_pointcloud")
-os.makedirs(cleaned_pc_folder, exist_ok=True)
-if save_cleaned_pointcloud:
-    for i, _id in enumerate(id_list):
-        try:
-            clean_and_save_pointcloud(pc_insp_path_list[i], cleaned_pc_folder,ID_COPD[_id]+"_INSP")
-            clean_and_save_pointcloud(pc_exp_path_list[i], cleaned_pc_folder,ID_COPD[_id]+"_EXP")
-        except:
-            print("id_{} failed".format(_id))
+    landmark_insp_physical_pos_list = [process_points(landmark_dirlab_insp_path_list[i], id_list[i],landmark_physical_insp_path_list[i], is_insp=True) for i in range(len(id_list))]
+    landmark_exp_physical_pos_list = [process_points(landmark_dirlab_exp_path_list[i], id_list[i],landmark_physical_exp_path_list[i], is_insp=False) for i in range(len(id_list))]
+    for path in landmark_physical_insp_path_list:
+        assert os.path.isfile(path), "the file {} is not exist".format(path)
+    for path in landmark_physical_exp_path_list:
+        assert os.path.isfile(path), "the file {} is not exist".format(path)
+    print("landmarks have been projected into physical space")
 
 
+#############  analyze mapped results  #########################
+"""compute the nearest distance between landmarks and vessel trees"""
+pc_folder_path = "/playpen-raid1/Data/DIRLABVascular_cleaned"
+#pc_folder_path = "/home/zyshen/data/dirlab_data/DIRLABVascular_cleaned"
+insp_key = "*INSP*"
 shift_diff = []
-if compute_shift:
+pc_insp_path_list = [os.path.join(pc_folder_path,_id+"_INSP"+".vtk")  for _id in id_list]
+pc_exp_path_list = [os.path.join(pc_folder_path,_id+"_EXP"+".vtk")  for _id in id_list]
+if compute_nearest_points_from_landmarks:
     for i,_id in enumerate(id_list):
-        cleaned_insp_path = os.path.join(cleaned_pc_folder,ID_COPD[_id]+"_INSP"+".vtk")
-        cleaned_exp_path = os.path.join(cleaned_pc_folder,ID_COPD[_id]+"_EXP"+".vtk")
-        landmark_insp_path =  os.path.join(landmark_processed_folder,ID_COPD[_id]+"_INSP"+".vtk")
-        landmark_exp_path =  os.path.join(landmark_processed_folder,ID_COPD[_id]+"_EXP"+".vtk")
-        insp_diff = compute_nn_dis_between_landmark_and_point_cloud(landmark_insp_path,cleaned_insp_path,_id)
-        exp_diff = compute_nn_dis_between_landmark_and_point_cloud(landmark_exp_path,cleaned_exp_path,_id)
+        insp_diff = compute_nn_dis_between_landmark_and_point_cloud(landmark_physical_insp_path_list[i],pc_insp_path_list[i],_id)
+        exp_diff = compute_nn_dis_between_landmark_and_point_cloud(landmark_physical_exp_path_list[i],pc_exp_path_list[i],_id)
         shift_diff.append(insp_diff)
         shift_diff.append(exp_diff)
     shift_diff = np.concatenate(shift_diff,0)
@@ -376,15 +322,33 @@ if compute_shift:
     print("overall dist  of all dirlab mean {}".format(np.mean(np.linalg.norm(shift_diff, ord=2, axis=1))))
 
 
-
-
-
-
-
-
-
-
-
+"""visualize mapped results"""
+if visualize_landmarks_and_vessel_tree:
+    from shapmagn.utils.visualizer import visualize_landmark_pair, default_plot
+    from shapmagn.experiments.datasets.lung.visualizer import lung_plot, camera_pos
+    for i, _id in enumerate(id_list):
+        landmarks_insp = read_vtk(landmark_physical_insp_path_list[i])["points"]
+        landmarks_exp = read_vtk(landmark_physical_exp_path_list[i])["points"]
+        vessels_insp_dict = read_vtk(pc_insp_path_list[i])
+        vessels_exp_dict = read_vtk(pc_exp_path_list[i])
+        vessels_insp_points, vessels_exp_points = vessels_insp_dict["points"], vessels_exp_dict["points"]
+        vessels_insp_weight, vessels_exp_weights = vessels_insp_dict["dnn_radius"], vessels_exp_dict["dnn_radius"]
+        visualize_landmark_pair(
+            vessels_exp_points,
+            landmarks_exp,
+            vessels_insp_points,
+            landmarks_insp,
+            vessels_exp_weights,
+            np.ones_like(landmarks_exp),
+            vessels_insp_weight,
+            np.ones_like(landmarks_insp),
+            "exp",
+            "insp",
+            point_plot_func=lung_plot(color='source'),
+            landmark_plot_func=default_plot(cmap="Blues"),
+            opacity=("linear", "linear"),
+            light_mode="none",
+        )
 
 
 

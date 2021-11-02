@@ -1,13 +1,16 @@
 """
 uniform mass sampling from a given shape
 """
-
+import os
 import numpy as np
 import torch
+
+from shapmagn.datasets.data_utils import get_obj
 from shapmagn.modules_reg.networks.pointconv_util import index_points_group
 from geomloss import SamplesLoss
 from pykeops.torch import LazyTensor
-from shapmagn.utils.visualizer import visualize_point_pair
+from shapmagn.utils.visualizer import visualize_point_pair, visualize_landmark_overlap, default_plot
+
 
 def NN():
     def compute(pc1, pc2):
@@ -61,21 +64,67 @@ def wasserstein_barycenter_mapping(input_points, wsm_num,blur=0.01,sparse=False)
 
 
 if __name__ == "__main__":
-    def make_spirial_points(noise=0.0):
-        """Helper to make XYZ points"""
-        theta = np.linspace(-4 * np.pi, 4 * np.pi, 10000)
-        z = np.linspace(-2, 2, 10000)
-        r = z ** 2 + 1 + np.random.rand(len(z)) * noise
-        x = r * np.sin(theta) + np.random.rand(len(z)) * noise
-        y = r * np.cos(theta) + np.random.rand(len(z)) * noise
-        return np.column_stack((x, y, z))
 
-    points = make_spirial_points(noise=0.0)
-    points = points.astype(np.float32)
-    points = torch.Tensor(points[None]).cuda()
-    before_sample,sampled_points = wasserstein_barycenter_mapping(points,wsm_num=100,blur=1e-3)
-    visualize_point_pair(points, sampled_points,points, sampled_points,"dense","sparse")
-    visualize_point_pair(before_sample, sampled_points,before_sample, sampled_points,"before_sampled","sparse")
+    ###  1D demo
+    # def make_spirial_points(noise=0.0):
+    #     """Helper to make XYZ points"""
+    #     theta = np.linspace(-4 * np.pi, 4 * np.pi, 10000)
+    #     z = np.linspace(-2, 2, 10000)
+    #     r = z ** 2 + 1 + np.random.rand(len(z)) * noise
+    #     x = r * np.sin(theta) + np.random.rand(len(z)) * noise
+    #     y = r * np.cos(theta) + np.random.rand(len(z)) * noise
+    #     return np.column_stack((x, y, z))
+    #
+    # points = make_spirial_points(noise=0.0)
+    # points = points.astype(np.float32)
+    # points = torch.Tensor(points[None]).cuda()
+    # before_sample,sampled_points = wasserstein_barycenter_mapping(points,wsm_num=100,blur=1e-3)
+    # visualize_point_pair(points, sampled_points,points, sampled_points,"dense","sparse")
+    # visualize_point_pair(before_sample, sampled_points,before_sample, sampled_points,"before_sampled","sparse")
+
+    ### 3D demo
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    expri_settings = {
+        "bunny": {"data_path": "./data/toy_demo_data/bunny_30k.ply"},
+        "dragon": {"data_path": "./data/toy_demo_data/dragon_30k.ply"},
+        "armadillo": {"data_path": "./data/toy_demo_data/armadillo_30k.ply"}
+    }
+    output_path = "./output/ot_fun"
+    bunny_path = expri_settings["bunny"]["data_path"]
+    dragon_path = expri_settings["dragon"]["data_path"]
+    armadillo_path = expri_settings["armadillo"]["data_path"]
+    os.makedirs(output_path, exist_ok=True)
+
+    ####################  prepare data ###########################
+    reader_obj = "toy_dataset_utils.toy_reader()"
+    sampler_obj = "toy_dataset_utils.toy_sampler()"
+    normalizer_obj = "toy_dataset_utils.toy_normalizer()"
+    get_obj_func = get_obj(reader_obj, normalizer_obj, sampler_obj, device)
+    bunny_obj, bunny_interval = get_obj_func(bunny_path)
+    points = bunny_obj["points"]
+    before_sample, sampled_points = wasserstein_barycenter_mapping(points, wsm_num=100, blur=1e-3)
+    # visualize_point_pair(points, sampled_points,points, sampled_points,"dense","sparse")
+    # visualize_point_pair(before_sample, sampled_points,before_sample, sampled_points,"before_sampled","sparse")
+    visualize_landmark_overlap(
+        points,
+        before_sample,
+        points,
+        torch.norm(before_sample, 2, 2),
+        point_plot_func=default_plot(cmap="magma", rgb=True, point_size=15, render_points_as_spheres=True),
+        landmark_plot_func=default_plot(cmap="viridis", rgb=True, point_size=30, render_points_as_spheres=True),
+        title= "source",
+        opacity=(0.1, 1),
+    )
+    visualize_landmark_overlap(
+        points,
+        sampled_points,
+        points,
+        torch.norm(sampled_points, 2, 2),
+        point_plot_func=default_plot(cmap="magma", rgb=True, point_size=15, render_points_as_spheres=True),
+        landmark_plot_func=default_plot(cmap="viridis", rgb=True, point_size=30, render_points_as_spheres=True),
+        title="source",
+        opacity=(0.1, 1),
+    )
 
 
 

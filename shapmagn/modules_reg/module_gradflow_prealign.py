@@ -52,8 +52,7 @@ class GradFlowPreAlign(nn.Module):
     def set_mode(self, mode):
         self.prealign = True
 
-    @staticmethod
-    def solve_affine(x, y, w):
+    def solve_affine(self,x, y, w):
         """
         :param x: BxNxD
         :param y: BxNxD

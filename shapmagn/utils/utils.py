@@ -476,10 +476,11 @@ def memory_sort_helper(x, x_labels):
 
 
 def add_zero_last_dim(points):
+    device = points.device
     if isinstance(points, torch.Tensor):
         shape = list(points.shape)
         shape[-1] = 1
-        zero_dim = torch.zeros(shape)
+        zero_dim = torch.zeros(shape).to(device)
         return torch.cat([points, zero_dim], -1)
     else:
         shape = list(points.shape)

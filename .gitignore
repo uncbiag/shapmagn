@@ -9,6 +9,7 @@ torchdiffeq_mine
 torchdiffeq_prev
 shapmagn/experiments/datasets/toy/shapes
 shapmagn/experiments/datasets/lung/output
+shapmagn/experiments/datasets/lung/data_preprocessing
 shapmagn/experiments/datasets/unpub_face
 shapmagn/experiments/datasets/bellus_face
 shapmagn/experiments/datasets/dhface
@@ -19,6 +20,7 @@ shapmagn/experiments/datasets/scanner_variation
 #shapmagn/experiments/datasets/flying3d_and_kitti/calib_cam_to_cam
 shapmagn/demos/data/lung_data/lung_vessel_demo_data
 shapmagn/demos/output
+shapmagn/demos/unpublic
 TEASER-plusplus
 probreg
 shapmagn/debugging
@@ -28,3 +30,4 @@ shapmagn/debug
 *.ply
 *.jpg
 *.obj
+/shapmagn/experiments/datasets/modelnet40/model/

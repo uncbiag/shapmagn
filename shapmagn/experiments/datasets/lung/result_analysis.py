@@ -179,41 +179,55 @@ def get_res_dic():
     data_dic = {}
     data_dic["ICP(affine)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/opt_icp_60000/records/lmk_diff_mean_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/opt_icp/eval/res/records/lmk_diff_mean_records_detail.npy",
     )
     data_dic["RobOT(affine)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/timing/opt_prealign/records/lmk_diff_mean_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/opt_prealign/eval/res/records/lmk_diff_mean_records_detail.npy",
     )
     data_dic["CPD(non-param)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/opt_cpd_20000_beta20_lmd1/records/lmk_diff_mean_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/opt_cpd/eval/res/records/lmk_diff_mean_records_detail.npy",
     )
     data_dic["RobOT(non-param)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/timing/opt_gf_60000/records/lmk_diff_mean_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/opt_gf/eval/res/records/lmk_diff_mean_records_detail.npy",
     )
-    data_dic["P-RobOT(spline)"] = get_experiment_data_from_record(
+    data_dic["S-RobOT(spline)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/timing/opt_discrete_flow_deep/records/lmk_diff_mean_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/opt_discrete_flow_deep/eval/res/records/lmk_diff_mean_records_detail.npy",
+        #"/playpen-raid1/zyshen/data/lung_expri/timing/opt_discrete_flow_deep/records/lmk_diff_mean_records_detail.npy",
     )
-    data_dic["P-RobOT(LDDMM)"] = get_experiment_data_from_record(
+    data_dic["S-RobOT(LDDMM)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/discrete_flow_on_dirlab_deep_lddmm/records/lmk_diff_mean_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/opt_discrete_flow_deep_lddmm/eval/res/records/lmk_diff_mean_records_detail.npy",
+        #"/playpen-raid1/zyshen/data/lung_expri/discrete_flow_on_dirlab_deep_lddmm/records/lmk_diff_mean_records_detail.npy",
     )
     data_dic["DGCNN-CPD"] = inc(), np.array([item[1] for item in DGCNN.items()])
     data_dic["D-RobOT(disp)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/timing/deep_flow_prealign_pwc2_2_continue_60000/records/lmk_diff_mean_and_gf_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/deepflow_pwc_disp/eval/res/records/lmk_diff_mean_and_gf_records_detail.npy",
     )
     data_dic["D-RobOT(spline)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/model_eval/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso/records/lmk_diff_mean_and_gf_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/deepflow_pwc_spline/eval/res/records/lmk_diff_mean_and_gf_records_detail.npy",
     )
     data_dic["D-RobOT(LDDMM)"] = get_experiment_data_from_record(
         inc(),
-        "/playpen-raid1/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun/records/lmk_diff_mean_gf_records_detail.npy",
+        "/playpen-raid1/zyshen/proj/shapmagn/shapmagn/demos/output/reproduce/test_deepflow_on_one_case/deepflow_pwc_lddmm/eval/res/records/lmk_diff_mean_gf_records_detail.npy",
     )
+    # data_dic['DRobOT(disp_nn)'] = get_experiment_data_from_record(inc(),
+    #                                                               '/playpen-raid1/zyshen/data/lung_expri/model_eval/nn/deep_flow_prealign_pwc2_2_continue_60000/records/lmk_diff_mean_gf_records_detail.npy')
+    # data_dic['DRobOT(spline_nn)'] = get_experiment_data_from_record(inc(),
+    #                                                                 '/playpen-raid1/zyshen/data/lung_expri/model_eval/nn/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso_rerun/records/lmk_diff_mean_gf_records_detail.npy')
+    # data_dic['DRobOT(LDDMM_nn)'] = get_experiment_data_from_record(inc(),
+    #                                                                '/playpen-raid1/zyshen/data/lung_expri/model_eval/nn/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun/records/lmk_diff_mean_gf_records_detail.npy')
+    # data_dic['DRobOT(disp_nn_ns)'] = get_experiment_data_from_record(inc(),
+    #                                                                  '/playpen-raid1/zyshen/data/lung_expri/model_eval/nn_nonsmooth/deep_flow_prealign_pwc2_2_continue_60000/records/lmk_diff_mean_gf_records_detail.npy')
+    # data_dic['DRobOT(spline_nn_ns)'] = get_experiment_data_from_record(inc(),
+    #                                                                    '/playpen-raid1/zyshen/data/lung_expri/model_eval/nn_nonsmooth/deep_flow_prealign_pwc_spline_4096_new_60000_8192_aniso_rerun/records/lmk_diff_mean_gf_records_detail.npy')
+    # data_dic['DRobOT(LDDMM_nn_ns)'] = get_experiment_data_from_record(inc(),
+    #                                                                   '/playpen-raid1/zyshen/data/lung_expri/model_eval/nn_nonsmooth/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun/records/lmk_diff_mean_gf_records_detail.npy')
     return data_dic
 
 
@@ -397,17 +411,34 @@ label = "Landmark Mean Square Error"
 
 
 order = -1
-data_list1, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
+data_list, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
 order = -1
 
 fpth = "/playpen-raid1/zyshen/debug/lung_plots"
 os.makedirs(fpth, exist_ok=True)
+def save_json(path, data):
+    import json
+    with open(path, "w") as f:
+        json.dump(data, f)
+res = {}
+res["data_list"] = [_data.tolist() for _data in data_list]
+res["name_list"] = name_list
+save_json("./res.json",res)
+def load_json(file_path):
+    import json
+    with open(file_path) as f:
+        data_dict = json.load(f)
+    return data_dict
+res = load_json("./res.json")
 fpth = os.path.join(fpth, "res_boxplot.png")
-draw_single_boxplot(name_list,data_list1,label=label,fpth=fpth,data_name='synth',title='Performance on DirLab')
+name_list = res["name_list"]
+data_list = res["data_list"]
+data_list = [np.array(_data) for _data in data_list]
+draw_single_boxplot(name_list,data_list,label=label,fpth=fpth,data_name='synth',title='Performance on DirLab')
 
-compute_std(data_list1, name_list)
-data_list1, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
-compute_std(data_list1, name_list)
+compute_std(data_list, name_list)
+data_list, name_list = get_list_from_dic(get_res_dic(), use_perc=False)
+compute_std(data_list, name_list)
 
 order = -1
 

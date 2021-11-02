@@ -16,9 +16,7 @@ class ProRegOPT(nn.Module):
     def __init__(self, opt):
         super(ProRegOPT, self).__init__()
         self.opt = opt
-        self.probreg_module = ProbReg(
-            self.opt[("probreg", {}, "settings for probreg module")]
-        )
+        self.probreg_module = ProbReg(self.opt)
         self.call_thirdparty_package = True
         self.sim_loss_fn = lambda x, y: torch.tensor(-1)
         self.reg_loss_fn = lambda x: torch.tensor(-1)

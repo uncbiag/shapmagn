@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from shapmagn.global_variable import DATASET_POOL
+from shapmagn.utils.obj_factory import partial_obj_factory
 
 # todo reformat the import style
 class DataManager(object):
@@ -87,10 +88,16 @@ class DataManager(object):
         assert name in DATASET_POOL, "{} not in dataset pool {}".format(
             name, DATASET_POOL
         )
-        transformed_dataset = {
-            phase: DATASET_POOL[name](self.data_path, dataset_opt, phase=phase)
-            for phase in self.phases
-        }
+        if name!="custom_dataset":
+            transformed_dataset = {
+                phase: DATASET_POOL[name](self.data_path, dataset_opt, phase=phase)
+                for phase in self.phases
+            }
+        else:
+            transformed_dataset = {
+                phase: partial_obj_factory(dataset_opt["name"])(self.data_path, dataset_opt, phase=phase)
+                for phase in self.phases
+            }
         dataloaders = self.init_dataset_loader(transformed_dataset, batch_size)
         dataloaders["data_size"] = {
             phase: len(dataloaders[phase]) for phase in self.phases

@@ -210,7 +210,7 @@ def sample_and_group_all(xyz, points):
     return new_xyz, new_points
 
 class PointNetSetAbstraction(nn.Module):
-    def __init__(self, npoint, radius, nsample, in_channel, mlp, mlp2 = [], group_all = False, include_xyz=True,cov_sigma_scale=0.02,aniso_kernel_scale=0.08, use_aniso_kernel=True):
+    def __init__(self, npoint, radius, nsample, in_channel, mlp, mlp2 = [], group_all = False, include_xyz=True,cov_sigma_scale=0.02,aniso_kernel_scale=0.08,use_knn=False, use_aniso_kernel=True):
         super(PointNetSetAbstraction, self).__init__()
         self.npoint = npoint
         self.radius = radius
@@ -228,14 +228,22 @@ class PointNetSetAbstraction(nn.Module):
             self.mlp2_convs.append(nn.Sequential(nn.Conv1d(last_channel, out_channel, 1, bias=False),
                                                 nn.BatchNorm1d(out_channel)))
             last_channel = out_channel
-        if group_all:
+        if not use_knn:
+            self.queryandgroup = pointutils.QueryAndGroup(radius, nsample, use_xyz=include_xyz)
+        else:
             if use_aniso_kernel:
                 self.queryandgroup =pointutils.AnisoQueryAndGroup(cov_sigma_scale=cov_sigma_scale,aniso_kernel_scale=aniso_kernel_scale, nsample=nsample, use_xyz=include_xyz)
             else:
-                self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
-            #self.queryandgroup = pointutils.GroupAll(use_xyz=include_xyz)
-        else:
-            self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
+                self.queryandgroup =pointutils.IsoQueryAndGroup( nsample=nsample, use_xyz=include_xyz)
+
+        # if group_all:
+        #     if use_aniso_kernel:
+        #         self.queryandgroup =pointutils.AnisoQueryAndGroup(cov_sigma_scale=cov_sigma_scale,aniso_kernel_scale=aniso_kernel_scale, nsample=nsample, use_xyz=include_xyz)
+        #     else:
+        #         self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
+        #     #self.queryandgroup = pointutils.GroupAll(use_xyz=include_xyz)
+        # else:
+        #     self.queryandgroup = pointutils.QueryAndGroup(radius, nsample,use_xyz=include_xyz)
 
     def forward(self, xyz, points):
         """

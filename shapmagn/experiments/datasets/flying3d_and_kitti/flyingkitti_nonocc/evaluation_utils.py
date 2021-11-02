@@ -65,6 +65,15 @@ def evaluate_res(is_kitti=False):
             batch_info["record_path"],"3d","{}_epoch_{}".format(batch_info["phase"], batch_info["epoch"]),
         )
         os.makedirs(record_path, exist_ok=True)
+        if ("mapped_position" not in additional_param
+        ):
+            save_shape_into_files(
+                record_path,
+                (alias + "_gt_flowed") if len(alias) else "gt_flowed",
+                batch_info["pair_name"],
+                gt_flowed
+            )
+
         if (
             additional_param is not None
             and has_prealign
@@ -77,17 +86,12 @@ def evaluate_res(is_kitti=False):
             for pid, pair_name in enumerate(batch_info["pair_name"]):
                 np.save(os.path.join(record_path, pair_name + alias + "_prealigned_reg_param.npy"),
                     reg_param[pid],)
-            save_shape_into_files(
-                record_path,
-                alias + "_gt_flowed",
-                batch_info["pair_name"],
-                gt_flowed
-            )
+
         if additional_param is not None and "mapped_position" in additional_param:
             fp = additional_param["mapped_position"]
             save_shape_into_files(
                 record_path,
-                alias + "_flowed",
+                (alias + "_flowed") if len(alias) else "flowed",
                 batch_info["pair_name"],
                 shape_pair.flowed,
             )

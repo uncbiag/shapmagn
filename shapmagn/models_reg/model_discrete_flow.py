@@ -128,7 +128,7 @@ class DiscreteFlowOPT(nn.Module):
         self.global_iter = self.global_iter * 0
         self.drift_buffer = {}
 
-    def flow_v2(self, shape_pair):
+    def flow(self, shape_pair):
         """
         todo  for the rigid kernel regression, anistropic kernel interpolation is not supported yet
         the flow approach is designed for two proposes: interpolate the flowed points from control points / ambient space interpolation
@@ -158,26 +158,26 @@ class DiscreteFlowOPT(nn.Module):
         flowed.set_data_with_refer_to(flowed_points, shape_pair.source)
         shape_pair.set_flowed(flowed)
         return shape_pair
-
-    def flow(self, shape_pair):
-        """
-
-        :param shape_pair:
-        :return:
-        """
-
-        toflow_points = shape_pair.toflow.points
-        control_points = shape_pair.control_points
-        control_weights = shape_pair.control_weights
-        flowed_control_points = shape_pair.flowed_control_points
-
-        flowed_points = self.interp_kernel(
-            toflow_points, control_points, flowed_control_points, control_weights
-        )
-        flowed = Shape()
-        flowed.set_data_with_refer_to(flowed_points, shape_pair.source)
-        shape_pair.set_flowed(flowed)
-        return shape_pair
+    #
+    # def flow(self, shape_pair):
+    #     """
+    #
+    #     :param shape_pair:
+    #     :return:
+    #     """
+    #
+    #     toflow_points = shape_pair.toflow.points
+    #     control_points = shape_pair.control_points
+    #     control_weights = shape_pair.control_weights
+    #     flowed_control_points = shape_pair.flowed_control_points
+    #
+    #     flowed_points = self.interp_kernel(
+    #         toflow_points, control_points, flowed_control_points, control_weights
+    #     )
+    #     flowed = Shape()
+    #     flowed.set_data_with_refer_to(flowed_points, shape_pair.source)
+    #     shape_pair.set_flowed(flowed)
+    #     return shape_pair
 
     def regularization(self, sm_flow, flow):
         dist = sm_flow * flow
@@ -251,27 +251,27 @@ class DiscreteFlowOPT(nn.Module):
         ] = flowed_control_points_high.detach().clone()
         return shape_pair_high
 
-    def update_reg_param_from_low_scale_to_high_scale_v2(
-        self, shape_pair_low, shape_pair_high
-    ):
-        """todo   do interpolation on disp"""
-        # assert self.drift_every_n_iter==-1, "the drift mode is not fully tested in multi-scale mode, disabled for now"
-        control_points_high = shape_pair_high.get_control_points()
-        control_points_low = shape_pair_low.get_control_points()
-        control_weights_low = shape_pair_low.control_weights
-        flowed_control_points_low = shape_pair_low.flowed_control_points
-        flowed_control_points_high = self.interp_kernel(
-            control_points_high,
-            control_points_low,
-            flowed_control_points_low,
-            control_weights_low,
-        )
-        shape_pair_high.set_control_points(control_points_high)
-        self.init_reg_param(shape_pair_high)
-        self.drift_buffer[
-            "moving_control_points"
-        ] = flowed_control_points_high.detach().clone()
-        return shape_pair_high
+    # def update_reg_param_from_low_scale_to_high_scale(
+    #     self, shape_pair_low, shape_pair_high
+    # ):
+    #     """todo   do interpolation on disp"""
+    #     # assert self.drift_every_n_iter==-1, "the drift mode is not fully tested in multi-scale mode, disabled for now"
+    #     control_points_high = shape_pair_high.get_control_points()
+    #     control_points_low = shape_pair_low.get_control_points()
+    #     control_weights_low = shape_pair_low.control_weights
+    #     flowed_control_points_low = shape_pair_low.flowed_control_points
+    #     flowed_control_points_high = self.interp_kernel(
+    #         control_points_high,
+    #         control_points_low,
+    #         flowed_control_points_low,
+    #         control_weights_low,
+    #     )
+    #     shape_pair_high.set_control_points(control_points_high)
+    #     self.init_reg_param(shape_pair_high)
+    #     self.drift_buffer[
+    #         "moving_control_points"
+    #     ] = flowed_control_points_high.detach().clone()
+    #     return shape_pair_high
 
     def drift(self, shape_pair):
         """
@@ -378,6 +378,33 @@ class DiscreteFlowOPT(nn.Module):
         self.global_iter += 1
         return loss
 
+
+    def NN_guidence(self,flowed, target):
+        from shapmagn.utils.knn_utils import NN
+        nn_guided_opt = deepcopy(
+            self.opt[("nn_guided", {}, "settings for nearest point guidance")]
+        )
+        post_kernel_obj = nn_guided_opt[
+            ("post_kernel_obj", "", "shape interpolator")
+        ]
+        post_kernel = obj_factory(post_kernel_obj) if post_kernel_obj else None
+        nn_points,_ = NN(return_value=False, return_pos=True)(flowed.points, target.points)
+        nnflowed = Shape().set_data_with_refer_to(nn_points, flowed)
+        if post_kernel is not None:
+            disp = nnflowed.points - flowed.points
+            flowed_points = flowed.points
+            smoothed_disp = post_kernel(
+                flowed_points, flowed_points, disp, flowed.weights
+            )
+            nnflowed.points = flowed_points + smoothed_disp
+        nnflowed_disp = (nnflowed.points - flowed.points).detach()
+        if self.running_result_visualize or self.saving_running_result_visualize:
+            self.visualize_gradflow(flowed, nnflowed_disp, target, None)
+        return nnflowed, nnflowed_disp
+
+    # mapped_position = NNInterpolater()(shape_pair.flowed.points, shape_pair.target.points,shape_pair.target.points)
+    # wasserstein_dist =  torch.Tensor([-1]*shape_pair.nbatch)
+
     def wasserstein_gradient_flow_guidence(self, flowed, target):
         """
         wassersten gradient flow has a reasonable behavior only when set self.pair_feature_extractor = None
@@ -389,7 +416,7 @@ class DiscreteFlowOPT(nn.Module):
         post_kernel_obj = gradflow_guided_opt[
             ("post_kernel_obj", "", "shape interpolator")
         ]
-        post_kernel_obj = obj_factory(post_kernel_obj) if post_kernel_obj else None
+        post_kernel = obj_factory(post_kernel_obj) if post_kernel_obj else None
         gradflow_blur_init = gradflow_guided_opt[
             (
                 "gradflow_blur_init",
@@ -474,10 +501,10 @@ class DiscreteFlowOPT(nn.Module):
             flowed, target, geomloss_setting, self.local_iter
         )
         gradflowed.points = gradflowed.points.detach()
-        if post_kernel_obj is not None:
+        if post_kernel is not None:
             disp = gradflowed.points - flowed.points
             flowed_points = flowed.points
-            smoothed_disp = post_kernel_obj(
+            smoothed_disp = post_kernel(
                 flowed_points, flowed_points, disp, flowed.weights
             )
             gradflowed.points = flowed_points + smoothed_disp
@@ -502,7 +529,7 @@ class DiscreteFlowOPT(nn.Module):
         )
         if self.local_iter == 0:
             moving, shape_pair.target = self.extract_fea(moving, shape_pair.target)
-        grad_flowed, gradflowed_disp = self.wasserstein_gradient_flow_guidence(
+        grad_flowed, gradflowed_disp = self.wasserstein_gradient_flow_guidence(  #self.NN_guidence( #self.wasserstein_gradient_flow_guidence(
             moving, shape_pair.target
         )
         gradflowed_disp = gradflowed_disp  # if self.local_iter<3 else gradflowed_disp/(self.local_iter.item())# todo control the step size, should be set as a controlable parameter
@@ -567,6 +594,7 @@ class DiscreteFlowOPT(nn.Module):
         from shapmagn.utils.visualizer import (
             visualize_point_pair_overlap,
             visualize_source_flowed_target_overlap,
+            default_plot
         )
         from shapmagn.experiments.datasets.lung.lung_data_analysis import (
             flowed_weight_transform,
@@ -590,8 +618,12 @@ class DiscreteFlowOPT(nn.Module):
             "source",
             "flowed",
             "target",
-            #  flow=gradflowed_disp,
-            add_bg_contrast=False,
+            source_plot_func=default_plot(cmap="magma", rgb=False),
+            flowed_plot_func=default_plot(cmap="magma", rgb=False),
+            target_plot_func=default_plot(cmap="viridis", rgb=False),
+            flow=flowed.points-source.points,
+            opacity=(1.0, 1.0, 1.0),
+            add_bg_contrast=True,
             show=self.running_result_visualize,
             saving_capture_path=saving_capture_path,
         )
@@ -614,7 +646,7 @@ class DiscreteFlowOPT(nn.Module):
             )
 
     def visualize_gradflow(self, flowed, gradflowed_disp, target, mapped_mass_ratio):
-        from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
+        from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, default_plot
 
         saving_capture_path = (
             None
@@ -641,9 +673,14 @@ class DiscreteFlowOPT(nn.Module):
             "cur_source",
             "gradflowed",
             "target",
-            # flow=gradflowed_disp,
-            add_bg_contrast=False,
+            source_plot_func=default_plot(cmap="magma", rgb=False),
+            flowed_plot_func=default_plot(cmap="magma", rgb=False),
+            target_plot_func=default_plot(cmap="viridis", rgb=False),
+            flow=gradflowed_disp,
+            opacity=(1.0,1.0,1.0),
+            add_bg_contrast=True,
             camera_pos=camera_pos,
             show=self.running_result_visualize,
             saving_capture_path=saving_capture_path,
+
         )

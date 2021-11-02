@@ -374,8 +374,8 @@ class LDDMMOPT(nn.Module):
                     reg_factor,
                 )
             )
-            if self.local_iter%10==0:
-                self.debug(shape_pair.source, shape_pair.flowed, shape_pair.target, alias="{}_{}".format(shape_pair.pair_name[0], int(self.local_iter.item())))
+            # if self.local_iter%10==0:
+            #     self.debug(shape_pair.source, shape_pair.flowed, shape_pair.target, alias="{}_{}".format(shape_pair.pair_name[0], int(self.local_iter.item())))
         loss = sim_loss + reg_loss
         self.local_iter += 1
         self.global_iter += 1

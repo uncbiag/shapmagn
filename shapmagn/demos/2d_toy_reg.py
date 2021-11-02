@@ -60,7 +60,6 @@ def get_points(path, npoint=1000, dtype=torch.FloatTensor):
 pair_name = generate_pair_name([source_path, target_path])
 source_points, source_weights = get_points(source_path, npoint=1000)
 target_points, target_weights = get_points(target_path, npoint=1200)
-source_points = source_points
 source_min_interval = compute_interval(source_points)
 target_min_interval = compute_interval(target_points)
 min_interval = min(source_min_interval, target_min_interval) / 2
@@ -69,8 +68,8 @@ print(
         source_min_interval, target_min_interval
     )
 )
-source_obj = {"points": source_points[None], "weights": source_weights[None]}
-target_obj = {"points": target_points[None], "weights": target_weights[None]}
+source_obj = {"points": source_points[None].to(device), "weights": source_weights[None].to(device)}
+target_obj = {"points": target_points[None].to(device), "weights": target_weights[None].to(device)}
 input_data = {"source": source_obj, "target": target_obj}
 create_shape_pair_from_data_dict = obj_factory(
     "shape_pair_utils.create_source_and_target_shape()"
@@ -232,36 +231,36 @@ model.init_reg_param(shape_pair)
 shape_pair = solver(shape_pair)
 print("the registration complete")
 
-
-model_opt["running_result_visualize"] = True
-
-use_aniso_kernel = True
-model_opt["use_aniso_kernel"] = use_aniso_kernel
-model_opt["fix_anistropic_kernel_using_initial_shape"] = True and use_aniso_kernel
-model_opt["fix_feature_using_initial_shape"] = True
-kernel_size = 0.04  # iso 0.08
-spline_param = "cov_sigma_scale=0.01,aniso_kernel_scale={},principle_weight=(5.,1.),eigenvalue_min=0.1,iter_twice=True,leaf_decay=False,self_center=False".format(
-    kernel_size
-)
-# spline_param="cov_sigma_scale=0.04,aniso_kernel_scale={},eigenvalue_min=0.1,iter_twice=True, fixed={}, leaf_decay=False, self_center=False".format(kernel_size,model_opt["fix_anistropic_kernel_using_initial_shape"] )
-if not use_aniso_kernel:
-    model_opt[
-        "spline_kernel_obj"
-    ] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
-        kernel_size
-    )
-else:
-    model_opt[
-        "spline_kernel_obj"
-    ] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
-model_opt[
-    "interp_kernel_obj"
-] = "point_interpolator.nadwat_kernel_interpolator(exp_order=2)"  # only used for multi-scale registration
-model_opt["gradient_flow_mode"] = gradient_flow_mode
-shape_pair.source = shape_pair.flowed
-shape_pair.control_points = shape_pair.flowed_control_points
-model = MODEL_POOL[model_name](model_opt)
-solver = build_multi_scale_solver(solver_opt, model)
-model.init_reg_param(shape_pair)
-shape_pair = solver(shape_pair)
-print("the registration complete")
+#
+# model_opt["running_result_visualize"] = True
+#
+# use_aniso_kernel = True
+# model_opt["use_aniso_kernel"] = use_aniso_kernel
+# model_opt["fix_anistropic_kernel_using_initial_shape"] = True and use_aniso_kernel
+# model_opt["fix_feature_using_initial_shape"] = True
+# kernel_size = 0.04  # iso 0.08
+# spline_param = "cov_sigma_scale=0.01,aniso_kernel_scale={},principle_weight=(5.,1.),eigenvalue_min=0.1,iter_twice=True,leaf_decay=False,self_center=False".format(
+#     kernel_size
+# )
+# # spline_param="cov_sigma_scale=0.04,aniso_kernel_scale={},eigenvalue_min=0.1,iter_twice=True, fixed={}, leaf_decay=False, self_center=False".format(kernel_size,model_opt["fix_anistropic_kernel_using_initial_shape"] )
+# if not use_aniso_kernel:
+#     model_opt[
+#         "spline_kernel_obj"
+#     ] = "point_interpolator.NadWatIsoSpline(kernel_scale={}, exp_order=2)".format(
+#         kernel_size
+#     )
+# else:
+#     model_opt[
+#         "spline_kernel_obj"
+#     ] = "point_interpolator.NadWatAnisoSpline(exp_order=2,{})".format(spline_param)
+# model_opt[
+#     "interp_kernel_obj"
+# ] = "point_interpolator.nadwat_kernel_interpolator(exp_order=2)"  # only used for multi-scale registration
+# model_opt["gradient_flow_mode"] = gradient_flow_mode
+# shape_pair.source = shape_pair.flowed
+# shape_pair.control_points = shape_pair.flowed_control_points
+# model = MODEL_POOL[model_name](model_opt)
+# solver = build_multi_scale_solver(solver_opt, model)
+# model.init_reg_param(shape_pair)
+# shape_pair = solver(shape_pair)
+# print("the registration complete")

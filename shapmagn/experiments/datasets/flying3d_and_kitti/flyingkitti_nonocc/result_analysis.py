@@ -170,7 +170,7 @@ def get_performance():
     task_name = "deepflow_spline_8192_withaug_kitti_prealigned"
     data_dic[task_name] = get_experiment_data_from_record(
         inc(),
-        os.path.join(task_folder, task_name, "records/EPE3D_and_gf_records_detail.npy"),
+        os.path.join(task_folder, task_name, "records/EPE3D_gf_records_detail.npy"),
     )
     data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
     task_name = "deepflow_spline_30000_withaug_kitti_prealigned"
@@ -200,9 +200,9 @@ def get_performance():
         inc(), os.path.join(task_folder, task_name, "records/EPE3D_records_detail.npy")
     )
     data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
-    # task_name = 'deepflow_official_8192_flot_kitti_prealigned'
-    # data_dic[task_name] = get_experiment_data_from_record(inc(), os.path.join(task_folder, task_name,'records/EPE3D_and_gf_records_detail.npy'))
-    # data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
+    task_name = 'deepflow_official_8192_flot_kitti_prealigned'
+    data_dic[task_name] = get_experiment_data_from_record(inc(), os.path.join(task_folder, task_name,'records/EPE3D_and_gf_records_detail.npy'))
+    data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
     return data_dic
 
 
@@ -317,9 +317,9 @@ def get_speed():
             batch_task_folder, task_name, "records/forward_t_records_detail.npy"
         ),
     )
-    # task_name = 'deepflow_official_8192_flot_kitti_prealigned'
-    # data_dic[task_name] = get_experiment_data_from_record(inc(), os.path.join(task_folder, task_name,'records/forward_t_records_detail.npy'))
-    # data_dic[task_name + "_batch"] = get_experiment_data_from_record(inc(), os.path.join(batch_task_folder, task_name, 'records/forward_t_records_detail.npy'))
+    task_name = 'deepflow_official_8192_flot_kitti_prealigned'
+    data_dic[task_name] = get_experiment_data_from_record(inc(), os.path.join(task_folder, task_name,'records/forward_t_records_detail.npy'))
+    data_dic[task_name + "_batch"] = get_experiment_data_from_record(inc(), os.path.join(batch_task_folder, task_name, 'records/forward_t_records_detail.npy'))
 
     return data_dic
 
@@ -362,9 +362,9 @@ def get_memory():
     task_name = "deepflow_official_8192_flot_kitti"
     data_dic[task_name] = inc(), 2.76 * 1024
     data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
-    # task_name = 'deepflow_official_8192_flot_kitti_prealigned'
-    # data_dic[task_name] = inc(), 2.76 * 1024
-    # data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
+    task_name = 'deepflow_official_8192_flot_kitti_prealigned'
+    data_dic[task_name] = inc(), 2.76 * 1024
+    data_dic[task_name + "_batch"] = inc(), data_dic[task_name][1]
     return data_dic
 
 
@@ -600,44 +600,46 @@ def inc():
     return order
 
 #
-# #
-# res, name_list = get_kitti_res()
-# filtered = ["_batch" not in name and "_2step" not in name for name in name_list]
-# name_list = [
-#     "PWC",
-#     "PWC_batch",
-#     "D-RobOT(PWC)",
-#     "D-RobOT(PWC)_batch",
-#     "PWC(dense)",
-#     "PWC(dense)_batch",
-#     "D-RobOT(PWC&dense)",
-#     "D-RobOT(PWC&dense)_batch",
-#     "D-RobOT(spline)",
-#     "D-RobOT(spline)_batch",
-#     "D-RobOT(spline&dense)",
-#     "D-RobOT(spline&dense)_batch",
-#     "spline_im_dense_2step",
-#     "spline_im_dense_2step_batch",
-#     "RobOT",
-#     "RobOT_batch",
-#     "RobOT(dense)",
-#     "RobOT(dense)_batch",
-#     "FLOT",
-#     "FLOT_batch",
-# ]
-# name_list = [name.replace("_batch", "") for name in name_list]
-# name_list = [name_list[i] for i, ind in enumerate(filtered) if ind]
-# res["performance"] = [res["performance"][i] for i, ind in enumerate(filtered) if ind]
-# res["time"] = [res["time"][i] for i, ind in enumerate(filtered) if ind]
-# res["memory"] = [res["memory"][i] for i, ind in enumerate(filtered) if ind]
 #
-# def save_json(path, data):
-#     import json
-#     with open(path, "w") as f:
-#         json.dump(data, f)
+res, name_list = get_kitti_res()
+filtered = ["_batch" not in name and "_2step" not in name for name in name_list]
+name_list = [
+    "PWC",
+    "PWC_batch",
+    "D-RobOT(PWC)",
+    "D-RobOT(PWC)_batch",
+    "PWC(dense)",
+    "PWC(dense)_batch",
+    "D-RobOT(PWC&dense)",
+    "D-RobOT(PWC&dense)_batch",
+    "D-RobOT(spline)",
+    "D-RobOT(spline)_batch",
+    "D-RobOT(spline&dense)",
+    "D-RobOT(spline&dense)_batch",
+    "spline_im_dense_2step",
+    "spline_im_dense_2step_batch",
+    "RobOT",
+    "RobOT_batch",
+    "RobOT(dense)",
+    "RobOT(dense)_batch",
+    "FLOT",
+    "FLOT_batch",
+    "D-RobOT(FLOT)",
+    "D-RobOT(FLOT)_batch",
+]
+name_list = [name.replace("_batch", "") for name in name_list]
+name_list = [name_list[i] for i, ind in enumerate(filtered) if ind]
+res["performance"] = [res["performance"][i] for i, ind in enumerate(filtered) if ind]
+res["time"] = [res["time"][i] for i, ind in enumerate(filtered) if ind]
+res["memory"] = [res["memory"][i] for i, ind in enumerate(filtered) if ind]
 
-# res["name_list"] = name_list
-# save_json("./res.json",res)
+def save_json(path, data):
+    import json
+    with open(path, "w") as f:
+        json.dump(data, f)
+
+res["name_list"] = name_list
+save_json("./res.json",res)
 def load_json(file_path):
     import json
     with open(file_path) as f:
@@ -653,5 +655,6 @@ scatter_plot(
     res["time"],
     res["memory"],
     "Performance on KITTI",
-    fpth=fpth,
+    fpth=None,
 )
+print({res["name_list"][i]: res["performance"][i] for i in range(len(res["name_list"]))})

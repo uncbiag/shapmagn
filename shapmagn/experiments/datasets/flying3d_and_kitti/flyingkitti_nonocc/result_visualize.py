@@ -2,7 +2,7 @@ from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap
 import torch
 
 case_id = "000024" # 000060  000061  000062  000146
-expri_output_folder = "/home/zyshen/data/kitti_task/methods/drobot_spline/"  # drobot_pwc drobot_spline  pwc flot
+expri_output_folder = "/home/zyshen/data/kitti_task/methods/30000/robot/"  # drobot_pwc drobot_spline  pwc flot
 source_path = expri_output_folder+"{}_source.vtk".format(case_id)
 target_path = expri_output_folder+"{}_target.vtk".format(case_id)
 flowed_path = expri_output_folder+ "{}_flowed.vtk".format(case_id)

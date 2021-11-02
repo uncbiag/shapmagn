@@ -19,7 +19,6 @@ from shapmagn.utils.obj_factory import partial_obj_factory
 
 try:
     import open3d as o3d
-    import probreg
 except:
     print("open3d is not detected, related functions are disabled")
 try:
@@ -396,7 +395,7 @@ def registration_cpd(
             then the scale is treated. The default is true.
         tf_init_params (dict, optional): Parameters to initialize transformation (for rigid or affine).
     """
-    from probreg.probreg.cpd import RigidCPD, AffineCPD, NonRigidCPD
+    from probreg.cpd import RigidCPD, AffineCPD, NonRigidCPD
 
     if tf_type_name == "rigid":
         cpd = RigidCPD(source, **kargs)

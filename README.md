@@ -7,7 +7,7 @@ based registration approaches.  It also provides a general framework for deep pr
 
 ### Supported Approach list:
 
-####Optimization-based approaches:
+#### Optimization-based approaches:
 1. Spline registration (support anisotropic kernel)
 2. Fluid registration (support LDDMM)
 3. Coherent Point Drift
@@ -17,13 +17,13 @@ based registration approaches.  It also provides a general framework for deep pr
 7. Thirdparty approaches (Probreg, Open3d, Teaser++)
 
 
-####Deep learning based registration approaches:
+#### Deep learning based registration approaches:
 1. Spline registration (support anisotropic kernel)
 2. Fluid registration (support LDDMM)
 3. Point cloud feature learning (self-supervised)
 4. end-to-end registration (prealign, spline/LDDMM, postprocessing)
 
-####Deep learning based other approaches:
+#### Deep learning based other approaches:
 1. Landmark Detection
 
 
@@ -104,26 +104,34 @@ python run_eval.py -dj SHAPMAN_INTPUT_PATH/pair_data.json -o ./demos/output/test
 Here are some examples on supported functions:
 
 **[Robust Optimal Transport (RobOT)](shapmagn/demos/ot_fun.py)**:
- <img src=".github/shape_transfer.gif" alt="shape_transfer"  width="400" height="300"/>
+
+ <img src=".github/shape_transfer.gif" alt="shape_transfer"  width="500" height="400"/>
 
 **[RobOT Projection (Partial Rigid Registration)](shapmagn/demos/partial_prealign_reg.py)**:
+
  ![node](.github/partial_bunny.gif) 
 
 **[RobOT Projection (Spline, LDDMM)](shapmagn/demos/toy_reg.py)**:
+
  ![node](.github/ot_projection.png) 
 
 **Lung vessel Registration**:
+
  ![node](.github/lung_vessel_reg.gif) 
  
 **[Scene Flow Estimation](shapmagn/demos/flyingkitti_reg.py)**:
- ![node](.github/scene_flow.gif) 
+
+  <img src=".github/scene_flow.gif" alt="scene_flow"  width="700" height="300"/> 
+
 
 **Self-supervised Feature Learning**:
- ![node](.github/lung_fea.gif) 
+
+ <img src=".github/lung_fea.gif" alt="lung_fea"  width="500" height="300"/> 
  
 **[Synthesized Data Pair Generation](shapmagn/experiments/datasets/lung/lung_data_aug.py)**:
+ 
  ![node](.github/synthesize_data.png) 
 
 **Facial Landmark Detection**:
 
- <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>
+ <img src=".github/face_landmark.gif" alt="face_landmark"  width="400" height="400"/>

@@ -270,7 +270,7 @@ if __name__ == "__main__":
     # folder_path ="/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun2/records/3d/test_epoch_-1"
     case_id_list = ["copd{}".format(i) for i in range(1,11)]
     for case_id in case_id_list:
-        output_folder = os.path.join(folder_path, "gif2", case_id)
+        output_folder = os.path.join(folder_path, "gif3", case_id)
         os.makedirs(output_folder, exist_ok=True)
         total_captrue_path_list = []
 

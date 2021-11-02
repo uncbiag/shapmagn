@@ -4,6 +4,8 @@ run shape learning/optimization
 
 import os, sys
 import subprocess
+sys.path.insert(0, os.path.abspath(".."))
+
 from shapmagn.datasets.data_utils import get_file_name, cp_file
 
 os.environ["DISPLAY"] = ":99.0"
@@ -12,7 +14,6 @@ os.environ["PYVISTA_USE_IPYVTK"] = "true"
 bashCommand = "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & sleep 3"
 process = subprocess.Popen(bashCommand, stdout=subprocess.PIPE, shell=True)
 process.wait()
-sys.path.insert(0, os.path.abspath(".."))
 import torch
 import pykeops
 try:
@@ -67,8 +68,9 @@ def init_eval_env(setting_path, output_root_path, data_json_path):
     eval_data_folder = os.path.join(output_root_path, "test")
     os.makedirs(eval_data_folder, exist_ok=True)
     os.makedirs(os.path.join(output_root_path, "res"), exist_ok=True)
-    data_json_name = get_file_name(data_json_path)
-    cp_file(data_json_path, os.path.join(eval_data_folder, data_json_name + ".json"))
+    if data_json_path:
+        data_json_name = get_file_name(data_json_path)
+        cp_file(data_json_path, os.path.join(eval_data_folder, data_json_name + ".json"))
     os.makedirs(output_root_path, exist_ok=True)
     tsm_json_path = os.path.join(setting_path, "task_setting.json")
     assert os.path.isfile(tsm_json_path), "task setting:{} not exists".format(
@@ -131,7 +133,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-dj",
         "--data_json",
-        required=True,
+        required=False,
         type=str,
         default=None,
         help="the path of data json file",

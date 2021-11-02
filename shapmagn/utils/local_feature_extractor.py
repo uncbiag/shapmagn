@@ -207,10 +207,10 @@ def pair_feature_extractor(
 ):
     fea_extractor = feature_extractor(fea_type_list, radius, std_normalize, include_pos)
 
-    def extract(flowed, target, iter=None, flowed_gamma=None, target_gamma=None):
-        flowed.pointfea, mean, std, _ = fea_extractor(
-            flowed.points,
-            flowed.weights,
+    def extract(source, target, iter=None, flowed_gamma=None, target_gamma=None):
+        source.pointfea, mean, std, _ = fea_extractor(
+            source.points,
+            source.weights,
             weight_list=weight_list,
             gamma=flowed_gamma,
             return_stats=True,
@@ -223,16 +223,29 @@ def pair_feature_extractor(
             mean=mean,
             std=std,
         )
-        return flowed, target
+        return source, target
 
     return extract
 
 
-def pair_feature_preextracted_extractor():
-    def extract(flowed, target):
-        return flowed, target
 
+def default_local_pair_feature_extractor():
+    def extract(source, target):
+        source.pointfea = (
+            source.points.clone()
+        )
+        target.pointfea = (
+            target.points.clone()
+        )
+        return source, target
     return extract
+
+
+
+# def pair_feature_preextracted_extractor():
+#     def extract(flowed, target):
+#         return flowed, target
+#     return extract
 
 
 def FPFH_extractor(radius_normal, radius_feature):

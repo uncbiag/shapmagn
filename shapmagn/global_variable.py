@@ -32,6 +32,7 @@ from shapmagn.datasets.pair_dataset import RegistrationPairDataset
 DATASET_POOL = {
     "general_dataset": GeneralDataset,
     "pair_dataset": RegistrationPairDataset,
+    "custom_dataset": None,
 }
 
 

@@ -133,8 +133,8 @@ class DeepModel(ModelBase):
             batch_info["has_gt"] = True
             return input_data, batch_info
         else:
-            batch_info["corr_source_target"] = False
-            batch_info["has_gt"] = False
+            batch_info["corr_source_target"] = all(input_data["source"]["extra_info"].get("corr_source_target",False))
+            batch_info["has_gt"] = all(input_data["source"]["extra_info"].get("has_gt",False))
             return input_data, batch_info
 
     def set_input(self, input_data, device, phase=None):

@@ -2,40 +2,38 @@
 
 This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
 
-The repository provides a general framework for the point cloud/mesh registration, supporting both optimization and learning
-based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. 3D landmark detection. 
+The repository provides a general framework for point cloud/mesh registration, supporting both optimization- and learning-based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. for 3D landmark detection. 
 
-### Supported Approach list:
+### Supported approaches:
 
 #### Optimization-based approaches:
-1. Spline registration (support anisotropic kernel)
-2. Fluid registration (support LDDMM)
+1. Spline registration (supports anisotropic kernel)
+2. Fluid registration (supports LDDMM)
 3. Coherent Point Drift
 4. Robust Optimal Transport (RobOT)
 5. RobOT Projection (rigid, spline, LDDMM)
-6. RobOT based uniform mass sampling
-7. Thirdparty approaches (Probreg, Open3d, Teaser++)
+6. RobOT-based uniform mass sampling
+7. Third party approaches (Probreg, Open3d, Teaser++)
 
 
-#### Deep learning based registration approaches:
-1. Spline registration (support anisotropic kernel)
-2. Fluid registration (support LDDMM)
+#### Deep learning-based registration approaches:
+1. Spline registration (supports anisotropic kernel)
+2. Fluid registration (supports LDDMM)
 3. Point cloud feature learning (self-supervised)
-4. end-to-end registration (prealign, spline/LDDMM, postprocessing)
+4. End-to-end registration (prealign, spline/LDDMM, postprocessing)
 
-#### Deep learning based other approaches:
+#### Other deep learning-based approaches:
 1. Landmark Detection
 
 
-
-## Instalation
+## Installation
 
 
 For detailed instructions refer to [INSTALL.md](INSTALL.md).
 
 ## Demo
-We provide a series of demos, which can be found at shapmagn/demos
-Here are two examples on how to run the optimization-based demos :
+We provide a series of demos, which can be found in the directory shapmagn/demos
+Here are two examples demonstrating how to run the optimization-based demos :
 
 ### Optimization demos
 ```
@@ -52,12 +50,12 @@ python ot_sampling.py
 
 ### Deep demo on Lung vessel tree
 
-Here is an example on deep feature learning on lung vessel dataset:
+Here is an example on deep feature learning on the lung vessel dataset:
 ```
 python run_task.py -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/training_feature_learning_on_one_case -tn deepfeature_pointconv_train -ts ./demos/settings/lung/deep_feature_training -g 0
 ```
 
-Here is an example on robust optimal transport based deep feature projection (spline) on lung vessel dataset:
+Here is an example on robust optimal transport based deep feature projection (spline) on the lung vessel dataset:
 ```
 python run_eval.py -dj ./demos/data/lung_data/lung_dataset_splits/test/pair_data.json -o ./demos/output/test_feature_projection_one_case/deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
 ```
@@ -76,11 +74,11 @@ python run_eval.py -dj ./demos/data/lung_data/lung_dataset_splits/test/pair_data
 
 ### Deep demo on Kitti
 
-#### Prepare Kitti data
-We need prepare the data of KITTI Scene Flow 2015 first. Here we follow the instruction in [PointPWC](https://github.com/DylanWusee/PointPWC).
+#### Preparing the Kitti data
+We need to prepare the data of KITTI Scene Flow 2015 first. Here we follow the instructions in [PointPWC](https://github.com/DylanWusee/PointPWC).
 
 Download and unzip [KITTI Scene Flow Evaluation 2015](http://www.cvlibs.net/download.php?file=data_scene_flow.zip) to directory `RAW_DATA_PATH`.
-Run the following script for kitti data preprocessing, the processed data are saved in `PROCESSED_DATA_PATH`; A shapmagn compatible format is saved in `SHAPMAN_INTPUT_PATH`:
+Run the following script for KITTI data preprocessing; the processed data will be saved in `PROCESSED_DATA_PATH`; a shapmagn compatible format is saved in `SHAPMAN_INTPUT_PATH`:
 
 ```
 cd shapmagn/experiments/datasets/flying3d_and_kitti/flyingkitti_nonocc
@@ -94,7 +92,7 @@ Here is an example on evaluating a spline flow network on 142 Kitti pairs:
 python run_eval.py -dj SHAPMAN_INTPUT_PATH/pair_data.json -o ./demos/output/test_deepflow_on_kitti/deep_spline -ts ./demos/settings/kitti/deep_spline_flow  -m ./demos/pretrained_models/kitti_model/pretrained_deep_spline -g 0
 ```
 
-Here is an example on evaluating a displacement network(PWC) that combined ot prealigned and ot postprocessing on 142 Kitti pairs:
+Here is an example on evaluating a displacement network (PWC) that combines OT prealignement and OT postprocessing on 142 Kitti pairs:
 ```
 python run_eval.py -dj SHAPMAN_INTPUT_PATH/pair_data.json -o ./demos/output/test_deepflow_on_kitti/deep_pwc -ts ./demos/settings/kitti/official_released_pwc_model_with_ot_prealigned_and_post  -m ./demos/pretrained_models/kitti_model/PointConv_726_0.0463.pth -g 0
 ```
@@ -134,4 +132,4 @@ Here are some examples on supported functions:
 
 **Facial Landmark Detection**:
 
- <img src=".github/face_landmark.gif" alt="face_landmark"  width="400" height="400"/>
+ <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>

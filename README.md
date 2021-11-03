@@ -4,6 +4,12 @@ This is the repository for the paper "Accurate Point Cloud Registration with Rob
 
 The repository provides a general framework for point cloud/mesh registration, supporting both optimization- and learning-based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. for 3D landmark detection. 
 
+
+### PVT1010 Dataset
+We are in the process of preparing the PVT1010 dataset and plan to release it in late November.
+
+<em>The PVT1010 dataset includes 1,010 pairs of high resolution inhale/exhale lung vascular trees extracted from 3D computed tomography (CT) images.<em>
+
 ### Supported approaches:
 
 #### Optimization-based approaches:
@@ -113,7 +119,7 @@ Here are some examples on supported functions:
 
  ![node](.github/ot_projection.png) 
 
-**Lung vessel Registration**:
+**Lung vessel Registration (60,000 points)**:
 
  ![node](.github/lung_vessel_reg.gif) 
  
@@ -122,7 +128,7 @@ Here are some examples on supported functions:
   <img src=".github/scene_flow.gif" alt="scene_flow"  width="700" height="300"/> 
 
 
-**Self-supervised Feature Learning**:
+**Self-supervised Feature Learning (60,000 points)**:
 
  <img src=".github/lung_fea.gif" alt="lung_fea"  width="500" height="300"/> 
  
@@ -130,6 +136,6 @@ Here are some examples on supported functions:
  
  ![node](.github/synthesize_data.png) 
 
-**Facial Landmark Detection**:
+**Facial Landmark Detection (160,000 points)**:
 
  <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>

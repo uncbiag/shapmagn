@@ -136,6 +136,4 @@ Here are some examples on supported functions:
  
  ![node](.github/synthesize_data.png) 
 
-**Facial Landmark Detection (160,000 points)**:
 
- <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>

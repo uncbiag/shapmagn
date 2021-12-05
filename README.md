@@ -1,12 +1,15 @@
-## Shapmagn
-
-This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
+## Shapmagn (ShapeMagnet)
 
 The repository provides a general framework for point cloud/mesh registration, supporting both optimization- and learning-based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. for 3D landmark detection. 
 
+If you find Shapmagn is helpful, please cite
+
+Accurate Point Cloud Registration with Robust Optimal Transport [[link]](https://arxiv.org/abs/2111.00648)\
+Zhengyang Shen*, Jean Feydy*, Peirong Liu, Ariel Hernán Curiale, Ruben San Jose Estepar, Raul San Jose Estepar, Marc Niethammer,  NeurIPS 2021.
+
 
 ### PVT1010 Dataset
-We are in the process of preparing the PVT1010 dataset and plan to release it in late November.
+We are in the process of preparing the PVT1010 dataset and plan to release it in mid December.
 
 <em>The PVT1010 dataset includes 1,010 pairs of high resolution inhale/exhale lung vascular trees extracted from 3D computed tomography (CT) images.<em>
 
@@ -136,4 +139,11 @@ Here are some examples on supported functions:
  
  ![node](.github/synthesize_data.png) 
 
+**Facial Landmark Detection (160,000 points)**:
 
+ <img src=".github/face_landmark.gif" alt="face_landmark"  width="300" height="300"/>
+
+
+
+ 
+ 

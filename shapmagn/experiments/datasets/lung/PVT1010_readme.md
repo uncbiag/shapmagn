@@ -1,12 +1,10 @@
 # PVT1010
 The PVT1010 dataset includes 1,010 pairs of high resolution inhale/exhale lung vascular trees extracted from 3D computed tomography (CT) images.
 
-10 cases corresponding to the public DirLab-COPD Gene dataset which includes, for each pair, 300 expert annotated landmarks that are in correspondence with each other. These 10 cases are used as test cases.
-
 Details on how we extracted the lung vascular trees as high-resolution 3D point clouds from the raw CT images can be found at [Suppl.A.1.](https://arxiv.org/pdf/2111.00648.pdf#subsection.A.1)
 
 ## Download dirlab COPD data
-We use public [DirLab-COPD Gene dataset](https://www.dir-lab.com/) to evaluate our registration results. Please follow the official instruction to download the data.
+We use public [DirLab-COPD Gene dataset](https://med.emory.edu/departments/radiation-oncology/research-laboratories/deformable-image-registration/downloads-and-reference-data/copdgene.html) to evaluate our registration results. Please follow the official instruction to download the data.
 
 DirLab-COPD includes 10 pair cases. For each pair, 300 expert annotated landmarks that are in correspondence with each other. 
 

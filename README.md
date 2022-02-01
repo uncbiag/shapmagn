@@ -6,7 +6,7 @@ The repository provides a general framework for point cloud/mesh registration, s
 
 
 ### PVT1010 Dataset
-We release a lung veseel tree dataset PVT1010. For usage, please refer to [PVT1010_readme.md](shapmagn/experiments/datasets/lung/PVT1010_readme.md)
+We release a large lung veseel tree dataset PVT1010. For usage, please refer to [PVT1010_readme.md](shapmagn/experiments/datasets/lung/PVT1010_readme.md).
 
 The PVT1010 dataset includes 1,010 pairs of high resolution inhale/exhale lung vascular trees extracted from 3D computed tomography (CT) images.
 

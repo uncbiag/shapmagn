@@ -18,7 +18,7 @@ shapmagn/experiments/datasets/framefit_*
 shapmagn/experiments/datasets/fdome
 shapmagn/experiments/datasets/scanner_variation
 #shapmagn/experiments/datasets/flying3d_and_kitti/calib_cam_to_cam
-shapmagn/demos/data/lung_data/lung_vessel_demo_data
+#shapmagn/demos/data/lung_data/lung_vessel_demo_data
 shapmagn/demos/output
 shapmagn/demos/unpublic
 TEASER-plusplus

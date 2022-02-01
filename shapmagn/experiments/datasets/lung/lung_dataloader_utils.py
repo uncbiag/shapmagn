@@ -54,7 +54,7 @@ def lung_reader(use_radius=True):
             data_dict["weights"] =np.ones([num_sample, 1], dtype=np.float32)
         else:
             try:  # todo fixed this, this is a temporaily fix for the one-synth-pair diagnosis
-                data_dict["weights"] = raw_data_dict["dnn_radius"][:, None]
+                data_dict["weights"] = raw_data_dict["radius"][:, None]
             except:
                 data_dict["weights"] = raw_data_dict["weights"][:, None]
         fea_list = [

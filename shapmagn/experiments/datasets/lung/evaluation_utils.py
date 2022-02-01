@@ -19,16 +19,17 @@ dirlab_landmarks_folder_path = os.path.join(lung_expri_path,"dirlab_landmarks")
 
 
 def get_flowed(shape_pair, interp_kernel):
-    flowed_points = interp_kernel(
+    flow_points = interp_kernel(
         shape_pair.toflow.points,
         shape_pair.source.points,
-        shape_pair.flowed.points,
+        shape_pair.flowed.points - shape_pair.source.points,
         shape_pair.source.weights,
     )
     flowed = Shape()
-    flowed.set_data_with_refer_to(flowed_points, shape_pair.toflow)
+    flowed.set_data_with_refer_to(shape_pair.toflow.points + flow_points, shape_pair.toflow)
     shape_pair.set_flowed(flowed)
     return shape_pair
+
 
 
 def get_landmarks(source_landmarks_path, target_landmarks_path):

@@ -112,6 +112,7 @@ class DataProcessing(object):
             ).astype(np.uint32)
             diff = ((output_size - real_output_size) * np.asarray(output_spacing)) / 2
             output_origin = np.asarray(image.GetOrigin()) - diff
+
         else:
             output_origin = np.asarray(image.GetOrigin())
 

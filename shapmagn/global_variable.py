@@ -2,8 +2,8 @@ import os
 from shapmagn.shape.point_cloud import PointCloud
 from shapmagn.shape.surface_mesh import SurfaceMesh, SurfaceMesh_Point
 from shapmagn.shape.poly_line import PolyLine
-SHAPMAGN_PATH =os.path.abspath("/playpen-raid1/zyshen/proj/shapmagn/shapmagn")
-#SHAPMAGN_PATH =os.path.abspath("/home/zyshen/proj/shapmagn/shapmagn")
+#SHAPMAGN_PATH =os.path.abspath("/playpen-raid1/zyshen/proj/shapmagn/shapmagn")
+SHAPMAGN_PATH =os.path.abspath("/home/zyshen/proj/shapmagn/shapmagn")
 shape_type = "pointcloud"
 SHAPE_POOL = {
     "pointcloud": PointCloud,

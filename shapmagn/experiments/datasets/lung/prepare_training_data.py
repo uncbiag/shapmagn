@@ -12,35 +12,27 @@ if __name__ == "__main__":
     )
     parser.add_argument("--val_dirlab", action="store_true", help="use the dirlab as the validation set")
     parser.add_argument(
-        "-cf"
+        "-cf",
         "--copd_data_folder",
         type=str,
         default="",
         help="data folder including COPD lung vessel tree vtk data",
     )
     parser.add_argument(
-        "-df"
-        "--dirlab_data_folder",
-        type=str,
-        default="",
-        help="data folder including DirLab lung vessel tree vtk data",
-    )
-    parser.add_argument(
-        "-of"
+        "-of",
         "--output_folder",
         type=str,
         default="",
         help="output folder, the experiment splits will be saved into this output folder",
     )
     args = parser.parse_args()
-
+    print(args)
     insp_key = "*_INSP*"
     copd_vessel_data_folder = args.copd_data_folder    #"/playpen-raid1/Data/UNC_vesselParticles_cleaned"
-    dirlab_vessel_data_folder = args.dirlab_data_folder #"/playpen-raid1/Data/DIRLABVascular_cleaned"
     lung_expri_path = args.output_folder #"/playpen-raid1/zyshen/release_debug/lung_expri"
     use_dirlab_as_validation_set = True
     os.makedirs(lung_expri_path, exist_ok=True)
-    NUM_CASE = 977
+    NUM_CASE = 1000
     insp_name_list = ["copd_" + "{:06d}_INSP".format(i) for i in range(11, NUM_CASE+11)]
     exp_name_list = ["copd_" + "{:06d}_EXP".format(i) for i in range(11, NUM_CASE+11)]
     insp_path_list = [os.path.join(copd_vessel_data_folder, insp_name+".vtk") for insp_name in insp_name_list]

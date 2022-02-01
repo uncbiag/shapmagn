@@ -3,8 +3,8 @@ animation generation for deformation models
 
 support displacement, spline and LDDMM, prealign
 """
-
-
+import sys, os
+sys.path.insert(0, os.path.abspath("../.."))
 from shapmagn.experiments.datasets.lung.visualizer import lung_plot
 from shapmagn.utils.visualizer import visualize_source_flowed_target_overlap, visualize_point_pair_overlap, default_plot
 from PIL import Image
@@ -212,7 +212,7 @@ def generate_gif(img_capture_path_list, saving_path):
     images = []
     for img_capture_path in img_capture_path_list:
         image = imageio.imread(img_capture_path)
-        image = Image.fromarray(image)#.resize((1250, 512))
+        image = Image.fromarray(image).resize((1250, 512))
         images.append(image)
     imageio.mimsave(saving_path, images)
     optimize(saving_path)  # For overwriting the original one
@@ -270,7 +270,8 @@ if __name__ == "__main__":
     # folder_path ="/home/zyshen/remote/llr11_mount/zyshen/data/lung_expri/model_eval/draw/deep_flow_prealign_pwc_lddmm_4096_new_60000_8192_aniso_rerun2/records/3d/test_epoch_-1"
     case_id_list = ["copd{}".format(i) for i in range(1,11)]
     for case_id in case_id_list:
-        output_folder = os.path.join(folder_path, "gif3", case_id)
+        output_folder_name = "gif21"
+        output_folder = os.path.join(folder_path, output_folder_name, case_id)
         os.makedirs(output_folder, exist_ok=True)
         total_captrue_path_list = []
 
@@ -294,7 +295,7 @@ if __name__ == "__main__":
         prealign_reg_param = torch.Tensor(np.load(prealign_reg_param_path))[None]
 
         # 0 preview
-        output_folder = os.path.join(folder_path, "gif2", case_id, "preview")
+        output_folder = os.path.join(folder_path, output_folder_name, case_id, "preview")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "preview"
         camera_pos_start = [
@@ -325,7 +326,7 @@ if __name__ == "__main__":
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
         # 1  affine
-        output_folder = os.path.join(folder_path, "gif2", case_id, "prealign")
+        output_folder = os.path.join(folder_path, output_folder_name, case_id, "prealign")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "stage1: affine"
         model_type = "affine_interp"
@@ -365,7 +366,7 @@ if __name__ == "__main__":
 
         # 2  nonp
 
-        output_folder = os.path.join(folder_path, "gif2", case_id, "nonp")
+        output_folder = os.path.join(folder_path, output_folder_name, case_id, "nonp")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "stage2: LDDMM"
         model_type = "lddmm_shooting"
@@ -416,7 +417,7 @@ if __name__ == "__main__":
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
         # 3  postprocess
-        output_folder = os.path.join(folder_path, "gif2", case_id, "post")
+        output_folder = os.path.join(folder_path, output_folder_name, case_id, "post")
         os.makedirs(output_folder, exist_ok=True)
         stage_name = "stage3: postprocessing"
         model_type = "linear_interp"
@@ -454,7 +455,7 @@ if __name__ == "__main__":
         total_captrue_path_list += saving_capture_path_list
         total_captrue_path_list += [total_captrue_path_list[-1]] * 10
 
-        gif_path = os.path.join(folder_path, "gif2", case_id, "reg2.gif")
+        gif_path = os.path.join(folder_path, output_folder_name, case_id, "reg2.gif")
         generate_gif(total_captrue_path_list, gif_path)
 
         """

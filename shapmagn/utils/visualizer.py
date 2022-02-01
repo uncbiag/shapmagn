@@ -5,9 +5,11 @@ import pyvista as pv
 import subprocess
 
 from shapmagn.utils.linked_slerp import get_slerp_cam_pos
-from shapmagn.utils.utils import add_zero_last_dim
 pv.set_plot_theme("document")
 PPI = 2
+
+
+
 
 
 def setup_lights(plotter, light_mode="light_kit", elev=75, azim=100):
@@ -20,6 +22,19 @@ def setup_lights(plotter, light_mode="light_kit", elev=75, azim=100):
         # light.set_headlight()
         plotter.add_light(light)
 
+
+def add_zero_last_dim(points):
+    device = points.device
+    if isinstance(points, torch.Tensor):
+        shape = list(points.shape)
+        shape[-1] = 1
+        zero_dim = torch.zeros(shape).to(device)
+        return torch.cat([points, zero_dim], -1)
+    else:
+        shape = list(points.shape)
+        shape[-1] = 1
+        zero_dim = np.zeros(shape)
+        return np.concatenate([points, zero_dim], -1)
 
 def format_input(input):
     dim = input.shape[-1]
@@ -406,7 +421,7 @@ def visualize_full(
     # Plot 2 ---------------------------------
     p.subplot(0, plot_id)
     plot_id += 1
-    p.add_text(flowed["name"], font_size=28)
+    p.add_text(flowed["name"], font_size=30)
     flowed_plot_func(p, flowed["points"], color_adaptive(flowed["visualfea"],col_adaptive),opacity=opacity[1])
     if source is not None:
         obj1 = pv.PolyData(source["points"])
@@ -427,7 +442,7 @@ def visualize_full(
     # Plot 3 ----------------------------------
     p.subplot(0, plot_id)
     plot_id += 1
-    p.add_text(target["name"], font_size=28)
+    p.add_text(target["name"], font_size=30)
     if source is not None and add_bg_contrast:
         plot_ghost(p, obj1)
 
@@ -451,7 +466,7 @@ def visualize_full(
     )
 
     #p.add_text(flowed["name"] + "_overlap_" + target["name"], font_size=22)
-    p.add_text("overlap", font_size=22)
+    p.add_text("overlap", font_size=30)
 
     # Camera manipulation: -----------------------
     p.link_views()  # link all the views

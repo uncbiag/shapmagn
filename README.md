@@ -6,9 +6,12 @@ The repository provides a general framework for point cloud/mesh registration, s
 
 
 ### PVT1010 Dataset
-We are in the process of preparing the PVT1010 dataset and plan to release it in late November.
+We release a lung veseel tree dataset PVT1010. For usage, please refer to [PVT1010_readme.md](shapmagn/experiments/datasets/lung/PVT1010_readme.md)
 
-<em>The PVT1010 dataset includes 1,010 pairs of high resolution inhale/exhale lung vascular trees extracted from 3D computed tomography (CT) images.<em>
+The PVT1010 dataset includes 1,010 pairs of high resolution inhale/exhale lung vascular trees extracted from 3D computed tomography (CT) images.
+
+10 cases corresponding to the public DirLab-COPD Gene dataset which includes, for each pair, 300 expert annotated landmarks that are in correspondence with each other. These 10 cases are used as test cases.
+
 
 ### Supported approaches:
 
@@ -37,6 +40,8 @@ We are in the process of preparing the PVT1010 dataset and plan to release it in
 
 For detailed instructions refer to [INSTALL.md](INSTALL.md).
 
+Set `SHAPMAGN_PATH` in [global_variable.py](shapmagn/global_variable) to local shapmagn path.
+
 ## Demo
 We provide a series of demos, which can be found in the directory shapmagn/demos
 Here are two examples demonstrating how to run the optimization-based demos :
@@ -56,23 +61,23 @@ python ot_sampling.py
 
 ### Deep demo on Lung vessel tree
 
-Here is an example on deep feature learning on the lung vessel dataset:
+Here is a <em>toy<em> example on training deep feature learning on 10 dirlab pairs:
 ```
 python run_task.py -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/training_feature_learning_on_one_case -tn deepfeature_pointconv_train -ts ./demos/settings/lung/deep_feature_training -g 0
 ```
 
-Here is an example on robust optimal transport based deep feature projection (spline) on the lung vessel dataset:
+Here is an example on robust optimal transport based deep feature projection (spline) on 10 dirlab pairs:
 ```
 python run_eval.py -dj ./demos/data/lung_data/lung_dataset_splits/test/pair_data.json -o ./demos/output/test_feature_projection_one_case/deepfeature_pointconv_projection -ts ./demos/settings/lung/deep_feature_projection -g 0
 ```
 
-Here is an example on training a pretrained deep LDDMM flow network on one real pair:
+Here is a <em>toy<em> example on training a pretrained deep LDDMM flow network on 10 dirlab pairs:
 
 ```
 python run_task.py  -ds ./demos/data/lung_data/lung_dataset_splits -o ./demos/output/train_deepflow_on_one_case -tn deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow   -g 0
 ```
 
-Here is an example on evaluating a pretrained deep LDDMM flow network on one real pair:
+Here is a example on evaluating a deep LDDMM flow network on 10 dirlab pairs:
 
 ```
 python run_eval.py -dj ./demos/data/lung_data/lung_dataset_splits/test/pair_data.json -o ./demos/output/test_deepflow_on_one_case/deepflow_pwc_lddmm -ts ./demos/settings/lung/deep_lddmm_flow  -m   ./demos/pretrained_models/lung_model/pretrained_deep_lddmm -g 0

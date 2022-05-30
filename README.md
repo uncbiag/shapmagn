@@ -1,6 +1,7 @@
 ## Shapmagn
 
-This is the repository for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
+This is a temporary repository, containing our latest development code, for the paper "Accurate Point Cloud Registration with Robust Optimal Transport".
+The official released one (with stable features and easy installation) can be found at here: https://github.com/uncbiag/robot
 
 The repository provides a general framework for point cloud/mesh registration, supporting both optimization- and learning-based registration approaches.  It also provides a general framework for deep prediction tasks, e.g. for 3D landmark detection. 
 
